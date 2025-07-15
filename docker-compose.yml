@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  vnc:
+    build: .
+    ports:
+      - "6080:6080" # noVNC web interface
+      - "5901:5901" # VNC direct connection
+    volumes:
+      - ./logs:/var/log/supervisor
+    shm_size: '1gb' # Allocate more shared memory to prevent browser crashes inside VNC
