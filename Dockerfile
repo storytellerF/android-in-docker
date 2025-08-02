@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y \
     libvirt-daemon-system \
     libvirt-clients \
     bridge-utils \
+    && apt-get purge -y xfce4-power-manager xfce4-power-manager-data \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Install Android SDK
@@ -51,9 +52,6 @@ RUN echo "#!/bin/bash" > /root/.vnc/xstartup && \
     echo "xrdb \$HOME/.Xresources" >> /root/.vnc/xstartup && \
     echo "startxfce4 &" >> /root/.vnc/xstartup && \
     chmod +x /root/.vnc/xstartup
-
-# Disable the XFCE power manager plugin, which can cause issues in containers
-RUN rm -f /etc/xdg/autostart/xfce4-power-manager.desktop
 
 # 5. Android Emulator Start Script
 COPY start-android.sh /usr/local/bin/start-android.sh

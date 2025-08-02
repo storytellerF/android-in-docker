@@ -6,6 +6,10 @@ services:
       - "5901:5901" # VNC direct connection
       - "5555:5555" # ADB
     volumes:
+      - avd_data:/root/.android/avd
       - ./logs:/var/log/supervisor
     shm_size: '2gb' # Allocate more shared memory
     privileged: true # Enable KVM acceleration
+
+volumes:
+  avd_data:
