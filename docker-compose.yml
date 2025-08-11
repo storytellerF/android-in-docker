@@ -8,8 +8,10 @@ services:
     volumes:
       - avd_data:/root/.android/avd
       - ./logs:/var/log/supervisor
+      - sdk_data:/opt/android/sdk
     shm_size: '2gb' # Allocate more shared memory
     privileged: true # Enable KVM acceleration
 
 volumes:
   avd_data:
+  sdk_data:

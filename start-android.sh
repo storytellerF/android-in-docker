@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# First, ensure the SDK is installed and ready.
+echo "Running SDK installation script..."
+/usr/local/bin/install-sdk.sh
+echo "SDK setup finished."
+
 # Graceful shutdown
 shutdown() {
     echo "Shutting down emulator gracefully..."
@@ -14,8 +19,8 @@ shutdown() {
 # Trap TERM and INT signals to trigger shutdown
 trap shutdown SIGTERM SIGINT
 
-AVD_NAME="android-30"
-SYS_IMG="system-images;android-30;google_apis;x86_64"
+AVD_NAME="android-34"
+SYS_IMG="system-images;android-34;google_apis;x86_64"
 
 # Check if AVD exists
 if ! avdmanager list avd | grep -q "Name: $AVD_NAME"; then

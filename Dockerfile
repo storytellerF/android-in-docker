@@ -27,18 +27,15 @@ RUN apt-get update && apt-get install -y \
     && apt-get purge -y xfce4-power-manager xfce4-power-manager-data \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Install Android SDK
+# 2. Setup Android SDK Environment
 ENV ANDROID_SDK_ROOT=/opt/android/sdk
 ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator
-RUN mkdir -p ${ANDROID_SDK_ROOT} && \
-    wget -O sdk-tools.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" && \
-    unzip sdk-tools.zip -d ${ANDROID_SDK_ROOT}/cmdline-tools && \
-    mv ${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools ${ANDROID_SDK_ROOT}/cmdline-tools/latest && \
-    rm sdk-tools.zip
 
-# 3. Download SDK components and accept licenses
-RUN yes | sdkmanager --sdk_root=${ANDROID_SDK_ROOT} --licenses && \
-    sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "platform-tools" "emulator" "system-images;android-30;google_apis;x86_64"
+# 3. Copy SDK and Emulator Scripts
+COPY install-sdk.sh /usr/local/bin/install-sdk.sh
+RUN chmod +x /usr/local/bin/install-sdk.sh
+COPY start-android.sh /usr/local/bin/start-android.sh
+RUN chmod +x /usr/local/bin/start-android.sh
 
 # 4. Setup VNC, Supervisor & KVM
 RUN mkdir -p /var/log/supervisor && \
@@ -52,10 +49,6 @@ RUN echo "#!/bin/bash" > /root/.vnc/xstartup && \
     echo "xrdb \$HOME/.Xresources" >> /root/.vnc/xstartup && \
     echo "startxfce4 &" >> /root/.vnc/xstartup && \
     chmod +x /root/.vnc/xstartup
-
-# 5. Android Emulator Start Script
-COPY start-android.sh /usr/local/bin/start-android.sh
-RUN chmod +x /usr/local/bin/start-android.sh
 
 # Copy supervisor configuration
 COPY supervisord.conf /etc/supervisor/supervisord.conf
