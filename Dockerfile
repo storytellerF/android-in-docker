@@ -4,10 +4,6 @@ FROM ubuntu:22.04
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Set VNC password, which can be overridden at build time
-ARG VNC_PASSWD=password
-ENV VNC_PASSWD=${VNC_PASSWD}
-
 # 1. Install Dependencies: VNC, Desktop, Supervisor, Java, KVM, and other tools
 RUN apt-get update && apt-get install -y \
     supervisor \
@@ -31,17 +27,17 @@ RUN apt-get update && apt-get install -y \
 ENV ANDROID_SDK_ROOT=/opt/android/sdk
 ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator
 
-# 3. Copy SDK and Emulator Scripts
+# 3. Copy Scripts
 COPY install-sdk.sh /usr/local/bin/install-sdk.sh
 RUN chmod +x /usr/local/bin/install-sdk.sh
 COPY start-android.sh /usr/local/bin/start-android.sh
 RUN chmod +x /usr/local/bin/start-android.sh
+COPY start-vnc.sh /usr/local/bin/start-vnc.sh
+RUN chmod +x /usr/local/bin/start-vnc.sh
 
 # 4. Setup VNC, Supervisor & KVM
 RUN mkdir -p /var/log/supervisor && \
     mkdir -p /root/.vnc && \
-    echo "${VNC_PASSWD}" | vncpasswd -f > /root/.vnc/passwd && \
-    chmod 600 /root/.vnc/passwd && \
     adduser root kvm
 
 # Setup the startup script for the VNC server to launch the XFCE desktop

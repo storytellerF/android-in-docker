@@ -5,6 +5,8 @@ services:
       - "6080:6080" # noVNC web interface
       - "5901:5901" # VNC direct connection
       - "5555:5555" # ADB
+    environment:
+      - VNC_PASSWD=${VNC_PASSWD}
     volumes:
       - avd_data:/root/.android/avd
       - ./logs:/var/log/supervisor

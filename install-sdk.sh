@@ -40,13 +40,4 @@ else
     echo "emulator already installed."
 fi
 
-# --- Install system image if not present ---
-SYS_IMG_PKG="system-images;android-35;google_apis;x86_64"
-if ! sdkmanager --sdk_root=${ANDROID_SDK_ROOT} --list_installed | grep -q "${SYS_IMG_PKG}"; then
-    echo "Installing system image (${SYS_IMG_PKG})..."
-    sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "${SYS_IMG_PKG}"
-else
-    echo "System image (${SYS_IMG_PKG}) already installed."
-fi
-
 echo "Android SDK setup is complete."
