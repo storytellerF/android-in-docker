@@ -1,6 +1,7 @@
 # Base Image
-FROM ubuntu:22.04
+FROM ubuntu:25.10
 
+ARG OPENJDK_VERSION
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -13,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     novnc \
     websockify \
     net-tools \
-    openjdk-17-jdk \
+    openjdk-${OPENJDK_VERSION}-jdk \
     wget \
     unzip \
     qemu-kvm \
@@ -56,4 +57,4 @@ COPY supervisord.conf /etc/supervisor/supervisord.conf
 EXPOSE 6080 5901 5555
 
 # Command to run supervisor
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
