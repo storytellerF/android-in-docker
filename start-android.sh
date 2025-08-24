@@ -19,8 +19,8 @@ shutdown() {
 # Trap TERM and INT signals to trigger shutdown
 trap shutdown SIGTERM SIGINT
 
-AVD_NAME="android-34"
-SYS_IMG="system-images;android-34;google_apis;x86_64"
+AVD_NAME="android-35"
+SYS_IMG="system-images;android-35;google_apis;x86_64"
 
 # Check if AVD exists
 if ! avdmanager list avd | grep -q "Name: $AVD_NAME"; then
