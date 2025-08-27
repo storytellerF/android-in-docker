@@ -7,6 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # 1. Install Dependencies: VNC, Desktop, Supervisor, Java, KVM, and other tools
 RUN apt-get update && apt-get install -y \
+    dbus-x11 \
     supervisor \
     tightvncserver \
     xfce4 \
