@@ -22,6 +22,10 @@ RUN apt-get update && apt-get install -y \
     libvirt-daemon-system \
     libvirt-clients \
     bridge-utils \
+    w3m \
+    locales \
+    fonts-wqy-microhei \
+    fonts-wqy-zenhei \
     && apt-get purge -y xfce4-power-manager xfce4-power-manager-data \
     && rm -rf /var/lib/apt/lists/*
 
@@ -50,6 +54,19 @@ RUN echo "#!/bin/bash" > /root/.vnc/xstartup && \
 
 # Copy supervisor configuration
 COPY supervisord.conf /etc/supervisor/supervisord.conf
+
+# 配置 locale 为中文 UTF-8
+RUN locale-gen zh_CN.UTF-8 && \
+    update-locale LANG=zh_CN.UTF-8
+
+ENV LANG=zh_CN.UTF-8
+ENV LANGUAGE=zh_CN:zh
+ENV LC_ALL=zh_CN.UTF-8
+
+# 配置 w3m 默认使用 UTF-8
+RUN mkdir -p /root/.w3m && \
+    echo "charset UTF-8" >> /root/.w3m/config && \
+    echo "display_charset UTF-8" >> /root/.w3m/config
 
 # Expose Ports:
 # 6080: noVNC Web Interface
