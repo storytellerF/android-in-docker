@@ -5,7 +5,7 @@ ARG OPENJDK_VERSION
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Install Dependencies: VNC, Desktop, Supervisor, Java, KVM, and other tools
+# Install Dependencies: VNC, Desktop, Supervisor, Java, KVM, and other tools
 RUN apt-get update && apt-get install -y \
     dbus-x11 \
     supervisor \
@@ -26,22 +26,31 @@ RUN apt-get update && apt-get install -y \
     locales \
     fonts-wqy-microhei \
     fonts-wqy-zenhei \
+    npm \
     && apt-get purge -y xfce4-power-manager xfce4-power-manager-data \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Setup Android SDK Environment
+# Setup Android SDK Environment
 ENV ANDROID_SDK_ROOT=/opt/android/sdk
 ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator
 
-# 3. Copy Scripts
+# Setup Appium
+RUN npm install -g appium
+RUN appium driver install uiautomator2
+RUN appium plugin install storage
+RUN appium plugin install inspector
+
+# Copy Scripts
 COPY install-sdk.sh /usr/local/bin/install-sdk.sh
 RUN chmod +x /usr/local/bin/install-sdk.sh
 COPY start-android.sh /usr/local/bin/start-android.sh
 RUN chmod +x /usr/local/bin/start-android.sh
 COPY start-vnc.sh /usr/local/bin/start-vnc.sh
 RUN chmod +x /usr/local/bin/start-vnc.sh
+COPY start-appium.sh /usr/local/bin/start-appium.sh
+RUN chmod +x /usr/local/bin/start-appium.sh
 
-# 4. Setup VNC, Supervisor & KVM
+# Setup VNC, Supervisor & KVM
 RUN mkdir -p /var/log/supervisor && \
     mkdir -p /root/.vnc && \
     adduser root kvm
