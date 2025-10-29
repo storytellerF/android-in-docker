@@ -1,6 +1,6 @@
 # Android in Docker
 
-轻量说明：这个仓库提供一个在 Docker 容器中运行 Android Emulator、VNC（noVNC）和 Appium 的环境，方便进行自动化测试与调试。
+提供一个在 Docker 容器中运行 Android Emulator、VNC（noVNC）和 Appium 的环境，方便进行自动化测试与调试。
 
 ## 快速开始
 
