@@ -19,10 +19,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     qemu-kvm \
-    libvirt-daemon-system \
-    libvirt-clients \
-    bridge-utils \
-    w3m \
+    elinks \
     locales \
     fonts-wqy-microhei \
     fonts-wqy-zenhei \
@@ -37,19 +34,6 @@ ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/
 
 # Setup Appium
 RUN npm install -g appium
-
-# 配置 locale 为中文 UTF-8
-RUN locale-gen zh_CN.UTF-8 && \
-    update-locale LANG=zh_CN.UTF-8
-
-ENV LANG=zh_CN.UTF-8
-ENV LANGUAGE=zh_CN:zh
-ENV LC_ALL=zh_CN.UTF-8
-
-# 配置 w3m 默认使用 UTF-8
-RUN mkdir -p /root/.w3m && \
-    echo "charset UTF-8" >> /root/.w3m/config && \
-    echo "display_charset UTF-8" >> /root/.w3m/config
 
 # Setup a non-root user
 ARG USERNAME=ubuntu
