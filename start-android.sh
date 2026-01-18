@@ -3,7 +3,7 @@ set -e
 
 # First, ensure the SDK is installed and ready.
 echo "Running SDK installation script..."
-/usr/local/bin/install-sdk.sh
+sudo ~/bin/install-sdk.sh
 echo "SDK setup finished."
 
 # Graceful shutdown

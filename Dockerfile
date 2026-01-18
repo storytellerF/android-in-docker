@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     fonts-wqy-microhei \
     fonts-wqy-zenhei \
     npm \
+    sudo \
     && apt-get purge -y xfce4-power-manager xfce4-power-manager-data \
     && rm -rf /var/lib/apt/lists/*
 
@@ -36,33 +37,6 @@ ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/
 
 # Setup Appium
 RUN npm install -g appium
-RUN appium driver install uiautomator2
-RUN appium plugin install storage
-RUN appium plugin install inspector
-
-# Copy Scripts
-COPY install-sdk.sh /usr/local/bin/install-sdk.sh
-RUN chmod +x /usr/local/bin/install-sdk.sh
-COPY start-android.sh /usr/local/bin/start-android.sh
-RUN chmod +x /usr/local/bin/start-android.sh
-COPY start-vnc.sh /usr/local/bin/start-vnc.sh
-RUN chmod +x /usr/local/bin/start-vnc.sh
-COPY start-appium.sh /usr/local/bin/start-appium.sh
-RUN chmod +x /usr/local/bin/start-appium.sh
-
-# Setup VNC, Supervisor & KVM
-RUN mkdir -p /var/log/supervisor && \
-    mkdir -p /root/.vnc && \
-    adduser root kvm
-
-# Setup the startup script for the VNC server to launch the XFCE desktop
-RUN echo "#!/bin/bash" > /root/.vnc/xstartup && \
-    echo "xrdb \$HOME/.Xresources" >> /root/.vnc/xstartup && \
-    echo "startxfce4 &" >> /root/.vnc/xstartup && \
-    chmod +x /root/.vnc/xstartup
-
-# Copy supervisor configuration
-COPY supervisord.conf /etc/supervisor/supervisord.conf
 
 # 配置 locale 为中文 UTF-8
 RUN locale-gen zh_CN.UTF-8 && \
@@ -77,11 +51,54 @@ RUN mkdir -p /root/.w3m && \
     echo "charset UTF-8" >> /root/.w3m/config && \
     echo "display_charset UTF-8" >> /root/.w3m/config
 
+# Setup a non-root user
+ARG USERNAME=ubuntu
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+ARG KVM_GID
+
+RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+RUN usermod -aG ${KVM_GID} ubuntu
+
+USER $USERNAME
+WORKDIR /home/$USERNAME
+
+# Setup appium driver and plugin
+RUN appium driver install uiautomator2
+RUN appium plugin install storage
+RUN appium plugin install inspector
+
+# Copy Scripts
+COPY --chown=${USER_UID}:${USER_GID} install-sdk.sh ./bin/install-sdk.sh
+RUN chmod +x ./bin/install-sdk.sh
+COPY --chown=${USER_UID}:${USER_GID} start-android.sh ./bin/start-android.sh
+RUN chmod +x ./bin/start-android.sh
+COPY --chown=${USER_UID}:${USER_GID} start-vnc.sh ./bin/start-vnc.sh
+RUN chmod +x ./bin/start-vnc.sh
+COPY --chown=${USER_UID}:${USER_GID} start-appium.sh ./bin/start-appium.sh
+RUN chmod +x ./bin/start-appium.sh
+
+RUN mkdir -p ./log/supervisor \
+    && mkdir -p ./run \
+    && mkdir -p ./.vnc
+
+# Setup the startup script for the VNC server to launch the XFCE desktop
+RUN echo "#!/bin/bash" > ./.vnc/xstartup && \
+    echo "xrdb \$HOME/.Xresources" >> ./.vnc/xstartup && \
+    echo "startxfce4 &" >> ./.vnc/xstartup && \
+    chmod +x ./.vnc/xstartup
+
+# Copy supervisor configuration
+COPY supervisord.conf /etc/supervisor/supervisord.conf
+
 # Expose Ports:
 # 6080: noVNC Web Interface
 # 5901: VNC Server (for display :1)
 # 5555: ADB port
-EXPOSE 6080 5901 5555
+# 4723: Appium port
+EXPOSE 6080 5901 5555 4723
 
 # Command to run supervisor
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

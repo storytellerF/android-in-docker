@@ -4,6 +4,7 @@ services:
       context: .
       args:
         - OPENJDK_VERSION=${OPENJDK_VERSION}
+        - KVM_GID=${KVM_GID}
     ports:
       - "6080:6080" # noVNC web interface
       - "5901:5901" # VNC direct connection
@@ -12,11 +13,13 @@ services:
     env_file:
       - .env
     volumes:
-      - avd_data:/root/.android/avd
-      - ./logs:/var/log/supervisor
+      - avd_data:/home/ubuntu/.android/avd
+      - ./logs:/home/ubuntu/log/supervisor
       - sdk_data:/opt/android/sdk
     shm_size: '2gb' # Allocate more shared memory
-    privileged: true # Enable KVM acceleration
+    #privileged: true # Enable KVM acceleration
+    devices:
+      - /dev/kvm
     restart: "unless-stopped"
 
 volumes:

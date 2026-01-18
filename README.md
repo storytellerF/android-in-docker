@@ -49,7 +49,8 @@
 - 自动化能力示例：[`appium-capability.json`](appium-capability.json)
 
 - 环境与忽略
-  - 环境变量文件：[` .env `](.env)
+  - 环境变量文件：[` .env `](.env) 参考[env-example](env-example)
+    在不同平台上kvm 所属的group 不同（比如在WSL 中是993，在容器内是992），需要通过docker compose 动态添加用户到组中，可以通过`getent group kvm | cut -d: -f3` 获取。
   - Git 忽略：[`.gitignore`](.gitignore)
 
 ## 卷与持久化
