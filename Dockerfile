@@ -63,6 +63,10 @@ COPY --chown=${USER_UID}:${USER_GID} start-vnc.sh ./bin/start-vnc.sh
 RUN chmod +x ./bin/start-vnc.sh
 COPY --chown=${USER_UID}:${USER_GID} start-appium.sh ./bin/start-appium.sh
 RUN chmod +x ./bin/start-appium.sh
+COPY --chown=${USER_UID}:${USER_GID} sdkmanager-as-root.sh ./bin/sdkmanager-as-root.sh
+RUN chmod +x ./bin/sdkmanager-as-root.sh
+COPY --chown=${USER_UID}:${USER_GID} install-default-components.sh ./bin/install-default-components.sh
+RUN chmod +x ./bin/install-default-components.sh
 
 RUN mkdir -p ./log/supervisor \
     && mkdir -p ./run \
