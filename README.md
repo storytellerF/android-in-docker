@@ -20,6 +20,14 @@
 
     相关文件：[`build-image.sh`](build-image.sh) ，[`Dockerfile`](Dockerfile) ，[`docker-compose.yml`](docker-compose.yml)
 
+    **启用 Bash 补全**：
+    
+    ```bash
+    source build-image-completion.bash
+    ```
+    
+    之后可以使用 TAB 键补全参数。
+
 3. 启动服务：
 
     ```sh
