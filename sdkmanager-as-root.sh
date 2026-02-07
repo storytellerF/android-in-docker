@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# 当前脚本在ubuntu上执行，所以已经定义过ANDROID_SDK_ROOT
+
 # Accept Android SDK components as arguments
 if [ $# -eq 0 ]; then
     echo "Usage: $0 <component1> <component2> ..."
@@ -15,10 +17,10 @@ fi
 
 echo "Using ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
 
-# Install each component with sudo
-for component in "$@"; do
-    echo "Installing: $component"
-    sudo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "$component"
-done
+sudo mkdir -p ${ANDROID_SDK_ROOT}
+sudo chown -R root:root ${ANDROID_SDK_ROOT}
+sudo chmod -R 755 ${ANDROID_SDK_ROOT}
 
-echo "Installation complete"
+sudo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_SDK_ROOT" "$@"
+
+echo "sdkmanager complete"

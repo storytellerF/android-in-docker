@@ -6,6 +6,7 @@ IMAGE_TAG="latest"
 ENV_FILE=".env"
 DEFAULT_JDK_VERSION="21"
 DEFAULT_VNC_PASSWORD="password"
+DEFAULT_SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
 
 # Function to display usage
 usage() {
@@ -13,6 +14,7 @@ usage() {
     echo "Options:"
     echo "  -j, --jdk-version <version>  Specify the OpenJDK version (default: $DEFAULT_JDK_VERSION)"
     echo "  -p, --password <password>    Specify the VNC password (default: $DEFAULT_VNC_PASSWORD)"
+    echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -h, --help                   Display this help message"
     exit 1
@@ -22,6 +24,7 @@ usage() {
 CREATE_ENV=false
 JDK_VERSION=""
 VNC_PASSWORD=""
+SYS_IMG_PKG=""
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -31,6 +34,10 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -p|--password)
             VNC_PASSWORD="$2"
+            shift
+            ;;
+        -s|--system-image)
+            SYS_IMG_PKG="$2"
             shift
             ;;
         -c|--create-env)
@@ -65,18 +72,25 @@ if [ "$CREATE_ENV" = true ]; then
         fi
     fi
 
+    if [ -z "$SYS_IMG_PKG" ]; then
+        read -p "Enter System Image Package (default: $DEFAULT_SYS_IMG_PKG): " INPUT_SysImg
+        SYS_IMG_PKG="${INPUT_SysImg:-$DEFAULT_SYS_IMG_PKG}"
+    fi
+
     # Ensure VNC_PASSWORD is set for non-interactive case where -p was not provided
     if [ -z "$VNC_PASSWORD" ]; then
          VNC_PASSWORD="$DEFAULT_VNC_PASSWORD"
     fi
     
-    echo "Updating $ENV_FILE with OPENJDK_VERSION=$JDK_VERSION and VNC_PASSWD=$VNC_PASSWORD"
+    echo "Updating $ENV_FILE with OPENJDK_VERSION=$JDK_VERSION, VNC_PASSWD=$VNC_PASSWORD, and SYS_IMG_PKG=$SYS_IMG_PKG"
     
     if [ -f "$ENV_FILE" ]; then
         # Update OPENJDK_VERSION
         if grep -q "OPENJDK_VERSION" "$ENV_FILE"; then
             sed -i "s/^OPENJDK_VERSION=.*/OPENJDK_VERSION=$JDK_VERSION/" "$ENV_FILE"
         else
+            # Ensure newline before appending
+            [ -n "$(tail -c1 "$ENV_FILE")" ] && echo >> "$ENV_FILE"
             echo "OPENJDK_VERSION=$JDK_VERSION" >> "$ENV_FILE"
         fi
 
@@ -87,11 +101,23 @@ if [ "$CREATE_ENV" = true ]; then
             # VNC passwords are usually simple. Let's assume standard characters for now.
             sed -i "s/^VNC_PASSWD=.*/VNC_PASSWD=$VNC_PASSWORD/" "$ENV_FILE"
         else
+            # Ensure newline before appending
+            [ -n "$(tail -c1 "$ENV_FILE")" ] && echo >> "$ENV_FILE"
             echo "VNC_PASSWD=$VNC_PASSWORD" >> "$ENV_FILE"
+        fi
+
+        # Update SYS_IMG_PKG
+        if grep -q "SYS_IMG_PKG" "$ENV_FILE"; then
+            sed -i "s/^SYS_IMG_PKG=.*/SYS_IMG_PKG=\"$SYS_IMG_PKG\"/" "$ENV_FILE"
+        else
+            # Ensure newline before appending
+            [ -n "$(tail -c1 "$ENV_FILE")" ] && echo >> "$ENV_FILE"
+            echo "SYS_IMG_PKG=\"$SYS_IMG_PKG\"" >> "$ENV_FILE"
         fi
     else
         echo "VNC_PASSWD=$VNC_PASSWORD" > "$ENV_FILE"
         echo "OPENJDK_VERSION=$JDK_VERSION" >> "$ENV_FILE"
+        echo "SYS_IMG_PKG=\"$SYS_IMG_PKG\"" >> "$ENV_FILE"
     fi
     
     echo ".env file updated."

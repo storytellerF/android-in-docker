@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# 需要在root下执行
+
 set -e
 
 SYS_IMG_PKG=$1

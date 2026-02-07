@@ -16,12 +16,15 @@ shutdown() {
     exit 0
 }
 
-AVD_NAME="android-36"
-SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
-BUILD_TOOLS_PKG="build-tools;36.0.0"
-PLATFORM_PKG="platforms;android-36"
+# 检查是否定义了SYS_IMG_PKG，否则报出错误
+if [ -z "$SYS_IMG_PKG" ]; then
+    echo "Error: SYS_IMG_PKG is not defined."
+    exit 1
+fi
+# 通过SYS_IMG_PKG获取NAME，增加base64 的SYS_IMG_PKG 后两段的后缀，不带==
+AVD_NAME=$(echo "$SYS_IMG_PKG" | cut -d';' -f2)-$(echo "$SYS_IMG_PKG" | cut -d';' -f3- | base64 | tr -d '\n' | sed 's/==$//')
 
-sudo ~/bin/install-default-components.sh "$SYS_IMG_PKG" "$BUILD_TOOLS_PKG" "$PLATFORM_PKG"
+~/bin/sdkmanager-as-root.sh "$SYS_IMG_PKG"
 
 # Check if AVD exists
 if ! avdmanager list avd | grep -q "Name: $AVD_NAME"; then
