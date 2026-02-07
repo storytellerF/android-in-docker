@@ -34,6 +34,10 @@ ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/
 
 # Setup Appium
 RUN npm install -g appium
+# Setup appium driver and plugin
+RUN appium driver install uiautomator2
+RUN appium plugin install storage
+RUN appium plugin install inspector
 
 # Setup a non-root user
 ARG USERNAME=ubuntu
@@ -45,11 +49,6 @@ RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
 
 USER $USERNAME
 WORKDIR /home/$USERNAME
-
-# Setup appium driver and plugin
-RUN appium driver install uiautomator2
-RUN appium plugin install storage
-RUN appium plugin install inspector
 
 # Copy Scripts
 COPY --chown=${USER_UID}:${USER_GID} install-sdk.sh ./bin/install-sdk.sh

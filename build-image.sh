@@ -17,6 +17,9 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
+    echo "  -b, --build                  Execute the docker build process"
+    echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
+    echo "  -m, --multi-arch             Enable multi-arch mode (builds/pushes for amd64 and arm64)"
     echo "  -h, --help                   Display this help message"
     exit 1
 }
@@ -24,6 +27,13 @@ usage() {
 # Parse arguments
 CREATE_ENV=false
 EXECUTE_BUILD=false
+# Parse arguments
+CREATE_ENV=false
+EXECUTE_BUILD=false
+PUBLISH=false
+MULTI_ARCH=false
+MULTI_ARCH=false
+DOCKER_USERNAME=""
 JDK_VERSION=""
 VNC_PASSWORD=""
 SYS_IMG_PKG=""
@@ -48,6 +58,12 @@ while [[ "$#" -gt 0 ]]; do
         -b|--build)
             EXECUTE_BUILD=true
             ;;
+        -P|--publish)
+            PUBLISH=true
+            ;;
+        -m|--multi-arch)
+            MULTI_ARCH=true
+            ;;
         -h|--help)
             usage
             ;;
@@ -69,119 +85,120 @@ fi
 # Get current date
 CURRENT_DATE=$(date +%Y%m%d)
 
-# If creating env, handle interactive mode if values not provided
+# Load existing .env if present
+if [ -f "$ENV_FILE" ]; then
+    echo "Loading configuration from $ENV_FILE..."
+    # We use a temporary file to source to avoid exporting variables to the current shell if we didn't want to, 
+    # but here we do want them.
+    # However, we must be careful not to overwrite args passed via command line if we want args to take precedence.
+    # Strategy: Source env, then re-apply args if they were set.
+    source "$ENV_FILE"
+fi
+
+# Re-apply command line arguments if valid (overriding .env)
+[ -n "$DOCKER_USERNAME" ] && DOCKER_USERNAME="$DOCKER_USERNAME"
+[ -n "$JDK_VERSION" ] && OPENJDK_VERSION="$JDK_VERSION"
+[ -n "$VNC_PASSWORD" ] && VNC_PASSWD="$VNC_PASSWORD"
+# SYS_IMG_PKG from args overrides the default legacy entry in .env
+[ -n "$SYS_IMG_PKG" ] && SYS_IMG_PKG="$SYS_IMG_PKG"
+
+# Set defaults if still empty
+OPENJDK_VERSION="${OPENJDK_VERSION:-$DEFAULT_JDK_VERSION}"
+VNC_PASSWD="${VNC_PASSWD:-$DEFAULT_VNC_PASSWORD}"
+SYS_IMG_PKG="${SYS_IMG_PKG:-$DEFAULT_SYS_IMG_PKG}"
+
+
+# If creating env, handle interactive mode
 if [ "$CREATE_ENV" = true ]; then
-    if [ -z "$JDK_VERSION" ]; then
-        read -p "Enter OpenJDK version (default: $DEFAULT_JDK_VERSION): " INPUT_VERSION
-        JDK_VERSION="${INPUT_VERSION:-$DEFAULT_JDK_VERSION}"
-    fi
+    read -p "Enter OpenJDK version (default: $OPENJDK_VERSION): " INPUT_VERSION
+    OPENJDK_VERSION="${INPUT_VERSION:-$OPENJDK_VERSION}"
     
-    if [ -z "$VNC_PASSWORD" ]; then
-        read -p "Enter VNC password (default: $DEFAULT_VNC_PASSWORD, enter 'r' for random): " INPUT_PASSWORD
-        if [ "$INPUT_PASSWORD" = "r" ]; then
-            # Generate a random password (16 characters, alphanumeric)
-            VNC_PASSWORD=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 16)
-            echo "Generated random VNC password: $VNC_PASSWORD"
-        else
-            VNC_PASSWORD="${INPUT_PASSWORD:-$DEFAULT_VNC_PASSWORD}"
-        fi
-    fi
-
-    if [ -z "$SYS_IMG_PKG" ]; then
-        read -p "Enter System Image Package (default: $DEFAULT_SYS_IMG_PKG): " INPUT_SysImg
-        SYS_IMG_PKG="${INPUT_SysImg:-$DEFAULT_SYS_IMG_PKG}"
-    fi
-
-    # Ensure VNC_PASSWORD is set for non-interactive case where -p was not provided
-    if [ -z "$VNC_PASSWORD" ]; then
-         VNC_PASSWORD="$DEFAULT_VNC_PASSWORD"
-    fi
-    
-    echo "Updating $ENV_FILE with OPENJDK_VERSION=$JDK_VERSION, VNC_PASSWD=$VNC_PASSWORD, and SYS_IMG_PKG=$SYS_IMG_PKG"
-    
-    if [ -f "$ENV_FILE" ]; then
-        # Update OPENJDK_VERSION
-        if grep -q "OPENJDK_VERSION" "$ENV_FILE"; then
-            sed -i "s/^OPENJDK_VERSION=.*/OPENJDK_VERSION=$JDK_VERSION/" "$ENV_FILE"
-        else
-            # Ensure newline before appending
-            [ -n "$(tail -c1 "$ENV_FILE")" ] && echo >> "$ENV_FILE"
-            echo "OPENJDK_VERSION=$JDK_VERSION" >> "$ENV_FILE"
-        fi
-
-        # Update VNC_PASSWD
-        if grep -q "VNC_PASSWD" "$ENV_FILE"; then
-            # Escape valid delimiter characters in password if necessary, but simple alphanumeric is assumed for VNC
-            # For robustness, we'll try to use a different delimiter or escape slashes? 
-            # VNC passwords are usually simple. Let's assume standard characters for now.
-            sed -i "s/^VNC_PASSWD=.*/VNC_PASSWD=$VNC_PASSWORD/" "$ENV_FILE"
-        else
-            # Ensure newline before appending
-            [ -n "$(tail -c1 "$ENV_FILE")" ] && echo >> "$ENV_FILE"
-            echo "VNC_PASSWD=$VNC_PASSWORD" >> "$ENV_FILE"
-        fi
-
-        # Update SYS_IMG_PKG
-        if grep -q "SYS_IMG_PKG" "$ENV_FILE"; then
-            sed -i "s/^SYS_IMG_PKG=.*/SYS_IMG_PKG=\"$SYS_IMG_PKG\"/" "$ENV_FILE"
-        else
-            # Ensure newline before appending
-            [ -n "$(tail -c1 "$ENV_FILE")" ] && echo >> "$ENV_FILE"
-            echo "SYS_IMG_PKG=\"$SYS_IMG_PKG\"" >> "$ENV_FILE"
-        fi
+    read -p "Enter VNC password (default: $VNC_PASSWD, enter 'r' for random): " INPUT_PASSWORD
+    if [ "$INPUT_PASSWORD" = "r" ]; then
+        VNC_PASSWD=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 16)
+        echo "Generated random VNC password: $VNC_PASSWD"
     else
-        echo "VNC_PASSWD=$VNC_PASSWORD" > "$ENV_FILE"
-        echo "OPENJDK_VERSION=$JDK_VERSION" >> "$ENV_FILE"
-        echo "SYS_IMG_PKG=\"$SYS_IMG_PKG\"" >> "$ENV_FILE"
-
+        VNC_PASSWD="${INPUT_PASSWORD:-$VNC_PASSWD}"
     fi
 
-    # Determine JDK Version to use for build
-    # Priority: 1. Command line arg (implied if CREATE_ENV was used with a specific version or interactive input became the JDK_VERSION)
-    # Use JDK_VERSION if set.
-    if [ -n "$JDK_VERSION" ]; then
-        BUILD_JDK_VERSION="$JDK_VERSION"
-    elif [ -f "$ENV_FILE" ]; then
-        # Read from .env if it exists and we didn't specify a version arg
-        # Note: We rely on the fact that if -c was passed, JDK_VERSION is definitely set above.
-        file_version=$(grep "^OPENJDK_VERSION=" "$ENV_FILE" | cut -d'=' -f2)
-        if [ -n "$file_version" ]; then
-            BUILD_JDK_VERSION="$file_version"
-            echo "Read JDK version from $ENV_FILE: $BUILD_JDK_VERSION"
+    echo "--- Docker Hub Configuration ---"
+    read -p "Enter Docker Hub Username (optional, required for publish): " INPUT_DOCKER_USERNAME
+    DOCKER_USERNAME="${INPUT_DOCKER_USERNAME:-$DOCKER_USERNAME}"
+
+    echo "--- System Image Configuration ---"
+    read -p "Enter System Image Package (default: $SYS_IMG_PKG): " INPUT_SysImg
+    SYS_IMG_PKG="${INPUT_SysImg:-$SYS_IMG_PKG}"
+
+    # Calculate IMAGE_TAG
+    IMAGE_TAG="${OPENJDK_VERSION}.${UBUNTU_VERSION}-${CURRENT_DATE}-ou"
+
+    echo "Updating $ENV_FILE..."
+    # Helper to write or update var in file
+    update_env_var() {
+        local key=$1
+        local val=$2
+        local file=$3
+        if grep -q "^${key}=" "$file"; then
+            sed -i "s|^${key}=.*|${key}=\"${val}\"|" "$file"
         else
-            BUILD_JDK_VERSION="$DEFAULT_JDK_VERSION"
-            echo "OPENJDK_VERSION not found in $ENV_FILE. Using default: $BUILD_JDK_VERSION"
+            echo "${key}=\"${val}\"" >> "$file"
         fi
-    else
-        BUILD_JDK_VERSION="$DEFAULT_JDK_VERSION"
-        echo "No .env file and no argument provided. Using default JDK version: $BUILD_JDK_VERSION"
-    fi
+    }
 
-    # Construct image tag
-    IMAGE_TAG="${BUILD_JDK_VERSION}.${UBUNTU_VERSION}-${CURRENT_DATE}-ou"
+    # Initialize file if not exists
+    touch "$ENV_FILE"
 
-    # Update IMAGE_TAG in .env if it exists
-    if [ -f "$ENV_FILE" ]; then
-        if grep -q "IMAGE_TAG" "$ENV_FILE"; then
-            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" "$ENV_FILE"
-        else
-            [ -n "$(tail -c1 "$ENV_FILE")" ] && echo >> "$ENV_FILE"
-            echo "IMAGE_TAG=$IMAGE_TAG" >> "$ENV_FILE"
-        fi
-        echo "Updated IMAGE_TAG in $ENV_FILE to $IMAGE_TAG"
-    fi
+    touch "$ENV_FILE"
 
+    update_env_var "DOCKER_USERNAME" "$DOCKER_USERNAME" "$ENV_FILE"
+    update_env_var "OPENJDK_VERSION" "$OPENJDK_VERSION" "$ENV_FILE"
+    update_env_var "VNC_PASSWD" "$VNC_PASSWD" "$ENV_FILE"
+    update_env_var "SYS_IMG_PKG" "$SYS_IMG_PKG" "$ENV_FILE"
+    update_env_var "IMAGE_TAG" "$IMAGE_TAG" "$ENV_FILE"
     
     echo ".env file updated."
+else
+    # Non-interactive Mode: Just calculate tag if not present or needs refresh? 
+    # Actually, if we are just building, we rely on .env values.
+    # If IMAGE_TAG is not in .env, we generate one temporarily for this build?
+    if [ -z "$IMAGE_TAG" ]; then
+         IMAGE_TAG="${OPENJDK_VERSION}.${UBUNTU_VERSION}-${CURRENT_DATE}-ou"
+    fi
 fi
 
 
-if [ "$EXECUTE_BUILD" = true ]; then
-    echo "Building the Docker image with JDK $BUILD_JDK_VERSION..."
-    docker build --build-arg OPENJDK_VERSION="$BUILD_JDK_VERSION" -t "${IMAGE_NAME}:${IMAGE_TAG}" -f Dockerfile .
+# Prepend Docker Username to Image Name if set
+if [ -n "$DOCKER_USERNAME" ]; then
+    IMAGE_NAME="${DOCKER_USERNAME}/${IMAGE_NAME}"
+fi
+
+
+if [ "$PUBLISH" = true ]; then
+    echo "Publisher mode enabled. Building and Pushing Multi-Arch Images (amd64, arm64)..."
+    
+    # Ensure buildx is available and use it
+    # We assume 'docker buildx' is available. 
+    # Create a new builder if using multi-arch to ensure isolation or use default if supported
+    # docker buildx create --use || true
+
+    docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
+        -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+        --push \
+        -f Dockerfile .
+        
+    echo "Multi-arch build and push finished."
+    echo "Image pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
+
+elif [ "$EXECUTE_BUILD" = true ]; then
+    echo "Building the Docker image with JDK $OPENJDK_VERSION..."
+    echo "Building locally for current architecture..."
+    docker build \
+        --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
+        -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+        -f Dockerfile .
+        
     echo "Docker image build process finished."
     echo "Image created: ${IMAGE_NAME}:${IMAGE_TAG}"
-else
-    echo "Build skipped. Use --build to build the image."
-    echo "Configuration updated. Image tag would be: ${IMAGE_NAME}:${IMAGE_TAG}"
 fi

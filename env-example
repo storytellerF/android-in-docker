@@ -1,2 +1,4 @@
 VNC_PASSWD=password
 OPENJDK_VERSION=21
+SYS_IMG_PKG="system-images;android-34;google_apis;x86_64"
+DOCKER_USERNAME=

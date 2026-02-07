@@ -18,7 +18,18 @@
     docker-compose build
     ```
 
-    相关文件：[`build-image.sh`](build-image.sh) ，[`Dockerfile`](Dockerfile) ，[`docker-compose.yml`](docker-compose.yml)
+    > **注意**：
+    > - `-b` / `--build`: 构建本地镜像（默认当前架构）。
+    > - `-P` / `--publish`: 自动 **构建并推送** 多架构镜像（amd64 + arm64）。
+    >
+    > **示例**：
+    > ```sh
+    > # 1. 本地构建测试 (单架构)
+    > ./build-image.sh -b
+    > 
+    > # 2. 发布多架构镜像 (需先 docker login)
+    > ./build-image.sh -P
+    > ```
 
     **启用 Bash 补全**：
     
@@ -67,6 +78,7 @@
 `{JDK_VERSION}.{UBUNTU_VERSION}-{DATE}-ou`
 
 - **JDK_VERSION**: OpenJDK 版本（默认 21，可通过 `-j` 参数或 `.env` 文件指定）
+- **DOCKER_USERNAME**: Docker Hub 用户名（可选）。如果设置，镜像名将为 `{DOCKER_USERNAME}/android-in-docker`。
 - **UBUNTU_VERSION**: 基础镜像 Ubuntu 版本（从 `Dockerfile` 中自动提取）
 - **DATE**: 构建日期 (YYYYMMDD)
 

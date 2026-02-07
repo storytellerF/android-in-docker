@@ -16,10 +16,28 @@ shutdown() {
     exit 0
 }
 
+# Check architecture and select appropriate system image
+ARCH=$(uname -m)
+echo "Detected architecture: $ARCH"
+
 # 检查是否定义了SYS_IMG_PKG，否则报出错误
 if [ -z "$SYS_IMG_PKG" ]; then
     echo "Error: SYS_IMG_PKG is not defined."
     exit 1
+fi
+
+if [ "$ARCH" = "x86_64" ]; then
+    if [[ "$SYS_IMG_PKG" != *"x86_64"* ]]; then
+        echo "Error: Detected architecture x86_64 but SYS_IMG_PKG ($SYS_IMG_PKG) does not contain 'x86_64'."
+        exit 1
+    fi
+elif [ "$ARCH" = "aarch64" ]; then
+    if [[ "$SYS_IMG_PKG" != *"arm64-v8a"* ]]; then
+        echo "Error: Detected architecture aarch64 but SYS_IMG_PKG ($SYS_IMG_PKG) does not contain 'arm64-v8a'."
+        exit 1
+    fi
+else
+    echo "Warning: Unknown architecture $ARCH. Skipping architecture check for SYS_IMG_PKG."
 fi
 # 通过SYS_IMG_PKG获取NAME，增加base64 的SYS_IMG_PKG 后两段的后缀，不带==
 AVD_NAME=$(echo "$SYS_IMG_PKG" | cut -d';' -f2)-$(echo "$SYS_IMG_PKG" | cut -d';' -f3- | base64 | tr -d '\n' | sed 's/==$//')

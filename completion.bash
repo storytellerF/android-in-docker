@@ -5,7 +5,7 @@ _build_image_completion() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="-j --jdk-version -c --create-env -p --password -h --help"
+    opts="-j --jdk-version -c --create-env -p --password -h --help -b --build -P --publish -m --multi-arch -s --system-image"
 
     case "${prev}" in
         -j|--jdk-version)
