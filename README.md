@@ -60,6 +60,22 @@
   - 环境变量文件：[` .env `](.env) 参考[env-example](env-example)
   - Git 忽略：[`.gitignore`](.gitignore)
 
+## 镜像 Tag 策略
+
+执行 `build-image.sh` 构建镜像时，生成的 Tag 格式为：
+
+`{JDK_VERSION}.{UBUNTU_VERSION}-{DATE}-ou`
+
+- **JDK_VERSION**: OpenJDK 版本（默认 21，可通过 `-j` 参数或 `.env` 文件指定）
+- **UBUNTU_VERSION**: 基础镜像 Ubuntu 版本（从 `Dockerfile` 中自动提取）
+- **DATE**: 构建日期 (YYYYMMDD)
+
+例如：`21.24.04-20260207-ou`
+
+o 表示 OpenJDK，u 表示 Ubuntu，ou 表示 OpenJDK + Ubuntu。
+
+同时，生成的 Tag 会自动更新到 `.env` 文件的 `IMAGE_TAG` 变量中，以便 `docker-compose` 使用对应版本的镜像。
+
 ## 卷与持久化
 
 docker-compose 已配置以下卷（见 [`docker-compose.yml`](docker-compose.yml)）：
