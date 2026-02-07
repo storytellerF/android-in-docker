@@ -39,12 +39,9 @@ RUN npm install -g appium
 ARG USERNAME=ubuntu
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
-ARG KVM_GID
 
 RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
-
-RUN usermod -aG ${KVM_GID} ubuntu
 
 USER $USERNAME
 WORKDIR /home/$USERNAME
@@ -67,6 +64,8 @@ COPY --chown=${USER_UID}:${USER_GID} sdkmanager-as-root.sh ./bin/sdkmanager-as-r
 RUN chmod +x ./bin/sdkmanager-as-root.sh
 COPY --chown=${USER_UID}:${USER_GID} install-default-components.sh ./bin/install-default-components.sh
 RUN chmod +x ./bin/install-default-components.sh
+COPY --chown=${USER_UID}:${USER_GID} entrypoint.sh ./bin/entrypoint.sh
+RUN chmod +x ./bin/entrypoint.sh
 
 RUN mkdir -p ./log/supervisor \
     && mkdir -p ./run \
@@ -89,4 +88,5 @@ COPY supervisord.conf /etc/supervisor/supervisord.conf
 EXPOSE 6080 5901 5555 4723
 
 # Command to run supervisor
+ENTRYPOINT ["/home/ubuntu/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

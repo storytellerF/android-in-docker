@@ -4,7 +4,6 @@ services:
       context: .
       args:
         - OPENJDK_VERSION=${OPENJDK_VERSION}
-        - KVM_GID=${KVM_GID}
     ports:
       - "6080:6080" # noVNC web interface
       - "5901:5901" # VNC direct connection
