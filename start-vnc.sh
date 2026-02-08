@@ -4,12 +4,34 @@ set -e
 # Set VNC password if VNC_PASSWD environment variable is set
 if [ -n "$VNC_PASSWD" ]; then
   echo "Setting VNC password."
+  mkdir -p ~/.vnc
   echo "$VNC_PASSWD" | vncpasswd -f > ~/.vnc/passwd
   chmod 600 ~/.vnc/passwd
 else
   echo "VNC_PASSWD not set. VNC will start without a password."
 fi
 
-# Start VNC server and tail logs to keep the process alive
+# Function to handle graceful shutdown
+cleanup() {
+  echo "Caught signal, stopping VNC server..."
+  vncserver -kill :1 || true
+  rm -rf /tmp/.X1-lock /tmp/.X11-unix/X1
+  exit 0
+}
+
+# Trap SIGTERM and SIGINT signals
+trap 'cleanup' SIGTERM SIGINT
+
+# Remove potentially stale lock files before starting
+echo "Removing potentially stale lock files before starting..."
+rm -rf /tmp/.X1-lock /tmp/.X11-unix/X1
+
+# Start VNC server
+echo "Starting VNC server..."
 vncserver :1 -geometry 1280x800 -depth 24
-tail -F ~/.vnc/*.log
+
+# Tail logs in background and wait
+# waiting allows the script to catch signals
+echo "Waiting for VNC server to start..."
+tail -F ~/.vnc/*.log &
+wait $!

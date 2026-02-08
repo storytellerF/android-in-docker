@@ -1,6 +1,9 @@
 services:
   android:
-    image: android-in-docker:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      args:
+        - OPENJDK_VERSION=${OPENJDK_VERSION}
     ports:
       - "6080:6080" # noVNC web interface
       - "5901:5901" # VNC direct connection

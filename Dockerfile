@@ -32,13 +32,6 @@ RUN apt-get update && apt-get install -y \
 ENV ANDROID_SDK_ROOT=/opt/android/sdk
 ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator
 
-# Setup Appium
-RUN npm install -g appium
-# Setup appium driver and plugin
-RUN appium driver install uiautomator2
-RUN appium plugin install storage
-RUN appium plugin install inspector
-
 # Setup a non-root user
 ARG USERNAME=ubuntu
 ARG USER_UID=1000
@@ -49,6 +42,13 @@ RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
 
 USER $USERNAME
 WORKDIR /home/$USERNAME
+
+# Setup Appium，全局安装会安装到/usr/local/lib/node_modules，需要sudo权限
+RUN sudo npm install -g appium
+# Setup appium driver and plugin，安装到~/.appium，不需要sudo权限
+RUN appium driver install uiautomator2
+RUN appium plugin install storage
+RUN appium plugin install inspector
 
 # Copy Scripts
 COPY --chown=${USER_UID}:${USER_GID} install-sdk.sh ./bin/install-sdk.sh
