@@ -88,4 +88,3 @@ EXPOSE 6080 5901 5555 4723
 
 # Command to run supervisor
 ENTRYPOINT ["/home/ubuntu/bin/entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
