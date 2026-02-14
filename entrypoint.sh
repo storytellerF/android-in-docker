@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo chown -R ubuntu:ubuntu /home/ubuntu/log/supervisor
+sudo chown -R $(whoami):$(whoami) $HOME/log/supervisor
 
 # 获取/dev/kvm 所属的组
 KVM_GROUP=$(stat -c %G /dev/kvm)

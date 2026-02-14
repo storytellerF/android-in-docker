@@ -42,7 +42,7 @@ fi
 # 通过SYS_IMG_PKG获取NAME，增加base64 的SYS_IMG_PKG 后两段的后缀，不带==
 AVD_NAME=$(echo "$SYS_IMG_PKG" | cut -d';' -f2)-$(echo "$SYS_IMG_PKG" | cut -d';' -f3- | base64 | tr -d '\n' | sed 's/==$//')
 
-~/bin/sdkmanager-as-root.sh "$SYS_IMG_PKG"
+sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "$SYS_IMG_PKG"
 
 # Check if AVD exists
 if ! avdmanager list avd | grep -q "Name: $AVD_NAME"; then

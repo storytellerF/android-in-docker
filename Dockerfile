@@ -1,5 +1,5 @@
 # Base Image
-FROM ubuntu:25.10
+FROM debian:trixie
 
 ARG OPENJDK_VERSION
 # Avoid interactive prompts
@@ -21,24 +21,28 @@ RUN apt-get update && apt-get install -y \
     qemu-kvm \
     elinks \
     locales \
-    fonts-wqy-microhei \
-    fonts-wqy-zenhei \
+    fonts-noto \
     npm \
     sudo \
+    openssh-server \
     && apt-get purge -y xfce4-power-manager xfce4-power-manager-data \
     && rm -rf /var/lib/apt/lists/*
 
-# Setup Android SDK Environment
-ENV ANDROID_SDK_ROOT=/opt/android/sdk
-ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator
-
 # Setup a non-root user
-ARG USERNAME=ubuntu
+ARG USERNAME=debian
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+# Setup Android SDK Environment
+ENV ANDROID_SDK_ROOT=/home/${USERNAME}/Android/Sdk
+ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator
+
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
+
+RUN mkdir -p /run/sshd
 
 USER $USERNAME
 WORKDIR /home/$USERNAME
@@ -59,8 +63,6 @@ COPY --chown=${USER_UID}:${USER_GID} start-vnc.sh ./bin/start-vnc.sh
 RUN chmod +x ./bin/start-vnc.sh
 COPY --chown=${USER_UID}:${USER_GID} start-appium.sh ./bin/start-appium.sh
 RUN chmod +x ./bin/start-appium.sh
-COPY --chown=${USER_UID}:${USER_GID} sdkmanager-as-root.sh ./bin/sdkmanager-as-root.sh
-RUN chmod +x ./bin/sdkmanager-as-root.sh
 COPY --chown=${USER_UID}:${USER_GID} install-default-components.sh ./bin/install-default-components.sh
 RUN chmod +x ./bin/install-default-components.sh
 COPY --chown=${USER_UID}:${USER_GID} entrypoint.sh ./bin/entrypoint.sh
@@ -84,7 +86,8 @@ COPY supervisord.conf /etc/supervisor/supervisord.conf
 # 5901: VNC Server (for display :1)
 # 5555: ADB port
 # 4723: Appium port
-EXPOSE 6080 5901 5555 4723
+# 22: SSH port
+EXPOSE 6080 5901 5555 4723 22
 
 # Command to run supervisor
-ENTRYPOINT ["/home/ubuntu/bin/entrypoint.sh"]
+ENTRYPOINT ["sh", "-c", "/home/${USERNAME}/bin/entrypoint.sh"]

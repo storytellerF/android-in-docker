@@ -17,9 +17,10 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
-    echo "  -b, --build                  Execute the docker build process"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
     echo "  -m, --multi-arch             Enable multi-arch mode (builds/pushes for amd64 and arm64)"
+    echo "  --latest                     Tag the image as 'latest'"
+    echo "  --no-snapshot                Do not tag the image as 'snapshot' (snapshot is tagged by default)"
     echo "  -h, --help                   Display this help message"
     exit 1
 }
@@ -32,11 +33,12 @@ CREATE_ENV=false
 EXECUTE_BUILD=false
 PUBLISH=false
 MULTI_ARCH=false
-MULTI_ARCH=false
 DOCKER_USERNAME=""
 JDK_VERSION=""
 VNC_PASSWORD=""
 SYS_IMG_PKG=""
+TAG_LATEST=false
+TAG_SNAPSHOT=true
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -64,6 +66,12 @@ while [[ "$#" -gt 0 ]]; do
         -m|--multi-arch)
             MULTI_ARCH=true
             ;;
+        --latest)
+            TAG_LATEST=true
+            ;;
+        --no-snapshot)
+            TAG_SNAPSHOT=false
+            ;;
         -h|--help)
             usage
             ;;
@@ -75,15 +83,20 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# Get Ubuntu version from Dockerfile
+# Get base image version from Dockerfile (supports ubuntu: or debian:)
 if [ -f "Dockerfile" ]; then
-    UBUNTU_VERSION=$(grep "^FROM ubuntu:" Dockerfile | cut -d':' -f2 | tr -d '\r' | tr -d ' ')
+    BASE_VERSION=$(grep "^FROM " Dockerfile | cut -d':' -f2 | tr -d '\r' | tr -d ' ')
+    # Extract USERNAME from Dockerfile (ARG USERNAME=...)
+    DF_USERNAME=$(grep "^ARG USERNAME=" Dockerfile | cut -d'=' -f2 | tr -d '\r' | tr -d ' ')
+    CONTAINER_USER="${DF_USERNAME:-debian}"
 else
-    UBUNTU_VERSION="unknown"
+    BASE_VERSION="unknown"
+    CONTAINER_USER="debian"
 fi
+CONTAINER_HOME="/home/${CONTAINER_USER}"
 
-# Get current date
-CURRENT_DATE=$(date +%Y%m%d)
+# Get current date with timestamp
+CURRENT_DATE=$(date +%Y%m%d%H%M%S)
 
 # Load existing .env if present
 if [ -f "$ENV_FILE" ]; then
@@ -130,7 +143,7 @@ if [ "$CREATE_ENV" = true ]; then
     SYS_IMG_PKG="${INPUT_SysImg:-$SYS_IMG_PKG}"
 
     # Calculate IMAGE_TAG
-    IMAGE_TAG="${OPENJDK_VERSION}.${UBUNTU_VERSION}-${CURRENT_DATE}-ou"
+    IMAGE_TAG="openjdk${OPENJDK_VERSION}.${BASE_VERSION}.${CURRENT_DATE}"
 
     echo "Updating $ENV_FILE..."
     # Helper to write or update var in file
@@ -148,13 +161,13 @@ if [ "$CREATE_ENV" = true ]; then
     # Initialize file if not exists
     touch "$ENV_FILE"
 
-    touch "$ENV_FILE"
-
     update_env_var "DOCKER_USERNAME" "$DOCKER_USERNAME" "$ENV_FILE"
     update_env_var "OPENJDK_VERSION" "$OPENJDK_VERSION" "$ENV_FILE"
     update_env_var "VNC_PASSWD" "$VNC_PASSWD" "$ENV_FILE"
     update_env_var "SYS_IMG_PKG" "$SYS_IMG_PKG" "$ENV_FILE"
     update_env_var "IMAGE_TAG" "$IMAGE_TAG" "$ENV_FILE"
+    update_env_var "CONTAINER_USER" "$CONTAINER_USER" "$ENV_FILE"
+    update_env_var "CONTAINER_HOME" "$CONTAINER_HOME" "$ENV_FILE"
     
     echo ".env file updated."
 else
@@ -162,7 +175,7 @@ else
     # Actually, if we are just building, we rely on .env values.
     # If IMAGE_TAG is not in .env, we generate one temporarily for this build?
     if [ -z "$IMAGE_TAG" ]; then
-         IMAGE_TAG="${OPENJDK_VERSION}.${UBUNTU_VERSION}-${CURRENT_DATE}-ou"
+         IMAGE_TAG="openjdk${OPENJDK_VERSION}.${BASE_VERSION}.${CURRENT_DATE}"
     fi
 fi
 
@@ -181,10 +194,14 @@ if [ "$PUBLISH" = true ]; then
     # Create a new builder if using multi-arch to ensure isolation or use default if supported
     # docker buildx create --use || true
 
+    BUILD_TAGS=("-t" "${IMAGE_NAME}:${IMAGE_TAG}")
+    [ "$TAG_LATEST" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:latest")
+    [ "$TAG_SNAPSHOT" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:snapshot")
+
     docker buildx build \
         --platform linux/amd64,linux/arm64 \
         --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
-        -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+        "${BUILD_TAGS[@]}" \
         --push \
         -f Dockerfile .
         
@@ -194,11 +211,17 @@ if [ "$PUBLISH" = true ]; then
 elif [ "$EXECUTE_BUILD" = true ]; then
     echo "Building the Docker image with JDK $OPENJDK_VERSION..."
     echo "Building locally for current architecture..."
+    BUILD_TAGS=("-t" "${IMAGE_NAME}:${IMAGE_TAG}")
+    [ "$TAG_LATEST" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:latest")
+    [ "$TAG_SNAPSHOT" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:snapshot")
+
     docker build \
         --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
-        -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+        "${BUILD_TAGS[@]}" \
         -f Dockerfile .
         
     echo "Docker image build process finished."
     echo "Image created: ${IMAGE_NAME}:${IMAGE_TAG}"
+    [ "$TAG_LATEST" = true ] && echo "Also tagged as: ${IMAGE_NAME}:latest"
+    [ "$TAG_SNAPSHOT" = true ] && echo "Also tagged as: ${IMAGE_NAME}:snapshot"
 fi

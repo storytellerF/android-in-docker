@@ -14,10 +14,6 @@ if [ -z "$SYS_IMG_PKG" ] || [ -z "$BUILD_TOOLS_PKG" ] || [ -z "$PLATFORM_PKG" ];
     exit 1
 fi
 
-# Set Android SDK root
-export ANDROID_SDK_ROOT=/opt/android/sdk
-export PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator
-
 # Ensure the base directory exists and we have permissions
 mkdir -p ${ANDROID_SDK_ROOT}
 chown -R root:root ${ANDROID_SDK_ROOT}

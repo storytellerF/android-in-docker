@@ -10,39 +10,47 @@
     docker volume create sdk_data
     ```
 
-2. 使用脚本构建镜像（或用 docker-compose 构建）：
+2. 使用脚本构建镜像：
 
     ```sh
-    ./build-image.sh
-    # 或
-    docker-compose build
+    ./build-image.sh [OPTIONS]
     ```
 
-    > **注意**：
-    > - `-b` / `--build`: 构建本地镜像（默认当前架构）。
-    > - `-P` / `--publish`: 自动 **构建并推送** 多架构镜像（amd64 + arm64）。
-    >
-    > **示例**：
-    > ```sh
-    > # 1. 本地构建测试 (单架构)
-    > ./build-image.sh -b
-    > 
-    > # 2. 发布多架构镜像 (需先 docker login)
-    > ./build-image.sh -P
-    > ```
+    **常用选项**：
+    - `-c` / `--create-env`: **交互式生成/更新** `.env` 配置文件。
+    - `-b` / `--build`: 执行本地镜像构建。
+    - `-P` / `--publish`: 构建并推送 **多架构** 镜像（amd64 + arm64）。
+    - `-j` / `--jdk-version`: 指定 OpenJDK 版本（例如 `17`, `21`）。
+    - `-p` / `--password`: 指定 VNC 密码。
+    - `-s` / `--system-image`: 指定 Android 系统镜像包名。
+
+    **示例**：
+    ```sh
+    # 1. 首次配置环境（交互式）
+    ./build-image.sh -c
+
+    # 2. 本地构建测试 (单架构)
+    ./build-image.sh -b
+
+    # 3. 指定 JDK 版本并构建
+    ./build-image.sh -j 17 -b
+
+    # 4. 发布多架构镜像 (需先 docker login)
+    ./build-image.sh -P
+    ```
 
     **启用 Bash 补全**：
     
     ```bash
-    source build-image-completion.bash
+    source completion.bash
     ```
     
     之后可以使用 TAB 键补全参数。
 
-3. 启动服务：
+3. 或用 docker-compose 直接启动
 
     ```sh
-    docker-compose up -d
+    docker-compose up -d --build
     ```
 
 4. 连接与验证
@@ -75,16 +83,16 @@
 
 执行 `build-image.sh` 构建镜像时，生成的 Tag 格式为：
 
-`{JDK_VERSION}.{UBUNTU_VERSION}-{DATE}-ou`
+`openjdk{JDK_VERSION}.{BASE_VERSION}.{DATE}`
 
 - **JDK_VERSION**: OpenJDK 版本（默认 21，可通过 `-j` 参数或 `.env` 文件指定）
 - **DOCKER_USERNAME**: Docker Hub 用户名（可选）。如果设置，镜像名将为 `{DOCKER_USERNAME}/android-in-docker`。
-- **UBUNTU_VERSION**: 基础镜像 Ubuntu 版本（从 `Dockerfile` 中自动提取）
-- **DATE**: 构建日期 (YYYYMMDD)
+- **BASE_VERSION**: 基础镜像版本（从 `Dockerfile` 中自动提取，如 `trixie`）
+- **DATE**: 构建日期与时间 (YYYYMMDDHHMMSS)
 
-例如：`21.24.04-20260207-ou`
+例如：`openjdk21.trixie.20260215082211`
 
-o 表示 OpenJDK，u 表示 Ubuntu，ou 表示 OpenJDK + Ubuntu。
+其中 `openjdk` 前缀和 `.` 分隔符使得 Tag 更加清晰易读。
 
 同时，生成的 Tag 会自动更新到 `.env` 文件的 `IMAGE_TAG` 变量中，以便 `docker-compose` 使用对应版本的镜像。
 
@@ -134,5 +142,4 @@ sudo supervisorctl status
 ## 注意事项
 
 - 若第一次启动，容器会自动下载并安装 Android SDK 命令行工具及必须组件（由 [`install-sdk.sh`](install-sdk.sh) 执行）；这一步可能较慢且需要网络访问 Google 仓库。
-- `docker-compose.yml` 中将容器设置为 `privileged: true` 以启用 KVM 加速（仅在宿主支持并正确配置 KVM 时生效）。
 - 如果需要改变 Java 版本，调整构建时参数或 `OPENJDK_VERSION`（见 [`Dockerfile`](Dockerfile) 与 [`build-image.sh`](build-image.sh)）。

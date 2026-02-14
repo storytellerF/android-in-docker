@@ -1,14 +1,8 @@
 #!/bin/bash
 set -e
 
-# Set Android SDK root
-export ANDROID_SDK_ROOT=/opt/android/sdk
-export PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator
-
 # Ensure the base directory exists and we have permissions
 mkdir -p ${ANDROID_SDK_ROOT}
-chown -R root:root ${ANDROID_SDK_ROOT}
-chmod -R 755 ${ANDROID_SDK_ROOT}
 
 # Check if command line tools are already installed
 if [ -d "${ANDROID_SDK_ROOT}/cmdline-tools/latest" ]; then

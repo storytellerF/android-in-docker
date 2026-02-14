@@ -1,20 +1,18 @@
 services:
   android:
-    build:
-      context: .
-      args:
-        - OPENJDK_VERSION=${OPENJDK_VERSION}
+    image: storytellerf/android-in-docker:snapshot
     ports:
       - "6080:6080" # noVNC web interface
       - "5901:5901" # VNC direct connection
       - "5555:5555" # ADB
       - "4723:4723" # Appium
+      - "2222:22" # SSH
     env_file:
       - .env
     volumes:
-      - avd_data:/home/ubuntu/.android/avd
-      - ./logs:/home/ubuntu/log/supervisor
-      - sdk_data:/opt/android/sdk
+      - avd_data:${CONTAINER_HOME:-/home/debian}/.android/avd
+      - ./logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
+      - sdk_data:${CONTAINER_HOME:-/home/debian}/Android/Sdk
     shm_size: '2gb' # Allocate more shared memory
     #privileged: true # Enable KVM acceleration
     devices:
