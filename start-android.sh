@@ -3,7 +3,7 @@ set -e
 
 # First, ensure the SDK is installed and ready.
 echo "Running SDK installation script..."
-sudo ~/bin/install-sdk.sh
+~/bin/install-sdk.sh
 echo "SDK setup finished."
 
 # Graceful shutdown
@@ -40,7 +40,7 @@ else
     echo "Warning: Unknown architecture $ARCH. Skipping architecture check for SYS_IMG_PKG."
 fi
 # 通过SYS_IMG_PKG获取NAME，增加base64 的SYS_IMG_PKG 后两段的后缀，不带==
-AVD_NAME=$(echo "$SYS_IMG_PKG" | cut -d';' -f2)-$(echo "$SYS_IMG_PKG" | cut -d';' -f3- | base64 | tr -d '\n' | sed 's/==$//')
+AVD_NAME=$(echo "$SYS_IMG_PKG" | cut -d';' -f2)-$(echo "$SYS_IMG_PKG" | cut -d';' -f3- | base64 | tr -d '\n' | sed 's/=*$//')
 
 sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "$SYS_IMG_PKG"
 

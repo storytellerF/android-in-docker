@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y \
 ARG USERNAME=debian
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
+ENV USER=$USERNAME
 
 # Setup Android SDK Environment
 ENV ANDROID_SDK_ROOT=/home/${USERNAME}/Android/Sdk
@@ -90,4 +91,4 @@ COPY supervisord.conf /etc/supervisor/supervisord.conf
 EXPOSE 6080 5901 5555 4723 22
 
 # Command to run supervisor
-ENTRYPOINT ["sh", "-c", "/home/${USERNAME}/bin/entrypoint.sh"]
+ENTRYPOINT ["sh", "-c", "$HOME/bin/entrypoint.sh"]
