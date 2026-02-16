@@ -28,6 +28,9 @@ RUN apt-get update && apt-get install -y \
     && apt-get purge -y xfce4-power-manager xfce4-power-manager-data \
     && rm -rf /var/lib/apt/lists/*
 
+RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
+    && locale-gen
+
 # Setup a non-root user
 ARG USERNAME=debian
 ARG USER_UID=1000
