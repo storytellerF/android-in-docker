@@ -17,6 +17,7 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
+    echo "  -S, --start                  Start docker compose up --build after building the image"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
     echo "  -m, --multi-arch             Enable multi-arch mode (builds/pushes for amd64 and arm64)"
     echo "  --latest                     Tag the image as 'latest'"
@@ -28,9 +29,7 @@ usage() {
 # Parse arguments
 CREATE_ENV=false
 EXECUTE_BUILD=false
-# Parse arguments
-CREATE_ENV=false
-EXECUTE_BUILD=false
+START_CONTAINER=false
 PUBLISH=false
 MULTI_ARCH=false
 DOCKER_USERNAME=""
@@ -59,6 +58,9 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -b|--build)
             EXECUTE_BUILD=true
+            ;;
+        -S|--start)
+            START_CONTAINER=true
             ;;
         -P|--publish)
             PUBLISH=true
@@ -228,4 +230,19 @@ elif [ "$EXECUTE_BUILD" = true ]; then
     [ "$TAG_SNAPSHOT" = true ] && echo "Also tagged as: ${IMAGE_NAME}:snapshot"
     echo "Cleaning up dangling images..."
     docker image prune -f
+
+    # Start container if requested
+    if [ "$START_CONTAINER" = true ]; then
+        echo ""
+        echo "Starting docker compose..."
+        if docker compose up --build -d; then
+            echo "Docker compose started successfully."
+            echo "You can access the Android emulator via:"
+            echo "  - Web VNC: http://localhost:6080/vnc.html"
+            echo "  - VNC direct: localhost:5901"
+        else
+            echo "Warning: Failed to start docker compose."
+            exit 1
+        fi
+    fi
 fi
