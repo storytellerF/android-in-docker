@@ -35,8 +35,8 @@ ARG USER_GID=$USER_UID
 ENV USER=$USERNAME
 
 # Setup Android SDK Environment
-ENV ANDROID_SDK_ROOT=/home/${USERNAME}/Android/Sdk
-ENV PATH=$PATH:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator
+ENV ANDROID_HOME=/home/${USERNAME}/Android/Sdk
+ENV PATH=$PATH:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
 
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \

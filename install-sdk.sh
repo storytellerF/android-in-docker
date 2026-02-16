@@ -16,8 +16,8 @@ version_lt() {
 }
 
 # Ensure the base directory exists and we have permissions
-mkdir -p ${ANDROID_SDK_ROOT}
-sudo chown -R $(whoami):$(whoami) ${ANDROID_SDK_ROOT}
+mkdir -p ${ANDROID_HOME}
+sudo chown -R $(whoami):$(whoami) ${ANDROID_HOME}
 
 # 下载并安装 command line tools 的函数
 download_and_install_cmdline_tools() {
@@ -29,65 +29,65 @@ download_and_install_cmdline_tools() {
         return 1
     fi
 
-    mkdir -p ${ANDROID_SDK_ROOT}/cmdline-tools
-    if ! unzip -q commandline-tools.zip -d ${ANDROID_SDK_ROOT}/cmdline-tools; then
+    mkdir -p ${ANDROID_HOME}/cmdline-tools
+    if ! unzip -q commandline-tools.zip -d ${ANDROID_HOME}/cmdline-tools; then
         echo "Error: Failed to extract command-line tools"
         rm -f commandline-tools.zip
         return 1
     fi
 
-    mv ${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools ${ANDROID_SDK_ROOT}/cmdline-tools/latest
+    mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest
     rm -f commandline-tools.zip
     echo "Android SDK command-line tools installed."
 }
 
 # 检查并安装 command line tools
-if [ ! -d "${ANDROID_SDK_ROOT}/cmdline-tools/latest" ]; then
+if [ ! -d "${ANDROID_HOME}/cmdline-tools/latest" ]; then
     download_and_install_cmdline_tools || exit 1
 else
     echo "Android SDK command-line tools found."
 
     # 获取当前版本
-    CLI_VERSION=$(grep "Pkg.Revision" ${ANDROID_SDK_ROOT}/cmdline-tools/latest/source.properties 2>/dev/null | awk -F '=' '{print $2}')
+    CLI_VERSION=$(grep "Pkg.Revision" ${ANDROID_HOME}/cmdline-tools/latest/source.properties 2>/dev/null | awk -F '=' '{print $2}')
     echo "Current command line tools version: ${CLI_VERSION:-unknown}"
     if version_lt "$CLI_VERSION" "19.0"; then
         echo "Updating command line tools to the latest version..."
-        rm -rf ${ANDROID_SDK_ROOT}/cmdline-tools/latest
+        rm -rf ${ANDROID_HOME}/cmdline-tools/latest
         download_and_install_cmdline_tools || exit 1
     fi
 fi
 
 # Accept all licenses silently before attempting to download components
-yes | sdkmanager --sdk_root=${ANDROID_SDK_ROOT} --licenses > /dev/null
+yes | sdkmanager --sdk_root=${ANDROID_HOME} --licenses > /dev/null
 
 # 使用sdkmanager 获取当前最新的command line tools版本号
-LATEST_CLI_VERSION=$(sdkmanager --sdk_root=${ANDROID_SDK_ROOT} --list | grep "cmdline-tools;latest" | awk '{print $3}')
+LATEST_CLI_VERSION=$(sdkmanager --sdk_root=${ANDROID_HOME} --list | grep "cmdline-tools;latest" | awk '{print $3}')
 echo "Latest command line tools version available: $LATEST_CLI_VERSION"
 
 # 如果版本号不是空，并且不同才更新
 if [ -n "$CLI_VERSION" ] && [ -n "$LATEST_CLI_VERSION" ] && [ "$CLI_VERSION" != "$LATEST_CLI_VERSION" ]; then
     # 使用sdkmanager更新command line tools
     echo "Updating command line tools to the latest version..."
-    mv ${ANDROID_SDK_ROOT}/cmdline-tools/latest ${ANDROID_SDK_ROOT}/cmdline-tools/$CLI_VERSION
-    "${ANDROID_SDK_ROOT}/cmdline-tools/${CLI_VERSION}/sdkmanager" --sdk_root=${ANDROID_SDK_ROOT} "cmdline-tools;latest"
-    rm -rf ${ANDROID_SDK_ROOT}/cmdline-tools/$CLI_VERSION
+    mv ${ANDROID_HOME}/cmdline-tools/latest ${ANDROID_HOME}/cmdline-tools/$CLI_VERSION
+    "${ANDROID_HOME}/cmdline-tools/${CLI_VERSION}/sdkmanager" --sdk_root=${ANDROID_HOME} "cmdline-tools;latest"
+    rm -rf ${ANDROID_HOME}/cmdline-tools/$CLI_VERSION
     echo "Android SDK command-line tools updated to version $LATEST_CLI_VERSION."
 else
     echo "Android SDK command-line tools are up to date."
 fi
 
 # --- Install platform-tools if not present ---
-if [ ! -d "${ANDROID_SDK_ROOT}/platform-tools" ]; then
+if [ ! -d "${ANDROID_HOME}/platform-tools" ]; then
     echo "Installing platform-tools..."
-    sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "platform-tools"
+    sdkmanager --sdk_root=${ANDROID_HOME} "platform-tools"
 else
     echo "platform-tools already installed."
 fi
 
 # --- Install emulator if not present ---
-if [ ! -d "${ANDROID_SDK_ROOT}/emulator" ]; then
+if [ ! -d "${ANDROID_HOME}/emulator" ]; then
     echo "Installing emulator..."
-    sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "emulator"
+    sdkmanager --sdk_root=${ANDROID_HOME} "emulator"
 else
     echo "emulator already installed."
 fi
