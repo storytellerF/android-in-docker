@@ -168,7 +168,6 @@ if [ "$CREATE_ENV" = true ]; then
     update_env_var "VNC_PASSWD" "$VNC_PASSWD" "$ENV_FILE"
     update_env_var "SYS_IMG_PKG" "$SYS_IMG_PKG" "$ENV_FILE"
     update_env_var "IMAGE_TAG" "$IMAGE_TAG" "$ENV_FILE"
-    update_env_var "CONTAINER_USER" "$CONTAINER_USER" "$ENV_FILE"
     update_env_var "CONTAINER_HOME" "$CONTAINER_HOME" "$ENV_FILE"
     
     echo ".env file updated."
