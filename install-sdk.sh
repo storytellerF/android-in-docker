@@ -58,10 +58,10 @@ else
 fi
 
 # Accept all licenses silently before attempting to download components
-yes | sdkmanager --sdk_root=${ANDROID_HOME} --licenses > /dev/null
+yes | sdkmanager --licenses > /dev/null
 
 # 使用sdkmanager 获取当前最新的command line tools版本号
-LATEST_CLI_VERSION=$(sdkmanager --sdk_root=${ANDROID_HOME} --list | grep "cmdline-tools;latest" | awk '{print $3}')
+LATEST_CLI_VERSION=$(sdkmanager --list | grep "cmdline-tools;latest" | awk '{print $3}')
 echo "Latest command line tools version available: $LATEST_CLI_VERSION"
 
 # 如果版本号不是空，并且不同才更新
@@ -69,7 +69,7 @@ if [ -n "$CLI_VERSION" ] && [ -n "$LATEST_CLI_VERSION" ] && [ "$CLI_VERSION" != 
     # 使用sdkmanager更新command line tools
     echo "Updating command line tools to the latest version..."
     mv ${ANDROID_HOME}/cmdline-tools/latest ${ANDROID_HOME}/cmdline-tools/$CLI_VERSION
-    "${ANDROID_HOME}/cmdline-tools/${CLI_VERSION}/sdkmanager" --sdk_root=${ANDROID_HOME} "cmdline-tools;latest"
+    "${ANDROID_HOME}/cmdline-tools/${CLI_VERSION}/sdkmanager" "cmdline-tools;latest"
     rm -rf ${ANDROID_HOME}/cmdline-tools/$CLI_VERSION
     echo "Android SDK command-line tools updated to version $LATEST_CLI_VERSION."
 else
@@ -79,7 +79,7 @@ fi
 # --- Install platform-tools if not present ---
 if [ ! -d "${ANDROID_HOME}/platform-tools" ]; then
     echo "Installing platform-tools..."
-    sdkmanager --sdk_root=${ANDROID_HOME} "platform-tools"
+    sdkmanager "platform-tools"
 else
     echo "platform-tools already installed."
 fi
@@ -87,7 +87,7 @@ fi
 # --- Install emulator if not present ---
 if [ ! -d "${ANDROID_HOME}/emulator" ]; then
     echo "Installing emulator..."
-    sdkmanager --sdk_root=${ANDROID_HOME} "emulator"
+    sdkmanager "emulator"
 else
     echo "emulator already installed."
 fi

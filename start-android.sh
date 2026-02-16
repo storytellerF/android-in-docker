@@ -46,7 +46,7 @@ fi
 AVD_NAME=$(echo "$SYS_IMG_PKG" | cut -d';' -f2)-$(echo "$SYS_IMG_PKG" | cut -d';' -f3- | base64 | tr -d '\n' | sed 's/=*$//')
 echo "AVD_NAME: $AVD_NAME"
 echo "System image package: $SYS_IMG_PKG"
-sdkmanager --sdk_root=${ANDROID_HOME} "$SYS_IMG_PKG"
+sdkmanager "$SYS_IMG_PKG"
 
 sudo chown -R $(whoami):$(whoami) ~/.android
 
