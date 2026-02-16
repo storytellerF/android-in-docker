@@ -11,6 +11,13 @@ else
   echo "VNC_PASSWD not set. VNC will start without a password."
 fi
 
+# Initialize .Xauthority file to avoid xauth warnings (only if it doesn't exist)
+if [ ! -f ~/.Xauthority ]; then
+  echo "Initializing .Xauthority file."
+  touch ~/.Xauthority
+  chmod 600 ~/.Xauthority
+fi
+
 # Function to handle graceful shutdown
 cleanup() {
   echo "Caught signal, stopping VNC server..."
@@ -33,5 +40,4 @@ vncserver :1 -geometry 1280x800 -depth 24
 # Tail logs in background and wait
 # waiting allows the script to catch signals
 echo "Waiting for VNC server to start..."
-tail -F ~/.vnc/*.log &
-wait $!
+sleep infinity

@@ -71,7 +71,8 @@ RUN chmod +x ./bin/entrypoint.sh
 
 RUN mkdir -p ./log/supervisor \
     && mkdir -p ./run \
-    && mkdir -p ./.vnc
+    && mkdir -p ./.vnc \
+    && mkdir -p ./.android
 
 # Setup the startup script for the VNC server to launch the XFCE desktop
 RUN echo "#!/bin/bash" > ./.vnc/xstartup && \

@@ -204,9 +204,11 @@ if [ "$PUBLISH" = true ]; then
         "${BUILD_TAGS[@]}" \
         --push \
         -f Dockerfile .
-        
+
     echo "Multi-arch build and push finished."
     echo "Image pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
+    echo "Cleaning up dangling images..."
+    docker image prune -f
 
 elif [ "$EXECUTE_BUILD" = true ]; then
     echo "Building the Docker image with JDK $OPENJDK_VERSION..."
@@ -219,9 +221,11 @@ elif [ "$EXECUTE_BUILD" = true ]; then
         --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
         "${BUILD_TAGS[@]}" \
         -f Dockerfile .
-        
+
     echo "Docker image build process finished."
     echo "Image created: ${IMAGE_NAME}:${IMAGE_TAG}"
     [ "$TAG_LATEST" = true ] && echo "Also tagged as: ${IMAGE_NAME}:latest"
     [ "$TAG_SNAPSHOT" = true ] && echo "Also tagged as: ${IMAGE_NAME}:snapshot"
+    echo "Cleaning up dangling images..."
+    docker image prune -f
 fi

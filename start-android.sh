@@ -10,8 +10,11 @@ echo "SDK setup finished."
 shutdown() {
     echo "Shutting down emulator gracefully..."
     # Use adb to kill the emulator process
-    adb -s emulator-5554 emu kill
-    wait "$EMULATOR_PID"
+    # Wait for the process if it's still running, skip if already terminated
+    if kill -0 "$EMULATOR_PID" 2>/dev/null; then
+        adb emu kill
+        wait "$EMULATOR_PID" || true
+    fi
     echo "Emulator shut down."
     exit 0
 }
@@ -41,8 +44,11 @@ else
 fi
 # 通过SYS_IMG_PKG获取NAME，增加base64 的SYS_IMG_PKG 后两段的后缀，不带==
 AVD_NAME=$(echo "$SYS_IMG_PKG" | cut -d';' -f2)-$(echo "$SYS_IMG_PKG" | cut -d';' -f3- | base64 | tr -d '\n' | sed 's/=*$//')
-
+echo "AVD_NAME: $AVD_NAME"
+echo "System image package: $SYS_IMG_PKG"
 sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "$SYS_IMG_PKG"
+
+sudo chown -R $(whoami):$(whoami) ~/.android
 
 # Check if AVD exists
 if ! avdmanager list avd | grep -q "Name: $AVD_NAME"; then
