@@ -9,9 +9,9 @@ if [ "$(id -gn)" != "$KVM_GROUP" ]; then
     echo "Adding user $(whoami) to group $KVM_GROUP..."
     sudo usermod -aG "$KVM_GROUP" "$(whoami)"
     echo "Re-login to group $KVM_GROUP..."
-    newgrp "$KVM_GROUP" -c "/usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf"
+    newgrp "$KVM_GROUP" -c "./bin/start-supervisord.sh"
     exit 0
 fi
 
 # Start supervisor
-/usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
+./bin/start-supervisord.sh

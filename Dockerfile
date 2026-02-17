@@ -2,11 +2,11 @@
 FROM debian:trixie
 
 ARG OPENJDK_VERSION
-# Avoid interactive prompts
-ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Dependencies: VNC, Desktop, Supervisor, Java, KVM, and other tools
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y \
     dbus-x11 \
     supervisor \
     tightvncserver \
@@ -31,22 +31,17 @@ RUN apt-get update && apt-get install -y \
 RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen
 
+RUN mkdir -p /run/sshd
+
 # Setup a non-root user
 ARG USERNAME=debian
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
-ENV SUPERVISOR_USER=$USERNAME
-
-# Setup Android SDK Environment
-ENV ANDROID_HOME=/home/${USERNAME}/Android/Sdk
-ENV PATH=$PATH:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
 
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
-
-RUN mkdir -p /run/sshd
 
 USER $USERNAME
 WORKDIR /home/$USERNAME
@@ -71,6 +66,11 @@ COPY --chown=${USER_UID}:${USER_GID} install-default-components.sh ./bin/install
 RUN chmod +x ./bin/install-default-components.sh
 COPY --chown=${USER_UID}:${USER_GID} entrypoint.sh ./bin/entrypoint.sh
 RUN chmod +x ./bin/entrypoint.sh
+COPY --chown=${USER_UID}:${USER_GID} start-supervisord.sh ./bin/start-supervisord.sh
+RUN chmod +x ./bin/start-supervisord.sh
+
+# Copy supervisor configuration
+COPY supervisord.conf ./supervisor/supervisord.conf
 
 RUN mkdir -p ./log/supervisor \
     && mkdir -p ./run \
@@ -83,8 +83,11 @@ RUN echo "#!/bin/bash" > ./.vnc/xstartup && \
     echo "startxfce4 &" >> ./.vnc/xstartup && \
     chmod +x ./.vnc/xstartup
 
-# Copy supervisor configuration
-COPY supervisord.conf /etc/supervisor/supervisord.conf
+# 主要用于supervisor
+ENV SUPERVISOR_USER=$USERNAME
+# Setup Android SDK Environment
+ENV ANDROID_HOME=/home/${USERNAME}/Android/Sdk
+ENV PATH=$PATH:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
 
 # Expose Ports:
 # 6080: noVNC Web Interface

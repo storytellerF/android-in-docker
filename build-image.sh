@@ -233,15 +233,11 @@ elif [ "$EXECUTE_BUILD" = true ]; then
     # Start container if requested
     if [ "$START_CONTAINER" = true ]; then
         echo ""
+        echo "Docker compose started successfully."
+        echo "You can access the Android emulator via:"
+        echo "  - Web VNC: http://localhost:6080/vnc.html"
+        echo "  - VNC direct: localhost:5901"
         echo "Starting docker compose..."
-        if docker compose up --build -d; then
-            echo "Docker compose started successfully."
-            echo "You can access the Android emulator via:"
-            echo "  - Web VNC: http://localhost:6080/vnc.html"
-            echo "  - VNC direct: localhost:5901"
-        else
-            echo "Warning: Failed to start docker compose."
-            exit 1
-        fi
+        docker compose up --build
     fi
 fi
