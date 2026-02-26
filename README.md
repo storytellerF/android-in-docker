@@ -16,14 +16,6 @@
     ./build-image.sh [OPTIONS]
     ```
 
-    **常用选项**：
-    - `-c` / `--create-env`: **交互式生成/更新** `.env` 配置文件。
-    - `-b` / `--build`: 执行本地镜像构建。
-    - `-P` / `--publish`: 构建并推送 **多架构** 镜像（amd64 + arm64）。
-    - `-j` / `--jdk-version`: 指定 OpenJDK 版本（例如 `17`, `21`）。
-    - `-p` / `--password`: 指定 VNC 密码。
-    - `-s` / `--system-image`: 指定 Android 系统镜像包名。
-
     **示例**：
     ```sh
     # 1. 首次配置环境（交互式）
@@ -47,10 +39,15 @@
     
     之后可以使用 TAB 键补全参数。
 
-3. 或用 docker-compose 直接启动
+3. 用 docker-compose 直接启动
 
     ```sh
     docker-compose up -d --build
+    ```
+
+    或者
+    ```sh
+    ./build-image.sh -S
     ```
 
 4. 连接与验证
@@ -107,8 +104,8 @@ docker-compose 已配置以下卷（见 [`docker-compose.yml`](docker-compose.ym
 
 容器中 supervisor 日志映射到宿主目录 `./logs`（参见 [supervisord.conf](supervisord.conf) 和 [docker-compose.yml](docker-compose.yml)）。常用日志位置：
 
-- 宿主：`./logs`（映射自容器 `/var/log/supervisor`）
-- 容器内：`/var/log/supervisor/*.log`
+- 宿主：`./logs`（映射自容器 `~/log/supervisor`）
+- 容器内：`~/log/supervisor/*.log`
 
 ## 常见操作
 
@@ -139,7 +136,16 @@ adb devices
 sudo supervisorctl status
 ```
 
+## 额外功能
+
+启用ssh 参考 [ssh.Dockerfile](ssh.Dockerfile)
+
+安装chrome 参考
+
+容器中没有安装ssh 服务器，需要自定义镜像
+
 ## 注意事项
 
 - 若第一次启动，容器会自动下载并安装 Android SDK 命令行工具及必须组件（由 [`install-sdk.sh`](install-sdk.sh) 执行）；这一步可能较慢且需要网络访问 Google 仓库。
 - 如果需要改变 Java 版本，调整构建时参数或 `OPENJDK_VERSION`（见 [`Dockerfile`](Dockerfile) 与 [`build-image.sh`](build-image.sh)）。
+- 为了能够在sandbox 中运行，需要添加 `SYS_ADMIN` 能力（见 [`docker-compose.yml`](docker-compose.yml)）。

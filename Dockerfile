@@ -14,17 +14,14 @@ RUN apt-get update && \
     xfce4-goodies \
     novnc \
     websockify \
-    net-tools \
     openjdk-${OPENJDK_VERSION}-jdk \
     wget \
     unzip \
     qemu-kvm \
     elinks \
     locales \
-    fonts-noto \
     npm \
     sudo \
-    openssh-server \
     && apt-get purge -y xfce4-power-manager xfce4-power-manager-data \
     && rm -rf /var/lib/apt/lists/*
 
@@ -39,7 +36,7 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
@@ -94,8 +91,7 @@ ENV PATH=$PATH:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform
 # 5901: VNC Server (for display :1)
 # 5555: ADB port
 # 4723: Appium port
-# 22: SSH port
-EXPOSE 6080 5901 5555 4723 22
+EXPOSE 6080 5901 5555 4723
 
 # Command to run supervisor
 ENTRYPOINT ["sh", "-c", "$HOME/bin/entrypoint.sh"]
