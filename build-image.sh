@@ -19,6 +19,7 @@ usage() {
     echo "  -b, --build                  Execute the docker build process"
     echo "  -C, --chrome                 Build chrome.Dockerfile instead of Dockerfile"
     echo "  -H, --ssh                    Build ssh.Dockerfile instead of Dockerfile"
+    echo "  -A, --android-studio         Build androidstudio.Dockerfile instead of Dockerfile"
     echo "  -S, --start                  Start docker compose up --build after building the image"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
     echo "  -m, --multi-arch             Enable multi-arch mode (builds/pushes for amd64 and arm64)"
@@ -33,6 +34,7 @@ CREATE_ENV=false
 EXECUTE_BUILD=false
 BUILD_CHROME=false
 BUILD_SSH=false
+BUILD_ANDROID_STUDIO=false
 START_CONTAINER=false
 PUBLISH=false
 MULTI_ARCH=false
@@ -68,6 +70,9 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -H|--ssh)
             BUILD_SSH=true
+            ;;
+        -A|--android-studio)
+            BUILD_ANDROID_STUDIO=true
             ;;
         -S|--start)
             START_CONTAINER=true
@@ -208,6 +213,9 @@ if [ "$PUBLISH" = true ]; then
     elif [ "$BUILD_SSH" = true ]; then
         echo "Can't publish ssh flavor image"
         exit 1
+    elif [ "$BUILD_ANDROID_STUDIO" = true ]; then
+        echo "Can't publish android-studio flavor image"
+        exit 1
     fi
     
     # Ensure buildx is available and use it
@@ -238,6 +246,8 @@ elif [ "$EXECUTE_BUILD" = true ]; then
         echo "Building Chrome version using chrome.Dockerfile"
     elif [ "$BUILD_SSH" = true ]; then
         echo "Building SSH version using ssh.Dockerfile"
+    elif [ "$BUILD_ANDROID_STUDIO" = true ]; then
+        echo "Building Android Studio version using androidstudio.Dockerfile"
     else
         echo "Building standard version using Dockerfile"
     fi
@@ -255,6 +265,9 @@ elif [ "$EXECUTE_BUILD" = true ]; then
     elif [ "$BUILD_SSH" = true ]; then
         DOCKERFILE="ssh.Dockerfile"
         SPECIAL_TAG_SUFFIX="-ssh"
+    elif [ "$BUILD_ANDROID_STUDIO" = true ]; then
+        DOCKERFILE="androidstudio.Dockerfile"
+        SPECIAL_TAG_SUFFIX="-android-studio"
     fi
     
     # Modify tags to include special suffix for chrome/ssh flavors
@@ -323,6 +336,18 @@ if [ "$START_CONTAINER" = true ]; then
             echo "  - SSH: localhost:2222 (username: debian, password: 123456)"
         else
             echo "Failed to start docker compose with SSH configuration."
+        fi
+    elif [ "$BUILD_ANDROID_STUDIO" = true ]; then
+        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.androidstudio.yml"
+        echo "Starting docker compose with Android Studio configuration..."
+        if docker compose $COMPOSE_FILES up -d --build; then
+            echo "Docker compose with Android Studio configuration started successfully."
+            echo "You can access the Android emulator via:"
+            echo "  - Web VNC: http://localhost:6080/vnc.html"
+            echo "  - VNC direct: localhost:5901"
+            echo "  - Appium: http://localhost:4723/inspector"
+        else
+            echo "Failed to start docker compose with Android Studio configuration."
         fi
     else
         # 启动并检查是否成功，如果成功显示下面的log
