@@ -51,19 +51,19 @@ RUN appium plugin install storage
 RUN appium plugin install inspector
 
 # Copy Scripts
-COPY --chown=${USER_UID}:${USER_GID} install-sdk.sh ./bin/install-sdk.sh
+COPY --chown=${USER_UID}:${USER_GID} scripts/install-sdk.sh ./bin/install-sdk.sh
 RUN chmod +x ./bin/install-sdk.sh
-COPY --chown=${USER_UID}:${USER_GID} start-android.sh ./bin/start-android.sh
+COPY --chown=${USER_UID}:${USER_GID} scripts/start-android.sh ./bin/start-android.sh
 RUN chmod +x ./bin/start-android.sh
-COPY --chown=${USER_UID}:${USER_GID} start-vnc.sh ./bin/start-vnc.sh
+COPY --chown=${USER_UID}:${USER_GID} scripts/start-vnc.sh ./bin/start-vnc.sh
 RUN chmod +x ./bin/start-vnc.sh
-COPY --chown=${USER_UID}:${USER_GID} start-appium.sh ./bin/start-appium.sh
+COPY --chown=${USER_UID}:${USER_GID} scripts/start-appium.sh ./bin/start-appium.sh
 RUN chmod +x ./bin/start-appium.sh
-COPY --chown=${USER_UID}:${USER_GID} install-default-components.sh ./bin/install-default-components.sh
+COPY --chown=${USER_UID}:${USER_GID} scripts/install-default-components.sh ./bin/install-default-components.sh
 RUN chmod +x ./bin/install-default-components.sh
-COPY --chown=${USER_UID}:${USER_GID} entrypoint.sh ./bin/entrypoint.sh
+COPY --chown=${USER_UID}:${USER_GID} scripts/entrypoint.sh ./bin/entrypoint.sh
 RUN chmod +x ./bin/entrypoint.sh
-COPY --chown=${USER_UID}:${USER_GID} start-supervisord.sh ./bin/start-supervisord.sh
+COPY --chown=${USER_UID}:${USER_GID} scripts/start-supervisord.sh ./bin/start-supervisord.sh
 RUN chmod +x ./bin/start-supervisord.sh
 
 # Copy supervisor configuration

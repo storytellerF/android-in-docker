@@ -64,9 +64,9 @@
   - [`build-image.sh`](build-image.sh)
 
 - 启动脚本
-  - 启动 Android Emulator: [`start-android.sh`](start-android.sh)（内部会调用 [`install-sdk.sh`](install-sdk.sh) 来确保 SDK 可用）
-  - 启动 VNC: [`start-vnc.sh`](start-vnc.sh)
-  - 启动 Appium: [`start-appium.sh`](start-appium.sh)
+  - 启动 Android Emulator: [`scripts/start-android.sh`](scripts/start-android.sh)（内部会调用 [`scripts/install-sdk.sh`](scripts/install-sdk.sh) 来确保 SDK 可用）
+  - 启动 VNC: [`scripts/start-vnc.sh`](scripts/start-vnc.sh)
+  - 启动 Appium: [`scripts/start-appium.sh`](scripts/start-appium.sh)
 
 - Supervisor 管理：[`supervisord.conf`](supervisord.conf)（配置了 vnc / novnc / android / appium 四个 program）
 
@@ -146,6 +146,6 @@ sudo supervisorctl status
 
 ## 注意事项
 
-- 若第一次启动，容器会自动下载并安装 Android SDK 命令行工具及必须组件（由 [`install-sdk.sh`](install-sdk.sh) 执行）；这一步可能较慢且需要网络访问 Google 仓库。
+- 若第一次启动，容器会自动下载并安装 Android SDK 命令行工具及必须组件（由 [`scripts/install-sdk.sh`](scripts/install-sdk.sh) 执行）；这一步可能较慢且需要网络访问 Google 仓库。
 - 如果需要改变 Java 版本，调整构建时参数或 `OPENJDK_VERSION`（见 [`Dockerfile`](Dockerfile) 与 [`build-image.sh`](build-image.sh)）。
 - 为了能够在sandbox 中运行，需要添加 `SYS_ADMIN` 能力（见 [`docker-compose.yml`](docker-compose.yml)）。
