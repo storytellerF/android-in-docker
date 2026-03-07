@@ -6,23 +6,19 @@ ARG OPENJDK_VERSION
 # Install Dependencies: VNC, Desktop, Supervisor, Java, KVM, and other tools
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends --no-install-suggests \
     dbus-x11 \
     supervisor \
-    tightvncserver \
-    xfce4 \
-    xfce4-goodies \
+    tightvncserver xfonts-base\
+    xfce4 xfce4-terminal \
     novnc \
-    websockify \
     openjdk-${OPENJDK_VERSION}-jdk \
     wget \
     unzip \
     qemu-kvm \
-    elinks \
     locales \
     npm \
     sudo \
-    && apt-get purge -y xfce4-power-manager xfce4-power-manager-data \
     && rm -rf /var/lib/apt/lists/*
 
 RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
@@ -65,6 +61,8 @@ COPY --chown=${USER_UID}:${USER_GID} scripts/entrypoint.sh ./bin/entrypoint.sh
 RUN chmod +x ./bin/entrypoint.sh
 COPY --chown=${USER_UID}:${USER_GID} scripts/start-supervisord.sh ./bin/start-supervisord.sh
 RUN chmod +x ./bin/start-supervisord.sh
+COPY --chown=${USER_UID}:${USER_GID} scripts/start-ssh.sh ./bin/start-ssh.sh
+RUN chmod +x ./bin/start-ssh.sh
 
 # Copy supervisor configuration
 COPY supervisord.conf ./supervisor/supervisord.conf
@@ -94,4 +92,5 @@ ENV PATH=$PATH:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform
 EXPOSE 6080 5901 5555 4723
 
 # Command to run supervisor
+# ENTRYPOINT ["sh", "-c", "tail -f /dev/null"]
 ENTRYPOINT ["sh", "-c", "$HOME/bin/entrypoint.sh"]

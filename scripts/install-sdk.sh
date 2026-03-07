@@ -69,7 +69,7 @@ if [ -n "$CLI_VERSION" ] && [ -n "$LATEST_CLI_VERSION" ] && [ "$CLI_VERSION" != 
     # 使用sdkmanager更新command line tools
     echo "Updating command line tools to the latest version..."
     mv ${ANDROID_HOME}/cmdline-tools/latest ${ANDROID_HOME}/cmdline-tools/$CLI_VERSION
-    "${ANDROID_HOME}/cmdline-tools/${CLI_VERSION}/sdkmanager" "cmdline-tools;latest"
+    "${ANDROID_HOME}/cmdline-tools/${CLI_VERSION}/bin/sdkmanager" "cmdline-tools;latest"
     rm -rf ${ANDROID_HOME}/cmdline-tools/$CLI_VERSION
     echo "Android SDK command-line tools updated to version $LATEST_CLI_VERSION."
 else
