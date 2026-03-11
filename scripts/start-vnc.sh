@@ -35,7 +35,9 @@ rm -rf /tmp/.X1-lock /tmp/.X11-unix/X1
 
 # Start VNC server
 echo "Starting VNC server..."
-vncserver :1 -geometry 1280x800 -depth 24
+geometry=${VNC_GEOMETRY:-1280x800}
+depth=${VNC_DEPTH:-24}
+vncserver :1 -geometry $geometry -depth $depth
 
 # Tail logs in background and wait
 # waiting allows the script to catch signals
