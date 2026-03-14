@@ -17,9 +17,7 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
-    echo "  -C, --chrome                 Build chrome.Dockerfile instead of Dockerfile"
-    echo "  -H, --ssh                    Build ssh.Dockerfile instead of Dockerfile"
-    echo "  -A, --android-studio         Build androidstudio.Dockerfile instead of Dockerfile"
+    echo "  -D, --dev                    Build dev.Dockerfile instead of Dockerfile (includes SSH, Chrome, Android Studio)"
     echo "  -S, --start                  Start docker compose up --build after building the image"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
     echo "  -m, --multi-arch             Enable multi-arch mode (builds/pushes for amd64 and arm64)"
@@ -32,9 +30,7 @@ usage() {
 # Parse arguments
 CREATE_ENV=false
 EXECUTE_BUILD=false
-BUILD_CHROME=false
-BUILD_SSH=false
-BUILD_ANDROID_STUDIO=false
+BUILD_DEV=false
 START_CONTAINER=false
 PUBLISH=false
 MULTI_ARCH=false
@@ -65,14 +61,8 @@ while [[ "$#" -gt 0 ]]; do
         -b|--build)
             EXECUTE_BUILD=true
             ;;
-        -C|--chrome)
-            BUILD_CHROME=true
-            ;;
-        -H|--ssh)
-            BUILD_SSH=true
-            ;;
-        -A|--android-studio)
-            BUILD_ANDROID_STUDIO=true
+        -D|--dev)
+            BUILD_DEV=true
             ;;
         -S|--start)
             START_CONTAINER=true
@@ -202,75 +192,21 @@ if [ -n "$DOCKER_USERNAME" ]; then
 fi
 
 
-if [ "$PUBLISH" = true ]; then
-    echo "Publisher mode enabled. Building and Pushing Multi-Arch Images (amd64, arm64)..."
-    
-    # Select Dockerfile based on chrome or ssh flag
+if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     DOCKERFILE="Dockerfile"
-    if [ "$BUILD_CHROME" = true ]; then
-        echo "Can't publish chrome flavor image"
-        exit 1
-    elif [ "$BUILD_SSH" = true ]; then
-        echo "Can't publish ssh flavor image"
-        exit 1
-    elif [ "$BUILD_ANDROID_STUDIO" = true ]; then
-        echo "Can't publish android-studio flavor image"
-        exit 1
-    fi
-    
-    # Ensure buildx is available and use it
-    # We assume 'docker buildx' is available. 
-    # Create a new builder if using multi-arch to ensure isolation or use default if supported
-    # docker buildx create --use || true
-
-    BUILD_TAGS=("-t" "${IMAGE_NAME}:${IMAGE_TAG}")
-    [ "$TAG_LATEST" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:latest")
-    [ "$TAG_SNAPSHOT" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:snapshot")
-
-    docker buildx build \
-        --platform linux/amd64,linux/arm64 \
-        --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
-        "${BUILD_TAGS[@]}" \
-        --push \
-        -f "$DOCKERFILE" .
-
-    echo "Multi-arch build and push finished."
-    echo "Image pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
-    echo "Cleaning up dangling images..."
-    docker image prune -f
-
-elif [ "$EXECUTE_BUILD" = true ]; then   
-    echo "Building the Docker image with JDK $OPENJDK_VERSION..."
-    # Show which version we're building
-    if [ "$BUILD_CHROME" = true ]; then
-        echo "Building Chrome version using chrome.Dockerfile"
-    elif [ "$BUILD_SSH" = true ]; then
-        echo "Building SSH version using ssh.Dockerfile"
-    elif [ "$BUILD_ANDROID_STUDIO" = true ]; then
-        echo "Building Android Studio version using androidstudio.Dockerfile"
+    SPECIAL_TAG_SUFFIX=""
+    if [ "$BUILD_DEV" = true ]; then
+        DOCKERFILE="dev.Dockerfile"
+        SPECIAL_TAG_SUFFIX="-dev"
+        echo "Building Dev version using dev.Dockerfile"
     else
         echo "Building standard version using Dockerfile"
     fi
-    echo "Building locally for current architecture..."
+
     BUILD_TAGS=("-t" "${IMAGE_NAME}:${IMAGE_TAG}")
     [ "$TAG_LATEST" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:latest")
     [ "$TAG_SNAPSHOT" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:snapshot")
 
-    # Select Dockerfile based on chrome or ssh flag
-    DOCKERFILE="Dockerfile"
-    SPECIAL_TAG_SUFFIX=""
-    if [ "$BUILD_CHROME" = true ]; then
-        DOCKERFILE="chrome.Dockerfile"
-        SPECIAL_TAG_SUFFIX="-chrome"
-    elif [ "$BUILD_SSH" = true ]; then
-        DOCKERFILE="ssh.Dockerfile"
-        SPECIAL_TAG_SUFFIX="-ssh"
-    elif [ "$BUILD_ANDROID_STUDIO" = true ]; then
-        DOCKERFILE="androidstudio.Dockerfile"
-        SPECIAL_TAG_SUFFIX="-android-studio"
-    fi
-    
-    # Modify tags to include special suffix for chrome/ssh flavors
     BUILD_TAGS_FLAVOR=()
     for tag_option in "${BUILD_TAGS[@]}"; do
         if [[ "$tag_option" == "-t" ]]; then
@@ -278,23 +214,34 @@ elif [ "$EXECUTE_BUILD" = true ]; then
         fi
         
         if [[ "$tag_option" == *":"* ]]; then
-            # Extract image name and tag
             image_part="${tag_option%:*}"
             tag_part="${tag_option#*:}"
-            # Add special suffix before the tag
-            if [[ "$tag_part" != "latest" && "$tag_part" != "snapshot" ]]; then
-                # For versioned tags, add the flavor suffix
-                modified_tag="${image_part}:${tag_part}${SPECIAL_TAG_SUFFIX}"
-            else
-                # For latest/snapshot tags, just add the suffix to the tag name
-                modified_tag="${image_part}:${tag_part}${SPECIAL_TAG_SUFFIX}"
-            fi
+            modified_tag="${image_part}:${tag_part}${SPECIAL_TAG_SUFFIX}"
             BUILD_TAGS_FLAVOR+=("-t" "$modified_tag")
         else
             BUILD_TAGS_FLAVOR+=("$tag_option")
         fi
     done
+fi
 
+if [ "$PUBLISH" = true ]; then
+    echo "Publisher mode enabled. Building and Pushing Multi-Arch Images (amd64, arm64)..."
+    
+    docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
+        "${BUILD_TAGS_FLAVOR[@]}" \
+        --push \
+        -f "$DOCKERFILE" .
+
+    echo "Multi-arch build and push finished."
+    echo "Image pushed: ${IMAGE_NAME}:${IMAGE_TAG}${SPECIAL_TAG_SUFFIX}"
+    echo "Cleaning up dangling images..."
+    docker image prune -f
+
+elif [ "$EXECUTE_BUILD" = true ]; then   
+    echo "Building the Docker image with JDK $OPENJDK_VERSION locally for current architecture..."
+    
     docker build \
         --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
         "${BUILD_TAGS_FLAVOR[@]}" \
@@ -311,47 +258,32 @@ fi
 # Start container if requested
 if [ "$START_CONTAINER" = true ]; then
     echo ""
-    # Check if chrome or ssh flag is set and use appropriate docker-compose file
-    if [ "$BUILD_CHROME" = true ]; then
-        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.chrome.yml"
-        echo "Starting docker compose with chrome configuration..."
-        if docker compose $COMPOSE_FILES up -d --build; then
-            echo "Docker compose with Chrome configuration started successfully."
-            echo "You can access the Android emulator via:"
-            echo "  - Web VNC: http://localhost:6080/vnc.html"
-            echo "  - VNC direct: localhost:5901"
-            echo "  - Appium: http://localhost:4723/inspector"
+    # Check if dev flag is set and use appropriate docker-compose file
+    if [ "$BUILD_DEV" = true ]; then
+        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
+        if grep -qi "microsoft" /proc/version 2>/dev/null || grep -qi "wsl" /proc/version 2>/dev/null; then
+            COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.privileged.yml"
+            echo "Windows/WSL environment detected, using privileged configuration."
         else
-            echo "Failed to start docker compose with Chrome configuration."
+            COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.kvm.yml -f docker-compose.chrome.yml"
+            echo "Standard Linux environment detected, using KVM and chrome configuration."
         fi
-    elif [ "$BUILD_SSH" = true ]; then
-        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.ssh.yml"
-        echo "Starting docker compose with SSH configuration..."
+        echo "Starting docker compose with DEV configuration..."
         if docker compose $COMPOSE_FILES up -d --build; then
-            echo "Docker compose with SSH configuration started successfully."
+            echo "Docker compose with DEV configuration started successfully."
             echo "You can access the Android emulator via:"
             echo "  - Web VNC: http://localhost:6080/vnc.html"
             echo "  - VNC direct: localhost:5901"
             echo "  - Appium: http://localhost:4723/inspector"
-            echo "  - SSH: localhost:2222 (username: debian, password: 123456)"
+            echo "  - SSH: localhost:2222"
         else
-            echo "Failed to start docker compose with SSH configuration."
-        fi
-    elif [ "$BUILD_ANDROID_STUDIO" = true ]; then
-        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.androidstudio.yml"
-        echo "Starting docker compose with Android Studio configuration..."
-        if docker compose $COMPOSE_FILES up -d --build; then
-            echo "Docker compose with Android Studio configuration started successfully."
-            echo "You can access the Android emulator via:"
-            echo "  - Web VNC: http://localhost:6080/vnc.html"
-            echo "  - VNC direct: localhost:5901"
-            echo "  - Appium: http://localhost:4723/inspector"
-        else
-            echo "Failed to start docker compose with Android Studio configuration."
+            echo "Failed to start docker compose with DEV configuration."
         fi
     else
         # 启动并检查是否成功，如果成功显示下面的log
-        if docker compose up -d --build; then
+        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.kvm.yml"
+        echo "Starting standard docker compose..."
+        if docker compose $COMPOSE_FILES up -d --build; then
             echo "Docker compose started successfully."
             echo "You can access the Android emulator via:"
             echo "  - Web VNC: http://localhost:6080/vnc.html"

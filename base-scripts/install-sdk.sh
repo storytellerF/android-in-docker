@@ -36,6 +36,7 @@ download_and_install_cmdline_tools() {
         return 1
     fi
 
+    rm -rf ${ANDROID_HOME}/cmdline-tools/latest
     mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest
     rm -f commandline-tools.zip
     echo "Android SDK command-line tools installed."
@@ -43,6 +44,7 @@ download_and_install_cmdline_tools() {
 
 # 检查并安装 command line tools
 if [ ! -d "${ANDROID_HOME}/cmdline-tools/latest" ]; then
+    echo "Android SDK command-line tools not found. Installing..."
     download_and_install_cmdline_tools || exit 1
 else
     echo "Android SDK command-line tools found."
@@ -52,25 +54,22 @@ else
     echo "Current command line tools version: ${CLI_VERSION:-unknown}"
     if version_lt "$CLI_VERSION" "19.0"; then
         echo "Updating command line tools to the latest version..."
-        rm -rf ${ANDROID_HOME}/cmdline-tools/latest
         download_and_install_cmdline_tools || exit 1
     fi
 fi
 
 # Accept all licenses silently before attempting to download components
-yes | sdkmanager --licenses > /dev/null
+yes | sdkmanager --licenses > /dev/null 2>&1
 
 # 使用sdkmanager 获取当前最新的command line tools版本号
-LATEST_CLI_VERSION=$(sdkmanager --list | grep "cmdline-tools;latest" | awk '{print $3}')
+LATEST_CLI_VERSION=$(sdkmanager --list | grep "cmdline-tools;latest" | awk '{print $3}' | sort -u)
 echo "Latest command line tools version available: $LATEST_CLI_VERSION"
 
 # 如果版本号不是空，并且不同才更新
 if [ -n "$CLI_VERSION" ] && [ -n "$LATEST_CLI_VERSION" ] && [ "$CLI_VERSION" != "$LATEST_CLI_VERSION" ]; then
     # 使用sdkmanager更新command line tools
     echo "Updating command line tools to the latest version..."
-    mv ${ANDROID_HOME}/cmdline-tools/latest ${ANDROID_HOME}/cmdline-tools/$CLI_VERSION
-    "${ANDROID_HOME}/cmdline-tools/${CLI_VERSION}/bin/sdkmanager" "cmdline-tools;latest"
-    rm -rf ${ANDROID_HOME}/cmdline-tools/$CLI_VERSION
+    sdkmanager "cmdline-tools;latest"
     echo "Android SDK command-line tools updated to version $LATEST_CLI_VERSION."
 else
     echo "Android SDK command-line tools are up to date."

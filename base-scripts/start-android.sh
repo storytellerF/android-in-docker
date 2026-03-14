@@ -6,19 +6,6 @@ echo "Running SDK installation script..."
 ~/bin/install-sdk.sh
 echo "SDK setup finished."
 
-# Graceful shutdown
-shutdown() {
-    echo "Shutting down emulator gracefully..."
-    # Use adb to kill the emulator process
-    # Wait for the process if it's still running, skip if already terminated
-    if kill -0 "$EMULATOR_PID" 2>/dev/null; then
-        adb emu kill
-        wait "$EMULATOR_PID" || true
-    fi
-    echo "Emulator shut down."
-    exit 0
-}
-
 # Check architecture and select appropriate system image
 ARCH=$(uname -m)
 echo "Detected architecture: $ARCH"
@@ -59,26 +46,30 @@ else
     echo "AVD '$AVD_NAME' already exists."
 fi
 
-echo "Starting emulator..."
+# 获取/dev/kvm 所属的组 ID
+KVM_GID=$(stat -c %g /dev/kvm)
 
-# Set the display for the emulator to run within the VNC session
-export DISPLAY=:1
+# 尝试获取组名
+KVM_GROUP=$(getent group "$KVM_GID" | cut -d: -f1)
 
-# Start the emulator in the background
-emulator -avd "$AVD_NAME" \
-    -no-snapshot \
-    -no-audio \
-    -no-boot-anim \
-    -gpu swiftshader_indirect \
-    -show-kernel \
-    -verbose &
+# 如果组名为空，说明只有组ID没有组名，需要创建自定义组
+if [ -z "$KVM_GROUP" ]; then
+    echo "Group ID $KVM_GID has no name. Creating custom kvm group..."
+    KVM_GROUP="customkvm"
+    sudo groupadd -g "$KVM_GID" "$KVM_GROUP" 2>/dev/null || {
+        # 如果指定GID的组已存在，使用默认GID创建
+        echo "Failed to create group with GID $KVM_GID, creating with default GID..."
+        sudo groupadd "$KVM_GROUP"
+    }
+fi
 
-# Get the PID of the emulator process
-EMULATOR_PID=$!
+# 检查当前用户是否在这个组中
+if [ "$(id -gn)" != "$KVM_GROUP" ]; then
+    echo "Adding user $(whoami) to group $KVM_GROUP..."
+    sudo usermod -aG "$KVM_GROUP" "$(whoami)"
+    echo "Re-login to group $KVM_GROUP..."
+    sg "$KVM_GROUP" -c "./bin/start-avd.sh $AVD_NAME"
+    exit 0
+fi
 
-# Trap TERM and INT signals to trigger shutdown
-trap shutdown SIGTERM SIGINT
-
-# Wait for the emulator process to exit. The trap will interrupt this wait.
-wait "$EMULATOR_PID"
-echo "Emulator process has exited."
+./bin/start-avd.sh $AVD_NAME

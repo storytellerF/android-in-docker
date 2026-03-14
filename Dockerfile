@@ -47,36 +47,20 @@ RUN appium plugin install storage
 RUN appium plugin install inspector
 
 # Copy Scripts
-COPY --chown=${USER_UID}:${USER_GID} scripts/install-sdk.sh ./bin/install-sdk.sh
-RUN chmod +x ./bin/install-sdk.sh
-COPY --chown=${USER_UID}:${USER_GID} scripts/start-android.sh ./bin/start-android.sh
-RUN chmod +x ./bin/start-android.sh
-COPY --chown=${USER_UID}:${USER_GID} scripts/start-vnc.sh ./bin/start-vnc.sh
-RUN chmod +x ./bin/start-vnc.sh
-COPY --chown=${USER_UID}:${USER_GID} scripts/start-appium.sh ./bin/start-appium.sh
-RUN chmod +x ./bin/start-appium.sh
-COPY --chown=${USER_UID}:${USER_GID} scripts/install-default-components.sh ./bin/install-default-components.sh
-RUN chmod +x ./bin/install-default-components.sh
-COPY --chown=${USER_UID}:${USER_GID} scripts/entrypoint.sh ./bin/entrypoint.sh
-RUN chmod +x ./bin/entrypoint.sh
-COPY --chown=${USER_UID}:${USER_GID} scripts/start-supervisord.sh ./bin/start-supervisord.sh
-RUN chmod +x ./bin/start-supervisord.sh
-COPY --chown=${USER_UID}:${USER_GID} scripts/start-ssh.sh ./bin/start-ssh.sh
-RUN chmod +x ./bin/start-ssh.sh
-
-# Copy supervisor configuration
-COPY supervisord.conf ./supervisor/supervisord.conf
-
-RUN mkdir -p ./log/supervisor \
-    && mkdir -p ./run \
-    && mkdir -p ./.vnc \
-    && mkdir -p ./.android
+COPY --chown=${USER_UID}:${USER_GID} base-scripts ./bin
+RUN chmod +x ./bin/*.sh
 
 # Setup the startup script for the VNC server to launch the XFCE desktop
-RUN echo "#!/bin/bash" > ./.vnc/xstartup && \
-    echo "xrdb \$HOME/.Xresources" >> ./.vnc/xstartup && \
-    echo "startxfce4 &" >> ./.vnc/xstartup && \
-    chmod +x ./.vnc/xstartup
+RUN mkdir -p .vnc && \
+    echo "#!/bin/bash" > .vnc/xstartup && \
+    echo "xrdb \$HOME/.Xresources" >> .vnc/xstartup && \
+    echo "startxfce4 &" >> .vnc/xstartup && \
+    chmod +x .vnc/xstartup
+
+RUN mkdir -p log log/supervisor run .android Android
+
+# Copy supervisor configuration
+COPY --chown=${USER_UID}:${USER_GID} supervisord.conf ./supervisor/supervisord.conf
 
 # 主要用于supervisor
 ENV SUPERVISOR_USER=$USERNAME

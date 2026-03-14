@@ -6,16 +6,16 @@ services:
       - "5901:5901" # VNC direct connection
       - "5555:5555" # ADB
       - "4723:4723" # Appium
+    environment:
+      - VNC_GEOMETRY=1920x1080
+      - VNC_DEPTH=24
     env_file:
       - .env
     volumes:
-      - avd_data:${CONTAINER_HOME:-/home/debian}/.android/avd
       - ./logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
+      - avd_data:${CONTAINER_HOME:-/home/debian}/.android/avd
       - sdk_data:${CONTAINER_HOME:-/home/debian}/Android/Sdk
     shm_size: '2gb' # Allocate more shared memory
-    #privileged: true # Enable KVM acceleration
-    devices:
-      - /dev/kvm
     restart: "unless-stopped"
 
 volumes:

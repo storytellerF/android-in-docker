@@ -1,3 +1,0 @@
-services:
-  android:
-    image: storytellerf/android-in-docker:snapshot-android-studio
