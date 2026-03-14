@@ -142,7 +142,7 @@ if [ "$CREATE_ENV" = true ]; then
     fi
 
     echo "--- Docker Hub Configuration ---"
-    read -p "Enter Docker Hub Username (optional, required for publish): " INPUT_DOCKER_USERNAME
+    read -p "Enter Docker Hub Username (default: $DOCKER_USERNAME, optional, required for publish): " INPUT_DOCKER_USERNAME
     DOCKER_USERNAME="${INPUT_DOCKER_USERNAME:-$DOCKER_USERNAME}"
 
     echo "--- System Image Configuration ---"
