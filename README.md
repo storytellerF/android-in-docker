@@ -16,19 +16,23 @@
     ./build-image.sh [OPTIONS]
     ```
 
+    **常用选项**：
+    - `-b, --build`: 本地构建镜像。
+    - `-D, --dev`: 构建开发版镜像（基于 `dev.Dockerfile`，包含 SSH, Chrome 等）。
+    - `-j, --jdk-version`: 指定 OpenJDK 版本（默认 21）。
+    - `-P, --publish`: 构建并发布多架构镜像到 Docker Hub。
+    - `-S, --start`: 构建后自动启动 Docker Compose。
+
     **示例**：
     ```sh
     # 1. 首次配置环境（交互式）
     ./build-image.sh -c
 
-    # 2. 本地构建测试 (单架构)
+    # 2. 本地构建标准版镜像
     ./build-image.sh -b
 
-    # 3. 指定 JDK 版本并构建
-    ./build-image.sh -j 17 -b
-
-    # 4. 发布多架构镜像 (需先 docker login)
-    ./build-image.sh -P
+    # 3. 构建并启动开发版（包含 SSH 和 Chrome）
+    ./build-image.sh -D -S
     ```
 
     **启用 Bash 补全**：
@@ -39,73 +43,71 @@
     
     之后可以使用 TAB 键补全参数。
 
-3. 用 docker-compose 直接启动
+3. 通过脚本一键启动（推荐）
 
-    ```sh
-    docker-compose up -d --build
-    ```
-
-    或者
     ```sh
     ./build-image.sh -S
     ```
 
+    脚本会根据环境自动选择配置：
+    - **WSL/Windows**: 使用 `docker-compose.privileged.yml`。
+    - **Native Linux**: 使用 `docker-compose.kvm.yml`。
+    - **开发模式 (-D)**: 额外加载 `docker-compose.dev.yml`。
+
 4. 连接与验证
 
-    - noVNC（Web VNC）：<http://localhost:6080>  
-    - 直接 VNC：5901（本地 client 连接 localhost:5901）  
-    - ADB（端口映射）：5555（可用 `adb connect localhost:5555`）  
-    - Appium：4723（Appium server）<http:localhost:4723/inspector>
+    - **noVNC（Web VNC）**: <http://localhost:6080/vnc.html>
+    - **直接 VNC**: `localhost:5901`
+    - **ADB**: `adb connect localhost:5555`
+    - **Appium**: <http://localhost:4723/inspector>
+    - **SSH (仅开发版)**: `ssh -p 2222 debian@localhost` (默认密码: `password` 可在 `.env` 修改)
 
 ## 主要文件与脚本
 
-- 容器镜像与构建
-  - [`Dockerfile`](Dockerfile)
-  - [`build-image.sh`](build-image.sh)
+- **构建相关**
+  - `Dockerfile`: 标准镜像定义。
+  - `dev.Dockerfile`: 开发版镜像定义（包含 SSH, Chrome, Android Studio 等）。
+  - `build-image.sh`: 统一构建与启动入口。
 
-- 启动脚本
-  - 启动 Android Emulator: [`scripts/start-android.sh`](scripts/start-android.sh)（内部会调用 [`scripts/install-sdk.sh`](scripts/install-sdk.sh) 来确保 SDK 可用）
-  - 启动 VNC: [`scripts/start-vnc.sh`](scripts/start-vnc.sh)
-  - 启动 Appium: [`scripts/start-appium.sh`](scripts/start-appium.sh)
+- **核心脚本 (位于 `base-scripts/`)**
+  - `start-android.sh`: 启动 Android Emulator（自动调用 `install-sdk.sh`）。
+  - `start-vnc.sh`: 启动 VNC 服务。
+  - `start-appium.sh`: 启动 Appium Server.
+  - `entrypoint.sh`: 容器入口脚本。
 
-- Supervisor 管理：[`supervisord.conf`](supervisord.conf)（配置了 vnc / novnc / android / appium 四个 program）
-
-- 自动化能力示例：[`appium-capability.json`](appium-capability.json)
-
-- 环境与忽略
-  - 环境变量文件：[` .env `](.env) 参考[env-example](env-example)
-  - Git 忽略：[`.gitignore`](.gitignore)
+- **配置管理**
+  - `supervisord.conf`: 基础进程管理。
+  - `ssh.supervisord.conf`: SSH 服务进程配置。
+  - `.env`: 环境变量配置（参考 `env-example`）。
 
 ## 镜像 Tag 策略
 
-执行 `build-image.sh` 构建镜像时，生成的 Tag 格式为：
+生成的 Tag 格式为：`openjdk{JDK_VERSION}.{BASE_VERSION}.{DATE}[-dev]`
 
-`openjdk{JDK_VERSION}.{BASE_VERSION}.{DATE}`
+- **JDK_VERSION**: OpenJDK 版本（默认 21）。
+- **BASE_VERSION**: 基础操作系统版本（如 `trixie`）。
+- **DATE**: 构建时间戳 (YYYYMMDDHHMMSS)。
+- **-dev**: 仅开发版镜像带有此后缀。
 
-- **JDK_VERSION**: OpenJDK 版本（默认 21，可通过 `-j` 参数或 `.env` 文件指定）
-- **DOCKER_USERNAME**: Docker Hub 用户名（可选）。如果设置，镜像名将为 `{DOCKER_USERNAME}/android-in-docker`。
-- **BASE_VERSION**: 基础镜像版本（从 `Dockerfile` 中自动提取，如 `trixie`）
-- **DATE**: 构建日期与时间 (YYYYMMDDHHMMSS)
+例如：`openjdk21.trixie.20240314120000-dev`
 
-例如：`openjdk21.trixie.20260215082211`
-
-其中 `openjdk` 前缀和 `.` 分隔符使得 Tag 更加清晰易读。
-
-同时，生成的 Tag 会自动更新到 `.env` 文件的 `IMAGE_TAG` 变量中，以便 `docker-compose` 使用对应版本的镜像。
+生成的 Tag 会自动同步到 `.env` 的 `IMAGE_TAG` 中。
 
 ## 卷与持久化
 
 docker-compose 已配置以下卷（见 [`docker-compose.yml`](docker-compose.yml)）：
 
-- avd_data: 保存 AVD（Android 虚拟设备）数据（映射到容器的 `/root/.android/avd`）
-- sdk_data: 持久化 Android SDK（外部卷，需提前创建）
+- `avd_data`: 保存虚拟设备数据（`/home/debian/.android/avd`）。
+- `sdk_data`: 持久化 Android SDK（外部卷，`/home/debian/Android/Sdk`）。
+- **开发版额外卷**:
+    - `chrome_cache/config`: Chrome 浏览器的缓存与配置。
+    - `google_cache/config/local`: Google 相关服务的持久化。
 
 ## 日志与调试
 
-容器中 supervisor 日志映射到宿主目录 `./logs`（参见 [supervisord.conf](supervisord.conf) 和 [docker-compose.yml](docker-compose.yml)）。常用日志位置：
-
-- 宿主：`./logs`（映射自容器 `~/log/supervisor`）
-- 容器内：`~/log/supervisor/*.log`
+日志映射到宿主机 `./logs` 目录：
+- 容器内路径：`/home/debian/log/supervisor/*.log`
+- 宿主机查看：`tail -f ./logs/android.stdout.log`
 
 ## 常见操作
 
@@ -117,11 +119,10 @@ docker-compose build --no-cache
 docker-compose up -d
 ```
 
-- 进入容器调试：
-
-```sh
-docker-compose exec android bash
-```
+- **进入容器调试**:
+  ```sh
+  docker compose exec android bash
+  ```
 
 - 通过 ADB 连接（宿主）：
 
@@ -130,22 +131,13 @@ adb connect localhost:5555
 adb devices
 ```
 
-查看supervisor 状态
-
-```sh
-sudo supervisorctl status
-```
-
-## 额外功能
-
-启用ssh 参考 [ssh.Dockerfile](ssh.Dockerfile)
-
-安装chrome 参考
-
-容器中没有安装ssh 服务器，需要自定义镜像
+- **查看服务状态**:
+  ```sh
+  docker compose exec android supervisorctl status
+  ```
 
 ## 注意事项
 
-- 若第一次启动，容器会自动下载并安装 Android SDK 命令行工具及必须组件（由 [`scripts/install-sdk.sh`](scripts/install-sdk.sh) 执行）；这一步可能较慢且需要网络访问 Google 仓库。
-- 如果需要改变 Java 版本，调整构建时参数或 `OPENJDK_VERSION`（见 [`Dockerfile`](Dockerfile) 与 [`build-image.sh`](build-image.sh)）。
-- 为了能够在sandbox 中运行，需要添加 `SYS_ADMIN` 能力（见 [`docker-compose.yml`](docker-compose.yml)）。
+- **首次启动**: 会自动下载 Android SDK 及其组件，耗时较长，请确保网络畅通。
+- **权限**: 在 Linux 宿主机上运行通常需要 `SYS_ADMIN` 能力和 `/dev/kvm` 访问权限。
+- **自定义配置**: 建议通过修改 `.env` 文件或 `build-image.sh -c` 来快速调整参数。
