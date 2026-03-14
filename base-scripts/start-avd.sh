@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 AVD_NAME=${1}
 
@@ -19,6 +19,8 @@ echo "Starting emulator..."
 
 # Set the display for the emulator to run within the VNC session
 export DISPLAY=:1
+
+rm -f ~/.android/avd/*.avd/*.lock
 
 # Start the emulator in the background
 emulator -avd "$AVD_NAME" \

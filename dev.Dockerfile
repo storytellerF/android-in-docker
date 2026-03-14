@@ -4,7 +4,7 @@ ARG USER_NAME=debian
 
 USER root
 RUN apt update && DEBIAN_FRONTEND=noninteractive \
-    apt install -y --no-install-recommends --no-install-suggests libavif-bin curl openssh-server extrepo gnupg2 git && \
+    apt install -y --no-install-recommends --no-install-suggests curl openssh-server extrepo gnupg2 git && \
     apt install -y fonts-noto && \
     rm -rf /var/lib/apt/lists/*
 
@@ -51,7 +51,7 @@ RUN mkdir -p /home/${USER_NAME}/Desktop && \
 RUN mkdir -p .config .local .cache .gemini .ssh
 
 # 替换 entrypoint.sh 注入点，确保每次启动容器时都能清理 Chrome 的 Singleton 锁文件，避免 Chrome 无法启动的问题
-RUN sed -i '/# inject point/a rm -f /home/${USER_NAME}/.config/google-chrome/Singleton*' /home/${USER_NAME}/bin/entrypoint.sh
+RUN sed -i "/# inject point/a rm -f /home/${USER_NAME}/.config/google-chrome/Singleton*" /home/${USER_NAME}/bin/entrypoint.sh
 
 # 设置环境变量
 ENV PATH="/home/${USER_NAME}/Applications/android-studio/bin:${PATH}"
