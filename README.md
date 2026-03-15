@@ -141,3 +141,136 @@ adb devices
 - **首次启动**: 会自动下载 Android SDK 及其组件，耗时较长，请确保网络畅通。
 - **权限**: 在 Linux 宿主机上运行通常需要 `SYS_ADMIN` 能力和 `/dev/kvm` 访问权限。
 - **自定义配置**: 建议通过修改 `.env` 文件或 `build-image.sh -c` 来快速调整参数。
+
+# 在Dev Container 中使用
+
+.devcontainer/.env
+
+```
+COMPOSE_PROJECT_NAME=a-dev-container
+CONTAINER_USERNAME=debian
+CONTAINER_HOME=/home/debian
+VNC_PASSWD=password
+```
+
+.devcontainer/devcontainer.json
+
+```json
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
+{
+	"name": "You Dev Container Name",
+	"dockerComposeFile": [
+		"./docker-compose.yml"
+	],
+	"service": "main",
+	"workspaceFolder": "/workspace/your-project-name",
+	"shutdownAction": "stopCompose",
+  "postCreateCommand": {
+		"Fix Volume Permissions": "sudo chown -R $(whoami): /commandhistory",
+		"Fix Gradle Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.gradle",
+		"Fix Android Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.android",
+		"Fix Konan Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.konan",
+		"Fix M2 Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.m2",
+    "Fix Config Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.config",
+	},
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+	// Uncomment the next line to run commands after the container is created.
+	// "postCreateCommand": "cat /etc/os-release",
+	// Configure tool-specific properties.
+	// "customizations": {},
+	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
+	"remoteUser": "debian"
+}
+```
+
+.devcontainer/docker-compose.yml
+
+```yaml
+services:
+  main:
+    build:
+      context: ..
+      dockerfile: ./dev.Dockerfile
+      args:
+        - USER_NAME=${CONTAINER_USERNAME}
+    ports:
+      - "6081:6080" # noVNC web interface
+      - "5902:5901" # VNC direct connection
+      - "5556:5555" # ADB
+      - "4724:4723" # Appium
+      - "4422:22" # ssh
+    environment:
+      - VNC_PASSWD=${VNC_PASSWD}
+      - TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal # 如果需要Test Container 的话
+      - VNC_GEOMETRY=1920x1080
+      - VNC_DEPTH=24
+    volumes:
+      - ..:/workspace/your-project-name:cached
+      - ./data/authorized_keys:${CONTAINER_HOME}/.ssh/authorized_keys
+      - /var/run/docker.sock:/var/run/docker.sock # 宿主机 Docker 套接字
+      - avd_data:${CONTAINER_HOME}/.android/avd
+      - sdk_data:${CONTAINER_HOME}/Android/Sdk
+      - a-bashhistory:/commandhistory
+      - gradle_data:${CONTAINER_HOME}/.gradle
+      - konan_data:${CONTAINER_HOME}/.konan
+      - m2_data:${CONTAINER_HOME}/.m2
+      - chrome_cache:${CONTAINER_HOME}/.cache/google-chrome
+      - chrome_config:${CONTAINER_HOME}/.config/google-chrome
+      - google_cache:${CONTAINER_HOME}/.cache/Google
+      - google_config:${CONTAINER_HOME}/.config/Google
+      - google_local:${CONTAINER_HOME}/.local/share/Google
+      - antigravity_config:${CONTAINER_HOME}/.config/Antigravity
+      - gemini_data:${CONTAINER_HOME}/.gemini
+    shm_size: '2gb' # Allocate more shared memory
+    privileged: true # Enable KVM acceleration
+
+volumes:
+  avd_data:
+  sdk_data:
+    name: sdk_data
+    external: true
+  a-bashhistory:
+  gradle_data:
+  konan_data:
+  m2_data:
+  chrome_cache:
+  chrome_config:
+  google_cache:
+  google_config:
+  google_local:
+  antigravity_config:
+  gemini_data:
+```
+
+dev.Dockerfile
+
+```Dockerfile
+FROM storytellerf/android-in-docker:latest-dev
+
+ARG USER_NAME
+
+USER root
+
+# 如果需要中文输入法
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y fcitx fcitx-googlepinyin
+
+# 如果需要在容器中访问docker 的话
+RUN groupadd -g 1001 docker \
+    && usermod -aG docker $USER_NAME
+
+USER $USER_NAME
+WORKDIR /home/$USER_NAME
+
+RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
+    && echo "$SNIPPET" >> ~/.bashrc
+```
+
+添加ssh 公钥
+
+```shell
+cd .devcontainer && /path/to/android-in-docker/add-ssh-key.sh
+```

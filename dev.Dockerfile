@@ -48,7 +48,7 @@ RUN mkdir -p /home/${USER_NAME}/Desktop && \
     printf "[Desktop Entry]\nVersion=1.0\nType=Application\nName=Android Studio\nExec=studio\nIcon=/home/${USER_NAME}/Applications/android-studio/bin/studio.svg\nTerminal=false\nCategories=Development;IDE;" > /home/${USER_NAME}/Desktop/android-studio.desktop && \
     chmod +x /home/${USER_NAME}/Desktop/android-studio.desktop
 
-RUN mkdir -p .config .local .cache .gemini .ssh .antigravity
+RUN mkdir -p .config .local .cache .gemini .ssh .antigravity .gradle .konan .m2
 
 # 替换 entrypoint.sh 注入点，确保每次启动容器时都能清理 Chrome 的 Singleton 锁文件，避免 Chrome 无法启动的问题
 RUN sed -i "/# inject point/a rm -f /home/${USER_NAME}/.config/google-chrome/Singleton*" /home/${USER_NAME}/bin/entrypoint.sh
