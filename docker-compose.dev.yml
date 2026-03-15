@@ -19,6 +19,7 @@ services:
       - google_local:${CONTAINER_HOME:-/home/debian}/.local/share/Google
       - antigravity_config:${CONTAINER_HOME:-/home/debian}/.config/Antigravity
       - gemini_data:${CONTAINER_HOME:-/home/debian}/.gemini
+      - antigravity_data:${CONTAINER_HOME:-/home/debian}/.antigravity
 
 volumes:
   chrome_cache:
@@ -28,3 +29,4 @@ volumes:
   google_local:
   antigravity_config:
   gemini_data:
+  antigravity_data:
