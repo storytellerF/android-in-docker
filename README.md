@@ -166,14 +166,6 @@ VNC_PASSWD=password
 	"service": "main",
 	"workspaceFolder": "/workspace/your-project-name",
 	"shutdownAction": "stopCompose",
-  "postCreateCommand": {
-		"Fix Volume Permissions": "sudo chown -R $(whoami): /commandhistory",
-		"Fix Gradle Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.gradle",
-		"Fix Android Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.android",
-		"Fix Konan Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.konan",
-		"Fix M2 Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.m2",
-    "Fix Config Volume Permissions": "sudo chown -R $(whoami): /home/ubuntu/.config",
-	},
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -214,7 +206,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock # 宿主机 Docker 套接字
       - avd_data:${CONTAINER_HOME}/.android/avd
       - sdk_data:${CONTAINER_HOME}/Android/Sdk
-      - a-bashhistory:/commandhistory
+      - bashhistory:${CONTAINER_HOME}/.android-in-docker/.bash_history
       - gradle_data:${CONTAINER_HOME}/.gradle
       - konan_data:${CONTAINER_HOME}/.konan
       - m2_data:${CONTAINER_HOME}/.m2
@@ -233,7 +225,7 @@ volumes:
   sdk_data:
     name: sdk_data
     external: true
-  a-bashhistory:
+  bashhistory:
   gradle_data:
   konan_data:
   m2_data:
@@ -263,10 +255,6 @@ RUN groupadd -g 1001 docker \
     && usermod -aG docker $USER_NAME
 
 USER $USER_NAME
-WORKDIR /home/$USER_NAME
-
-RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
-    && echo "$SNIPPET" >> ~/.bashrc
 ```
 
 添加ssh 公钥

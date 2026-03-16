@@ -57,7 +57,10 @@ RUN mkdir -p .vnc && \
     echo "startxfce4 &" >> .vnc/xstartup && \
     chmod +x .vnc/xstartup
 
-RUN mkdir -p log log/supervisor run .android Android
+RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/home/${USERNAME}/.android-in-docker/.bash_history" \
+    && echo "$SNIPPET" >> ~/.bashrc
+
+RUN mkdir -p log/supervisor run
 
 # Copy supervisor configuration
 COPY --chown=${USER_UID}:${USER_GID} supervisord.conf ./supervisor/supervisord.conf

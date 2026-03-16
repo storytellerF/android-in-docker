@@ -15,6 +15,7 @@ services:
       - ./logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
       - avd_data:${CONTAINER_HOME:-/home/debian}/.android/avd
       - sdk_data:${CONTAINER_HOME:-/home/debian}/Android/Sdk
+      - bashhistory:${CONTAINER_HOME:-/home/debian}/.android-in-docker/.bash_history
     shm_size: '2gb' # Allocate more shared memory
     restart: "unless-stopped"
 
