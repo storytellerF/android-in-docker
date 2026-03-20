@@ -69,7 +69,7 @@ echo "Latest command line tools version available: $LATEST_CLI_VERSION"
 if [ -n "$CLI_VERSION" ] && [ -n "$LATEST_CLI_VERSION" ] && [ "$CLI_VERSION" != "$LATEST_CLI_VERSION" ]; then
     # 使用sdkmanager更新command line tools
     echo "Updating command line tools to the latest version..."
-    sdkmanager "cmdline-tools;latest"
+    sdkmanager --update
     echo "Android SDK command-line tools updated to version $LATEST_CLI_VERSION."
 else
     echo "Android SDK command-line tools are up to date."
