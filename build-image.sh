@@ -260,14 +260,14 @@ if [ "$START_CONTAINER" = true ]; then
     echo ""
     # Check if dev flag is set and use appropriate docker-compose file
     if [ "$BUILD_DEV" = true ]; then
-        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
-        if grep -qi "microsoft" /proc/version 2>/dev/null || grep -qi "wsl" /proc/version 2>/dev/null; then
-            COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.privileged.yml"
-            echo "Windows/WSL environment detected, using privileged configuration."
-        else
-            COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.kvm.yml -f docker-compose.chrome.yml"
-            echo "Standard Linux environment detected, using KVM and chrome configuration."
-        fi
+        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.privileged.yml"
+        # if grep -qi "microsoft" /proc/version 2>/dev/null || grep -qi "wsl" /proc/version 2>/dev/null; then
+        #     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.privileged.yml"
+        #     echo "Windows/WSL environment detected, using privileged configuration."
+        # else
+        #     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.kvm.yml -f docker-compose.chrome.yml"
+        #     echo "Standard Linux environment detected, using KVM and chrome configuration."
+        # fi
         echo "Starting docker compose with DEV configuration..."
         if docker compose $COMPOSE_FILES up -d --build; then
             echo "Docker compose with DEV configuration started successfully."

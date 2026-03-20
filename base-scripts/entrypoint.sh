@@ -2,7 +2,7 @@
 
 echo "Current user: $(whoami)"
 
-sudo chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
+sudo chown -R $(whoami):$(whoami) /home/$(whoami)
 
 # inject point
 
