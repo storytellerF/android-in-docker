@@ -207,7 +207,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock # 宿主机 Docker 套接字
       - avd_data:${CONTAINER_HOME}/.android/avd
       - sdk_data:${CONTAINER_HOME}/Android/Sdk
-      - bashhistory:${CONTAINER_HOME}/.android-in-docker/.bash_history
+      - bash_history:${CONTAINER_HOME}/.android-in-docker/.bash_history
       - gradle_data:${CONTAINER_HOME}/.gradle
       - konan_data:${CONTAINER_HOME}/.konan
       - m2_data:${CONTAINER_HOME}/.m2
@@ -226,7 +226,7 @@ volumes:
   sdk_data:
     name: sdk_data
     external: true
-  bashhistory:
+  bash_history:
   gradle_data:
   konan_data:
   m2_data:
