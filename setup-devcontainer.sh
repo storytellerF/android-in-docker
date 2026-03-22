@@ -95,6 +95,7 @@ services:
       - google_local:\${CONTAINER_HOME}/.local/share/Google
       - antigravity_config:\${CONTAINER_HOME}/.config/Antigravity
       - gemini_data:\${CONTAINER_HOME}/.gemini
+      - antigravity_data:\${CONTAINER_HOME}/.antigravity
     shm_size: '2gb' # Allocate more shared memory
     privileged: true # Enable KVM acceleration
 
@@ -114,6 +115,7 @@ volumes:
   google_local:
   antigravity_config:
   gemini_data:
+  antigravity_data:
 EOF
 
 # 替换 docker-compose 中的 ANDROID_IN_DOCKER_PATH

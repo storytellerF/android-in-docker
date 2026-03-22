@@ -218,6 +218,7 @@ services:
       - google_local:${CONTAINER_HOME}/.local/share/Google
       - antigravity_config:${CONTAINER_HOME}/.config/Antigravity
       - gemini_data:${CONTAINER_HOME}/.gemini
+      - antigravity_data:${CONTAINER_HOME:-/home/debian}/.antigravity
     shm_size: '2gb' # Allocate more shared memory
     privileged: true # Enable KVM acceleration
 
@@ -237,6 +238,7 @@ volumes:
   google_local:
   antigravity_config:
   gemini_data:
+  antigravity_data:
 ```
 
 需要根据架构更换镜像，否则不会启动模拟器
