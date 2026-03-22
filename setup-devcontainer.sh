@@ -119,7 +119,23 @@ EOF
 # 替换 docker-compose 中的 ANDROID_IN_DOCKER_PATH
 sed -i "s|\${ANDROID_IN_DOCKER_PATH}|${SCRIPT_DIR}|g" "${DEVCONTAINER_DIR}/docker-compose.yml"
 
-# 4. 生成 dev.Dockerfile
+# 4. 生成 custom-entrypoint.sh
+echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/custom-entrypoint.sh${NC}"
+cat > "${DEVCONTAINER_DIR}/custom-entrypoint.sh" <<'EOF'
+#!/bin/bash
+
+set -e
+# check arch select SYS_IMG_PKG
+if [ "$(uname -m)" = "x86_64" ]; then
+    export SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
+else
+    export SYS_IMG_PKG="system-images;android-36;google_apis;arm64"
+fi
+
+./bin/entrypoint.sh
+EOF
+
+# 5. 生成 dev.Dockerfile
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/dev.Dockerfile${NC}"
 cat > "${DEVCONTAINER_DIR}/dev.Dockerfile" <<EOF
 FROM storytellerf/android-in-docker:latest-dev
@@ -136,6 +152,12 @@ RUN groupadd -g 1001 docker \\
     && usermod -aG docker \$USER_NAME
 
 USER \$USER_NAME
+WORKDIR /home/\$USER_NAME
+
+COPY --chown=\$USER_NAME:\$USER_NAME ./custom-entrypoint.sh ./bin/custom-entrypoint.sh
+RUN chmod +x ./bin/custom-entrypoint.sh
+
+ENTRYPOINT ["sh", "-c", "\$HOME/bin/custom-entrypoint.sh"]
 EOF
 
 echo -e "${GREEN}完成！${NC}"
