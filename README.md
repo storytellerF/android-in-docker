@@ -190,21 +190,19 @@ services:
       args:
         - USER_NAME=${CONTAINER_USERNAME}
     ports:
-      - "6081:6080" # noVNC web interface
-      - "5902:5901" # VNC direct connection
-      - "5556:5555" # ADB
-      - "4724:4723" # Appium
-      - "4422:22" # ssh
+      - "6080" # noVNC web interface
+      - "5901" # VNC direct connection
+      - "5555" # ADB
+      - "4723" # Appium
+      - "22" # ssh
     environment:
       - VNC_PASSWD=${VNC_PASSWD}
-      - TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal # 如果需要Test Container 的话
       - VNC_GEOMETRY=1920x1080
       - VNC_DEPTH=24
     volumes:
       - ..:/workspace/your-project-name:cached
       - ./data/authorized_keys:${CONTAINER_HOME}/.ssh/authorized_keys
-      - ~/.gradle/gradle.properties:${CONTAINER_HOME}/.gradle/gradle.properties # 如果需要GithHub Packages
-      - /var/run/docker.sock:/var/run/docker.sock # 宿主机 Docker 套接字
+      - ~/.gradle/gradle.properties:${CONTAINER_HOME}/gradle.properties # 如果需要GithHub Packages
       - avd_data:${CONTAINER_HOME}/.android/avd
       - sdk_data:${CONTAINER_HOME}/Android/Sdk
       - bash_history:${CONTAINER_HOME}/.android-in-docker/.bash_history
