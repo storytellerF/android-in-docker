@@ -7,6 +7,7 @@ ENV_FILE=".env"
 DEFAULT_JDK_VERSION="21"
 DEFAULT_VNC_PASSWORD="password"
 DEFAULT_SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
+DEFAULT_DESKTOP_TYPE="xfce"
 
 # Function to display usage
 usage() {
@@ -15,6 +16,7 @@ usage() {
     echo "  -j, --jdk-version <version>  Specify the OpenJDK version (default: $DEFAULT_JDK_VERSION)"
     echo "  -p, --password <password>    Specify the VNC password (default: $DEFAULT_VNC_PASSWORD)"
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
+    echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt) (default: $DEFAULT_DESKTOP_TYPE)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
     echo "  -B, --base                   Build the base image from base.Dockerfile"
@@ -40,6 +42,7 @@ DOCKER_USERNAME=""
 JDK_VERSION=""
 VNC_PASSWORD=""
 SYS_IMG_PKG=""
+DESKTOP_TYPE_INPUT=""
 TAG_LATEST=false
 TAG_SNAPSHOT=true
 
@@ -55,6 +58,10 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -s|--system-image)
             SYS_IMG_PKG="$2"
+            shift
+            ;;
+        -t|--desktop-type)
+            DESKTOP_TYPE_INPUT="$2"
             shift
             ;;
         -c|--create-env)
@@ -132,11 +139,13 @@ fi
 [ -n "$VNC_PASSWORD" ] && VNC_PASSWD="$VNC_PASSWORD"
 # SYS_IMG_PKG from args overrides the default legacy entry in .env
 [ -n "$SYS_IMG_PKG" ] && SYS_IMG_PKG="$SYS_IMG_PKG"
+[ -n "$DESKTOP_TYPE_INPUT" ] && DESKTOP_TYPE="$DESKTOP_TYPE_INPUT"
 
 # Set defaults if still empty
 OPENJDK_VERSION="${OPENJDK_VERSION:-$DEFAULT_JDK_VERSION}"
 VNC_PASSWD="${VNC_PASSWD:-$DEFAULT_VNC_PASSWORD}"
 SYS_IMG_PKG="${SYS_IMG_PKG:-$DEFAULT_SYS_IMG_PKG}"
+DESKTOP_TYPE="${DESKTOP_TYPE:-$DEFAULT_DESKTOP_TYPE}"
 
 
 # If creating env, handle interactive mode
@@ -160,8 +169,12 @@ if [ "$CREATE_ENV" = true ]; then
     read -p "Enter System Image Package (default: $SYS_IMG_PKG): " INPUT_SysImg
     SYS_IMG_PKG="${INPUT_SysImg:-$SYS_IMG_PKG}"
 
+    echo "--- Desktop Configuration ---"
+    read -p "Enter Desktop Type (xfce, lxqt) (default: $DESKTOP_TYPE): " INPUT_DesktopType
+    DESKTOP_TYPE="${INPUT_DesktopType:-$DESKTOP_TYPE}"
+
     # Calculate IMAGE_TAG
-    IMAGE_TAG="${BASE_VERSION}-openjdk${OPENJDK_VERSION}-${CURRENT_DATE}"
+    IMAGE_TAG="${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}-${CURRENT_DATE}"
 
     echo "Updating $ENV_FILE..."
     # Helper to write or update var in file
@@ -183,6 +196,7 @@ if [ "$CREATE_ENV" = true ]; then
     update_env_var "OPENJDK_VERSION" "$OPENJDK_VERSION" "$ENV_FILE"
     update_env_var "VNC_PASSWD" "$VNC_PASSWD" "$ENV_FILE"
     update_env_var "SYS_IMG_PKG" "$SYS_IMG_PKG" "$ENV_FILE"
+    update_env_var "DESKTOP_TYPE" "$DESKTOP_TYPE" "$ENV_FILE"
     update_env_var "IMAGE_TAG" "$IMAGE_TAG" "$ENV_FILE"
     update_env_var "CONTAINER_HOME" "$CONTAINER_HOME" "$ENV_FILE"
     
@@ -192,7 +206,7 @@ else
     # Actually, if we are just building, we rely on .env values.
     # If IMAGE_TAG is not in .env, we generate one temporarily for this build?
     if [ -z "$IMAGE_TAG" ]; then
-         IMAGE_TAG="${BASE_VERSION}-openjdk${OPENJDK_VERSION}-${CURRENT_DATE}"
+         IMAGE_TAG="${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}-${CURRENT_DATE}"
     fi
 fi
 
@@ -234,12 +248,14 @@ run_build() {
         docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
+            --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
             "${tags_flavor[@]}" \
             --push \
             -f "$df" .
     elif [ "$EXECUTE_BUILD" = true ]; then
         docker build \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
+            --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
             "${tags_flavor[@]}" \
             -f "$df" .
     fi

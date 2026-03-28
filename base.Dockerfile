@@ -1,5 +1,5 @@
-# Base Image
-FROM storytellerf/desktop-in-docker:trixie-xfce-latest
+ARG DESKTOP_TYPE=xfce
+FROM storytellerf/desktop-in-docker:trixie-${DESKTOP_TYPE}-latest
 
 ARG OPENJDK_VERSION=21
 
