@@ -25,8 +25,6 @@ RUN apt-get update && \
 RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen
 
-RUN mkdir -p /run/sshd
-
 # Setup a non-root user
 ARG USERNAME=debian
 ARG USER_UID=1000

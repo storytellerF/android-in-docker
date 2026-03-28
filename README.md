@@ -146,7 +146,7 @@ adb devices
 
 .devcontainer/.env
 
-```
+```Dotenv
 COMPOSE_PROJECT_NAME=a-dev-container
 CONTAINER_USERNAME=debian
 CONTAINER_HOME=/home/debian

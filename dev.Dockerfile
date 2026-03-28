@@ -36,6 +36,8 @@ COPY --chown=${USER_NAME}:${USER_NAME} ssh.supervisord.conf /home/${USER_NAME}/s
 COPY --chown=${USER_NAME}:${USER_NAME} scripts/start-ssh.sh /home/${USER_NAME}/bin/start-ssh.sh
 RUN chmod +x /home/${USER_NAME}/bin/start-ssh.sh
 
+RUN mkdir -p /run/sshd
+
 USER $USER_NAME
 WORKDIR /home/$USER_NAME
 
