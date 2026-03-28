@@ -16,7 +16,7 @@ usage() {
     echo "  -j, --jdk-version <version>  Specify the OpenJDK version (default: $DEFAULT_JDK_VERSION)"
     echo "  -p, --password <password>    Specify the VNC password (default: $DEFAULT_VNC_PASSWORD)"
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
-    echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt) (default: $DEFAULT_DESKTOP_TYPE)"
+    echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
     echo "  -B, --base                   Build the base image from base.Dockerfile"
@@ -176,7 +176,7 @@ if [ "$CREATE_ENV" = true ]; then
     SYS_IMG_PKG="${INPUT_SysImg:-$SYS_IMG_PKG}"
 
     echo "--- Desktop Configuration ---"
-    read -p "Enter Desktop Type (xfce, lxqt) (default: $DESKTOP_TYPE): " INPUT_DesktopType
+    read -p "Enter Desktop Type (xfce, lxqt, mate) (default: $DESKTOP_TYPE): " INPUT_DesktopType
     DESKTOP_TYPE="${INPUT_DesktopType:-$DESKTOP_TYPE}"
 
     # Calculate IMAGE_TAG
@@ -211,7 +211,8 @@ else
     # Non-interactive Mode: Just calculate tag if not present or needs refresh? 
     # Actually, if we are just building, we rely on .env values.
     # If IMAGE_TAG is not in .env, we generate one temporarily for this build?
-    if [ -z "$IMAGE_TAG" ]; then
+    # If any override was provided, or if IMAGE_TAG is not set, calculate it.
+    if [ -n "$JDK_VERSION" ] || [ -n "$DESKTOP_TYPE_INPUT" ] || [ -z "$IMAGE_TAG" ]; then
          IMAGE_TAG="${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}-${CURRENT_DATE}"
     fi
 fi
@@ -307,6 +308,8 @@ if [ "$START_CONTAINER" = true ]; then
         # fi
         COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.kvm.yml"
         echo "Starting docker compose with DEV configuration..."
+        export IMAGE_TAG="$IMAGE_TAG"
+        export CONTAINER_HOME="$CONTAINER_HOME"
         if docker compose $COMPOSE_FILES up -d --build; then
             echo "Docker compose with DEV configuration started successfully."
             # Retrieve dynamic ports
@@ -329,6 +332,8 @@ if [ "$START_CONTAINER" = true ]; then
         # 启动并检查是否成功，如果成功显示下面的log
         COMPOSE_FILES="-f docker-compose.yml -f docker-compose.kvm.yml"
         echo "Starting standard docker compose..."
+        export IMAGE_TAG="$IMAGE_TAG"
+        export CONTAINER_HOME="$CONTAINER_HOME"
         if docker compose $COMPOSE_FILES up -d --build; then
             echo "Docker compose started successfully."
             # Retrieve dynamic ports
