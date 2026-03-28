@@ -236,6 +236,9 @@ run_build() {
 
     # Define common tags
     local tags=("-t" "${name}:${IMAGE_TAG}")
+    if [ "$BASE_VERSION" = "trixie" ]; then
+        tags+=("-t" "${name}:${IMAGE_TAG#trixie-}")
+    fi
     [ "$TAG_LATEST" = true ] && tags+=("-t" "${name}:latest")
     [ "$TAG_SNAPSHOT" = true ] && tags+=("-t" "${name}:snapshot")
     [ "$add_openjdk_tag" = true ] && tags+=("-t" "${name}:openjdk${OPENJDK_VERSION}")
