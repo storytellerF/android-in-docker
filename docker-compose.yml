@@ -2,10 +2,10 @@ services:
   android:
     image: storytellerf/android-in-docker:snapshot
     ports:
-      - "6080:6080" # noVNC web interface
-      - "5901:5901" # VNC direct connection
-      - "5555:5555" # ADB
-      - "4723:4723" # Appium
+      - "6080" # noVNC web interface
+      - "5901" # VNC direct connection
+      - "5555" # ADB
+      - "4723" # Appium
     environment:
       - VNC_GEOMETRY=1920x1080
       - VNC_DEPTH=24

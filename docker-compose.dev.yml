@@ -2,11 +2,11 @@ services:
   android:
     image: storytellerf/android-in-docker:snapshot-dev
     ports:
-      - "6080:6080" # noVNC web interface
-      - "5901:5901" # VNC direct connection
-      - "5555:5555" # ADB
-      - "4723:4723" # Appium
-      - "2222:22"
+      - "6080" # noVNC web interface
+      - "5901" # VNC direct connection
+      - "5555" # ADB
+      - "4723" # Appium
+      - "22" # SSH
     volumes:
       - ./logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
       - ./data/authorized_keys:${CONTAINER_HOME:-/home/debian}/.ssh/authorized_keys

@@ -303,11 +303,19 @@ if [ "$START_CONTAINER" = true ]; then
         echo "Starting docker compose with DEV configuration..."
         if docker compose $COMPOSE_FILES up -d --build; then
             echo "Docker compose with DEV configuration started successfully."
+            # Retrieve dynamic ports
+            VNC_PORT=$(docker compose $COMPOSE_FILES port android 5901 2>/dev/null | cut -d: -f2)
+            NOVNC_PORT=$(docker compose $COMPOSE_FILES port android 6080 2>/dev/null | cut -d: -f2)
+            APPIUM_PORT=$(docker compose $COMPOSE_FILES port android 4723 2>/dev/null | cut -d: -f2)
+            SSH_PORT=$(docker compose $COMPOSE_FILES port android 22 2>/dev/null | cut -d: -f2)
+            ADB_PORT=$(docker compose $COMPOSE_FILES port android 5555 2>/dev/null | cut -d: -f2)
+
             echo "You can access the Android emulator via:"
-            echo "  - Web VNC: http://localhost:6080/vnc.html"
-            echo "  - VNC direct: localhost:5901"
-            echo "  - Appium: http://localhost:4723/inspector"
-            echo "  - SSH: localhost:2222"
+            [ -n "$NOVNC_PORT" ] && echo "  - Web VNC: http://localhost:${NOVNC_PORT}/vnc.html"
+            [ -n "$VNC_PORT" ] && echo "  - VNC direct: localhost:${VNC_PORT}"
+            [ -n "$APPIUM_PORT" ] && echo "  - Appium: http://localhost:${APPIUM_PORT}/inspector"
+            [ -n "$SSH_PORT" ] && echo "  - SSH: ssh -p ${SSH_PORT} debian@localhost"
+            [ -n "$ADB_PORT" ] && echo "  - ADB: adb connect localhost:${ADB_PORT}"
         else
             echo "Failed to start docker compose with DEV configuration."
         fi
@@ -317,10 +325,17 @@ if [ "$START_CONTAINER" = true ]; then
         echo "Starting standard docker compose..."
         if docker compose $COMPOSE_FILES up -d --build; then
             echo "Docker compose started successfully."
+            # Retrieve dynamic ports
+            VNC_PORT=$(docker compose $COMPOSE_FILES port android 5901 2>/dev/null | cut -d: -f2)
+            NOVNC_PORT=$(docker compose $COMPOSE_FILES port android 6080 2>/dev/null | cut -d: -f2)
+            APPIUM_PORT=$(docker compose $COMPOSE_FILES port android 4723 2>/dev/null | cut -d: -f2)
+            ADB_PORT=$(docker compose $COMPOSE_FILES port android 5555 2>/dev/null | cut -d: -f2)
+
             echo "You can access the Android emulator via:"
-            echo "  - Web VNC: http://localhost:6080/vnc.html"
-            echo "  - VNC direct: localhost:5901"
-            echo "  - Appium: http://localhost:4723/inspector"
+            [ -n "$NOVNC_PORT" ] && echo "  - Web VNC: http://localhost:${NOVNC_PORT}/vnc.html"
+            [ -n "$VNC_PORT" ] && echo "  - VNC direct: localhost:${VNC_PORT}"
+            [ -n "$APPIUM_PORT" ] && echo "  - Appium: http://localhost:${APPIUM_PORT}/inspector"
+            [ -n "$ADB_PORT" ] && echo "  - ADB: adb connect localhost:${ADB_PORT}"
         else
             echo "Failed to start docker compose."
         fi

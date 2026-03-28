@@ -56,11 +56,14 @@
 
 4. 连接与验证
 
-    - **noVNC（Web VNC）**: <http://localhost:6080/vnc.html>
-    - **直接 VNC**: `localhost:5901`
-    - **ADB**: `adb connect localhost:5555`
-    - **Appium**: <http://localhost:4723/inspector>
-    - **SSH (仅开发版)**: `ssh -p 2222 debian@localhost` (默认密码: `password` 可在 `.env` 修改)
+    > [!NOTE]
+    > 端口现在由 Docker 自动分配。请运行 `docker compose ps` 查看宿主机映射的端口。
+
+    - **noVNC（Web VNC）**: `http://localhost:<PORT>/vnc.html`
+    - **直接 VNC**: `localhost:<PORT>`
+    - **ADB**: `adb connect localhost:<PORT>`
+    - **Appium**: `http://localhost:<PORT>/inspector`
+    - **SSH (仅开发版)**: `ssh -p <PORT> debian@localhost` (默认密码: `password` 可在 `.env` 修改)
 
 ## 主要文件与脚本
 
@@ -127,7 +130,8 @@ docker-compose up -d
 - 通过 ADB 连接（宿主）：
 
 ```sh
-adb connect localhost:5555
+# 端口需要通过 docker compose ps 确认
+adb connect localhost:<PORT>
 adb devices
 ```
 

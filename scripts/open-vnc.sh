@@ -28,12 +28,16 @@ if [ -n "$VNC_PORT_MAPPING" ]; then
     VNC_PORT=${VNC_PORT_MAPPING##*:}
 else
     echo "Warning: No running container found via docker compose for service $SERVICE_NAME. Falling back to configuration file check."
-    # Fallback to static grep if container is not running
-    VNC_PORT=$(grep "5901" "$COMPOSE_FILE" | sed -nE 's/.*:?([0-9]+):5901.*/\1/p' | head -n 1)
+    # Fallback to static grep if container is not running. 
+    # Tries to match "host_port:5901" or just "5901"
+    VNC_PORT=$(sed -nE 's/.*-.*"?([0-9]+):5901"?/\1/p' "$COMPOSE_FILE" | head -n 1)
+    if [ -z "$VNC_PORT" ] && grep -qE "\"?5901\"?" "$COMPOSE_FILE"; then
+        echo "Note: Dynamic port mapping detected for 5901. You must start the container to determine the host port."
+    fi
 fi
 
 if [ -z "$VNC_PORT" ]; then
-    echo "Warning: No explicit VNC port mapping (container:5901) found in $COMPOSE_FILE."
+    echo "Warning: Could not determine VNC host port mapping (container:5901). Falling back to default 5901."
     VNC_PORT=5901
 fi
 
