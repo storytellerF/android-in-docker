@@ -245,7 +245,6 @@ run_build() {
 
     echo "--------------------------------------------------------"
     echo "Building: $name (Dockerfile: $df, Suffix: '$suffix')"
-    echo "--------------------------------------------------------"
 
     # Local prefixes for this build flavor
     local base_prefix="${TAG_BASE}${suffix}"
@@ -302,6 +301,15 @@ run_build() {
             --build-arg BASE_TAG="$IMAGE_TAG" \
             "${tags[@]}" \
             -f "$df" .
+    fi
+
+    # Print summary after completion
+    if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
+        echo "Successfully finished building and tagging: $name"
+        for t in "${tags[@]}"; do
+            [ "$t" != "-t" ] && echo "  - $t"
+        done
+        echo "--------------------------------------------------------"
     fi
 }
 
