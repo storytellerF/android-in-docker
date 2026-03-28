@@ -147,6 +147,12 @@ VNC_PASSWD="${VNC_PASSWD:-$DEFAULT_VNC_PASSWORD}"
 SYS_IMG_PKG="${SYS_IMG_PKG:-$DEFAULT_SYS_IMG_PKG}"
 DESKTOP_TYPE="${DESKTOP_TYPE:-$DEFAULT_DESKTOP_TYPE}"
 
+# Only xfce type updates latest and snapshot tags
+if [ "$DESKTOP_TYPE" != "xfce" ]; then
+    TAG_LATEST=false
+    TAG_SNAPSHOT=false
+fi
+
 
 # If creating env, handle interactive mode
 if [ "$CREATE_ENV" = true ]; then
@@ -249,6 +255,7 @@ run_build() {
             --platform linux/amd64,linux/arm64 \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
+            --build-arg BASE_TAG="$IMAGE_TAG" \
             "${tags_flavor[@]}" \
             --push \
             -f "$df" .
@@ -256,6 +263,7 @@ run_build() {
         docker build \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
+            --build-arg BASE_TAG="$IMAGE_TAG" \
             "${tags_flavor[@]}" \
             -f "$df" .
     fi
@@ -271,12 +279,7 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
         run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true
         
         if [ "$BUILD_DEV" = true ]; then
-            # Dev image depends on standard image
-            # We ensure 'latest' tag for standard image during build so dev image can find it
-            ORIG_TAG_LATEST=$TAG_LATEST
-            TAG_LATEST=true 
             run_build "Dockerfile" "${IMAGE_NAME}" "" false
-            TAG_LATEST=$ORIG_TAG_LATEST
             
             run_build "dev.Dockerfile" "${IMAGE_NAME}" "-dev" false
         else

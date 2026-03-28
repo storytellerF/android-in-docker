@@ -1,4 +1,5 @@
-FROM storytellerf/android-in-docker:latest
+ARG BASE_TAG=latest
+FROM storytellerf/android-in-docker:${BASE_TAG}
 
 USER root
 RUN apt update && DEBIAN_FRONTEND=noninteractive \

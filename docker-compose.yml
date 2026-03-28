@@ -1,6 +1,6 @@
 services:
   android:
-    image: storytellerf/android-in-docker:snapshot
+    image: storytellerf/android-in-docker:${IMAGE_TAG:-snapshot}
     ports:
       - "6080" # noVNC web interface
       - "5901" # VNC direct connection
