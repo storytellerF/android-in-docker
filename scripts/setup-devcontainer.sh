@@ -78,6 +78,7 @@ services:
       - VNC_DEPTH=24
     volumes:
       - ..:/workspace/${PROJECT_NAME}:cached
+      - ./logs:\${CONTAINER_HOME:-/home/debian}/log/supervisor
       - \${ANDROID_IN_DOCKER_PATH}/data/authorized_keys:\${CONTAINER_HOME}/.ssh/authorized_keys
       - ~/.gradle/gradle.properties:\${CONTAINER_HOME}/gradle.properties # 如果需要GitHub Packages
       - avd_data:\${CONTAINER_HOME}/.android/avd

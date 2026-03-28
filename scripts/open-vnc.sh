@@ -89,12 +89,12 @@ echo "Launching vncviewer localhost:$VNC_PORT ..."
 # Detect viewer type to choose correct argument
 if vncviewer -h 2>&1 | grep -q "PasswordFile"; then
     # RealVNC uses -PasswordFile
-    vncviewer "localhost:$VNC_PORT" -PasswordFile="$PASSWD_FILE" &
+    vncviewer "localhost:$VNC_PORT" -PasswordFile="$PASSWD_FILE"
 elif vncviewer -h 2>&1 | grep -q "\-passwd"; then
     # TigerVNC/TightVNC use -passwd
-    vncviewer "localhost:$VNC_PORT" -passwd "$PASSWD_FILE" &
+    vncviewer "localhost:$VNC_PORT" -passwd "$PASSWD_FILE"
 else
     # Fallback to general execution
-    vncviewer "localhost:$VNC_PORT" &
+    vncviewer "localhost:$VNC_PORT"
 fi
 
