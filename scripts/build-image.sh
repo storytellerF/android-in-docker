@@ -147,11 +147,20 @@ VNC_PASSWD="${VNC_PASSWD:-$DEFAULT_VNC_PASSWORD}"
 SYS_IMG_PKG="${SYS_IMG_PKG:-$DEFAULT_SYS_IMG_PKG}"
 DESKTOP_TYPE="${DESKTOP_TYPE:-$DEFAULT_DESKTOP_TYPE}"
 
-# Only xfce type updates latest and snapshot tags
-if [ "$DESKTOP_TYPE" != "xfce" ]; then
-    TAG_LATEST=false
-    TAG_SNAPSHOT=false
-fi
+# Calculate Tag Base (both full and omitted versions)
+calculate_tag_base() {
+    # Full version always includes system and desktop type
+    TAG_FULL="${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}"
+
+    # Omitted version removes defaults (trixie, xfce)
+    local parts=()
+    [ "$BASE_VERSION" != "trixie" ] && parts+=("$BASE_VERSION")
+    [ "$DESKTOP_TYPE" != "xfce" ] && parts+=("$DESKTOP_TYPE")
+    parts+=("openjdk${OPENJDK_VERSION}")
+    TAG_BASE=$(IFS=-; echo "${parts[*]}")
+}
+
+calculate_tag_base
 
 
 # If creating env, handle interactive mode
@@ -179,8 +188,9 @@ if [ "$CREATE_ENV" = true ]; then
     read -p "Enter Desktop Type (xfce, lxqt, mate) (default: $DESKTOP_TYPE): " INPUT_DesktopType
     DESKTOP_TYPE="${INPUT_DesktopType:-$DESKTOP_TYPE}"
 
-    # Calculate IMAGE_TAG
-    IMAGE_TAG="${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}-${CURRENT_DATE}"
+    # Recalculate Tag Base after potential prompts
+    calculate_tag_base
+    IMAGE_TAG="${TAG_BASE}-${CURRENT_DATE}"
 
     echo "Updating $ENV_FILE..."
     # Helper to write or update var in file
@@ -212,8 +222,10 @@ else
     # Actually, if we are just building, we rely on .env values.
     # If IMAGE_TAG is not in .env, we generate one temporarily for this build?
     # If any override was provided, or if IMAGE_TAG is not set, calculate it.
+    # Non-interactive Mode: Recalculate Tag Base and IMAGE_TAG if needed
+    calculate_tag_base
     if [ -n "$JDK_VERSION" ] || [ -n "$DESKTOP_TYPE_INPUT" ] || [ -z "$IMAGE_TAG" ]; then
-         IMAGE_TAG="${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}-${CURRENT_DATE}"
+         IMAGE_TAG="${TAG_BASE}-${CURRENT_DATE}"
     fi
 fi
 
@@ -235,23 +247,43 @@ run_build() {
     echo "Building: $name (Dockerfile: $df, Suffix: '$suffix')"
     echo "--------------------------------------------------------"
 
-    # Define common tags
-    local tags=("-t" "${name}:${IMAGE_TAG}")
-    if [ "$BASE_VERSION" = "trixie" ]; then
-        tags+=("-t" "${name}:${IMAGE_TAG#trixie-}")
+    # Local prefixes for this build flavor
+    local base_prefix="${TAG_BASE}${suffix}"
+    local full_prefix="${TAG_FULL}${suffix}"
+    
+    # Define common tags (primary timestamped tags)
+    local tags=("-t" "${name}:${base_prefix}-${CURRENT_DATE}")
+    if [ "$base_prefix" != "$full_prefix" ]; then
+         tags+=("-t" "${name}:${full_prefix}-${CURRENT_DATE}")
     fi
-    [ "$TAG_LATEST" = true ] && tags+=("-t" "${name}:latest")
-    [ "$TAG_SNAPSHOT" = true ] && tags+=("-t" "${name}:snapshot")
-    [ "$add_openjdk_tag" = true ] && tags+=("-t" "${name}:openjdk${OPENJDK_VERSION}")
+    
+    # Add flavor-specific latest and snapshot tags
+    if [ "$TAG_LATEST" = true ]; then
+        tags+=("-t" "${name}:${base_prefix}-latest")
+        [ "$base_prefix" != "$full_prefix" ] && tags+=("-t" "${name}:${full_prefix}-latest")
+    fi
+    if [ "$TAG_SNAPSHOT" = true ]; then
+        tags+=("-t" "${name}:${base_prefix}-snapshot")
+        [ "$base_prefix" != "$full_prefix" ] && tags+=("-t" "${name}:${full_prefix}-snapshot")
+    fi
+    
+    # Add plain tags ONLY for the default flavor configuration (e.g., :latest, :dev-latest)
+    if [ "$BASE_VERSION" = "trixie" ] && [ "$DESKTOP_TYPE" = "xfce" ]; then
+        local plain_indicator="${suffix#-}" # Remove leading dash (e.g., "-dev" -> "dev")
+        if [ -n "$plain_indicator" ]; then
+            [ "$TAG_LATEST" = true ] && tags+=("-t" "${name}:${plain_indicator}-latest")
+            [ "$TAG_SNAPSHOT" = true ] && tags+=("-t" "${name}:${plain_indicator}-snapshot")
+        else
+            [ "$TAG_LATEST" = true ] && tags+=("-t" "${name}:latest")
+            [ "$TAG_SNAPSHOT" = true ] && tags+=("-t" "${name}:snapshot")
+        fi
+    fi
 
-    # Process tags with special suffix
-    local tags_flavor=()
-    for t in "${tags[@]}"; do
-        if [[ "$t" == "-t" ]]; then continue; fi
-        local img="${t%:*}"
-        local tp="${t#*:}"
-        tags_flavor+=("-t" "${img}:${tp}${suffix}")
-    done
+    # Add stable alias (e.g., :openjdk21 or :mate-openjdk21-dev)
+    if [ "$add_openjdk_tag" = true ]; then
+        tags+=("-t" "${name}:${base_prefix}")
+        [ "$base_prefix" != "$full_prefix" ] && tags+=("-t" "${name}:${full_prefix}")
+    fi
 
     # Execute the build
     if [ "$PUBLISH" = true ]; then
@@ -260,7 +292,7 @@ run_build() {
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
             --build-arg BASE_TAG="$IMAGE_TAG" \
-            "${tags_flavor[@]}" \
+            "${tags[@]}" \
             --push \
             -f "$df" .
     elif [ "$EXECUTE_BUILD" = true ]; then
@@ -268,7 +300,7 @@ run_build() {
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
             --build-arg BASE_TAG="$IMAGE_TAG" \
-            "${tags_flavor[@]}" \
+            "${tags[@]}" \
             -f "$df" .
     fi
 }
