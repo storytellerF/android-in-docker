@@ -95,14 +95,20 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# Get base image version from Dockerfile (supports ubuntu: or debian:)
+# Get base image version from base.Dockerfile or Dockerfile (preferring base.Dockerfile)
+if [ -f "base.Dockerfile" ]; then
+    BASE_VERSION=$(grep "^FROM " base.Dockerfile | cut -d':' -f2 | cut -d'-' -f1 | tr -d '\r' | tr -d ' ')
+elif [ -f "Dockerfile" ]; then
+    BASE_VERSION=$(grep "^FROM " Dockerfile | cut -d':' -f2 | cut -d'-' -f1 | tr -d '\r' | tr -d ' ')
+else
+    BASE_VERSION="unknown"
+fi
+
 if [ -f "Dockerfile" ]; then
-    BASE_VERSION=$(grep "^FROM " Dockerfile | cut -d':' -f2 | tr -d '\r' | tr -d ' ')
     # Extract USERNAME from Dockerfile (ARG USERNAME=...)
     DF_USERNAME=$(grep "^ARG USERNAME=" Dockerfile | cut -d'=' -f2 | tr -d '\r' | tr -d ' ')
     CONTAINER_USER="${DF_USERNAME:-debian}"
 else
-    BASE_VERSION="unknown"
     CONTAINER_USER="debian"
 fi
 CONTAINER_HOME="/home/${CONTAINER_USER}"
@@ -155,7 +161,7 @@ if [ "$CREATE_ENV" = true ]; then
     SYS_IMG_PKG="${INPUT_SysImg:-$SYS_IMG_PKG}"
 
     # Calculate IMAGE_TAG
-    IMAGE_TAG="openjdk${OPENJDK_VERSION}.${BASE_VERSION}.${CURRENT_DATE}"
+    IMAGE_TAG="${BASE_VERSION}-openjdk${OPENJDK_VERSION}-${CURRENT_DATE}"
 
     echo "Updating $ENV_FILE..."
     # Helper to write or update var in file
@@ -186,7 +192,7 @@ else
     # Actually, if we are just building, we rely on .env values.
     # If IMAGE_TAG is not in .env, we generate one temporarily for this build?
     if [ -z "$IMAGE_TAG" ]; then
-         IMAGE_TAG="openjdk${OPENJDK_VERSION}.${BASE_VERSION}.${CURRENT_DATE}"
+         IMAGE_TAG="${BASE_VERSION}-openjdk${OPENJDK_VERSION}-${CURRENT_DATE}"
     fi
 fi
 
