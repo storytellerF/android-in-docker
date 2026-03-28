@@ -17,6 +17,7 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
+    echo "  -B, --base                   Build the base image from base.Dockerfile"
     echo "  -D, --dev                    Build dev.Dockerfile instead of Dockerfile (includes SSH, Chrome, Android Studio)"
     echo "  -S, --start                  Start docker compose up --build after building the image"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
@@ -30,6 +31,7 @@ usage() {
 # Parse arguments
 CREATE_ENV=false
 EXECUTE_BUILD=false
+BUILD_BASE=false
 BUILD_DEV=false
 START_CONTAINER=false
 PUBLISH=false
@@ -60,6 +62,9 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -b|--build)
             EXECUTE_BUILD=true
+            ;;
+        -B|--base)
+            BUILD_BASE=true
             ;;
         -D|--dev)
             BUILD_DEV=true
@@ -195,7 +200,11 @@ fi
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     DOCKERFILE="Dockerfile"
     SPECIAL_TAG_SUFFIX=""
-    if [ "$BUILD_DEV" = true ]; then
+    if [ "$BUILD_BASE" = true ]; then
+        DOCKERFILE="base.Dockerfile"
+        IMAGE_NAME="${IMAGE_NAME}-base"
+        echo "Building Base version using base.Dockerfile"
+    elif [ "$BUILD_DEV" = true ]; then
         DOCKERFILE="dev.Dockerfile"
         SPECIAL_TAG_SUFFIX="-dev"
         echo "Building Dev version using dev.Dockerfile"
@@ -206,6 +215,7 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     BUILD_TAGS=("-t" "${IMAGE_NAME}:${IMAGE_TAG}")
     [ "$TAG_LATEST" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:latest")
     [ "$TAG_SNAPSHOT" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:snapshot")
+    [ "$BUILD_BASE" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:openjdk${OPENJDK_VERSION}")
 
     BUILD_TAGS_FLAVOR=()
     for tag_option in "${BUILD_TAGS[@]}"; do
