@@ -197,70 +197,70 @@ if [ -n "$DOCKER_USERNAME" ]; then
 fi
 
 
-if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
-    DOCKERFILE="Dockerfile"
-    SPECIAL_TAG_SUFFIX=""
-    if [ "$BUILD_BASE" = true ]; then
-        DOCKERFILE="base.Dockerfile"
-        IMAGE_NAME="${IMAGE_NAME}-base"
-        echo "Building Base version using base.Dockerfile"
-    elif [ "$BUILD_DEV" = true ]; then
-        DOCKERFILE="dev.Dockerfile"
-        SPECIAL_TAG_SUFFIX="-dev"
-        echo "Building Dev version using dev.Dockerfile"
-    else
-        echo "Building standard version using Dockerfile"
-    fi
+# --- Build Function ---
+run_build() {
+    local df=$1
+    local name=$2
+    local suffix=$3
+    local add_openjdk_tag=$4
 
-    BUILD_TAGS=("-t" "${IMAGE_NAME}:${IMAGE_TAG}")
-    [ "$TAG_LATEST" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:latest")
-    [ "$TAG_SNAPSHOT" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:snapshot")
-    [ "$BUILD_BASE" = true ] && BUILD_TAGS+=("-t" "${IMAGE_NAME}:openjdk${OPENJDK_VERSION}")
+    echo "--------------------------------------------------------"
+    echo "Building: $name (Dockerfile: $df, Suffix: '$suffix')"
+    echo "--------------------------------------------------------"
 
-    BUILD_TAGS_FLAVOR=()
-    for tag_option in "${BUILD_TAGS[@]}"; do
-        if [[ "$tag_option" == "-t" ]]; then
-            continue
-        fi
-        
-        if [[ "$tag_option" == *":"* ]]; then
-            image_part="${tag_option%:*}"
-            tag_part="${tag_option#*:}"
-            modified_tag="${image_part}:${tag_part}${SPECIAL_TAG_SUFFIX}"
-            BUILD_TAGS_FLAVOR+=("-t" "$modified_tag")
-        else
-            BUILD_TAGS_FLAVOR+=("$tag_option")
-        fi
+    # Define common tags
+    local tags=("-t" "${name}:${IMAGE_TAG}")
+    [ "$TAG_LATEST" = true ] && tags+=("-t" "${name}:latest")
+    [ "$TAG_SNAPSHOT" = true ] && tags+=("-t" "${name}:snapshot")
+    [ "$add_openjdk_tag" = true ] && tags+=("-t" "${name}:openjdk${OPENJDK_VERSION}")
+
+    # Process tags with special suffix
+    local tags_flavor=()
+    for t in "${tags[@]}"; do
+        if [[ "$t" == "-t" ]]; then continue; fi
+        local img="${t%:*}"
+        local tp="${t#*:}"
+        tags_flavor+=("-t" "${img}:${tp}${suffix}")
     done
-fi
 
-if [ "$PUBLISH" = true ]; then
-    echo "Publisher mode enabled. Building and Pushing Multi-Arch Images (amd64, arm64)..."
-    
-    docker buildx build \
-        --platform linux/amd64,linux/arm64 \
-        --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
-        "${BUILD_TAGS_FLAVOR[@]}" \
-        --push \
-        -f "$DOCKERFILE" .
+    # Execute the build
+    if [ "$PUBLISH" = true ]; then
+        docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
+            "${tags_flavor[@]}" \
+            --push \
+            -f "$df" .
+    elif [ "$EXECUTE_BUILD" = true ]; then
+        docker build \
+            --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
+            "${tags_flavor[@]}" \
+            -f "$df" .
+    fi
+}
 
-    echo "Multi-arch build and push finished."
-    echo "Image pushed: ${IMAGE_NAME}:${IMAGE_TAG}${SPECIAL_TAG_SUFFIX}"
-    echo "Cleaning up dangling images..."
-    docker image prune -f
-
-elif [ "$EXECUTE_BUILD" = true ]; then   
-    echo "Building the Docker image with JDK $OPENJDK_VERSION locally for current architecture..."
-    
-    docker build \
-        --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
-        "${BUILD_TAGS_FLAVOR[@]}" \
-        -f "$DOCKERFILE" .
-
-    echo "Docker image build process finished."
-    echo "Image created: ${IMAGE_NAME}:${IMAGE_TAG}${SPECIAL_TAG_SUFFIX}"
-    [ "$TAG_LATEST" = true ] && echo "Also tagged as: ${IMAGE_NAME}:latest${SPECIAL_TAG_SUFFIX}"
-    [ "$TAG_SNAPSHOT" = true ] && echo "Also tagged as: ${IMAGE_NAME}:snapshot${SPECIAL_TAG_SUFFIX}"
+if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
+    # Automatically build the dependency chain
+    if [ "$BUILD_BASE" = true ]; then
+        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true
+    else
+        echo "Automatically building dependencies..."
+        # All target images depend on the base image
+        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true
+        
+        if [ "$BUILD_DEV" = true ]; then
+            # Dev image depends on standard image
+            # We ensure 'latest' tag for standard image during build so dev image can find it
+            ORIG_TAG_LATEST=$TAG_LATEST
+            TAG_LATEST=true 
+            run_build "Dockerfile" "${IMAGE_NAME}" "" false
+            TAG_LATEST=$ORIG_TAG_LATEST
+            
+            run_build "dev.Dockerfile" "${IMAGE_NAME}" "-dev" false
+        else
+            run_build "Dockerfile" "${IMAGE_NAME}" "" false
+        fi
+    fi
     echo "Cleaning up dangling images..."
     docker image prune -f
 fi
@@ -277,7 +277,7 @@ if [ "$START_CONTAINER" = true ]; then
         # else
         #     echo "Standard Linux environment detected, using KVM and chrome configuration."
         # fi
-        COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.kvm.yml -f docker-compose.chrome.yml"
+        COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.kvm.yml"
         echo "Starting docker compose with DEV configuration..."
         if docker compose $COMPOSE_FILES up -d --build; then
             echo "Docker compose with DEV configuration started successfully."

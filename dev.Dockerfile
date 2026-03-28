@@ -1,7 +1,5 @@
 FROM storytellerf/android-in-docker:latest
 
-ARG USER_NAME=debian
-
 USER root
 RUN apt update && DEBIAN_FRONTEND=noninteractive \
     apt install -y --no-install-recommends --no-install-suggests curl openssh-server extrepo gnupg2 git && \
@@ -29,26 +27,29 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive \
 RUN sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 
-# 复制并解压 Android Studio
-# 假设已经将 android-studio-*.tar.gz 下载到 download 目录，不适用tmp 目录
-COPY --chown=${USER_NAME}:${USER_NAME} download/android-studio-*.tar.gz /home/${USER_NAME}/Applications/android-studio.tar.gz
-COPY --chown=${USER_NAME}:${USER_NAME} ssh.supervisord.conf /home/${USER_NAME}/supervisor/conf.d/ssh.supervisord.conf
-COPY --chown=${USER_NAME}:${USER_NAME} scripts/start-ssh.sh /home/${USER_NAME}/bin/start-ssh.sh
-RUN chmod +x /home/${USER_NAME}/bin/start-ssh.sh
-
 RUN mkdir -p /run/sshd
+
+ARG USER_NAME=debian
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
 
 USER $USER_NAME
 WORKDIR /home/$USER_NAME
 
+# 复制并解压 Android Studio
+# 假设已经将 android-studio-*.tar.gz 下载到 download 目录
+COPY --chown=${USER_UID}:${USER_GID} download/android-studio-*.tar.gz /home/${USER_NAME}/Applications/android-studio.tar.gz
 RUN mkdir -p Applications && \
     tar -xzf ./Applications/android-studio.tar.gz -C ./Applications && \
     rm ./Applications/android-studio.tar.gz
-
 # 创建桌面快捷方式
 RUN mkdir -p /home/${USER_NAME}/Desktop && \
     printf "[Desktop Entry]\nVersion=1.0\nType=Application\nName=Android Studio\nExec=studio\nIcon=/home/${USER_NAME}/Applications/android-studio/bin/studio.svg\nTerminal=false\nCategories=Development;IDE;" > /home/${USER_NAME}/Desktop/android-studio.desktop && \
     chmod +x /home/${USER_NAME}/Desktop/android-studio.desktop
+
+COPY --chown=${USER_UID}:${USER_GID} ssh.supervisord.conf /home/${USER_NAME}/supervisor/conf.d/ssh.supervisord.conf
+COPY --chown=${USER_UID}:${USER_GID} scripts/start-ssh.sh /home/${USER_NAME}/bin/start-ssh.sh
+RUN chmod +x /home/${USER_NAME}/bin/start-ssh.sh
 
 # 替换 entrypoint.sh 注入点，确保每次启动容器时都能清理 Chrome 的 Singleton 锁文件，避免 Chrome 无法启动的问题
 RUN sed -i "/# inject point/a rm -f /home/${USER_NAME}/.config/google-chrome/Singleton*" /home/${USER_NAME}/bin/entrypoint.sh
