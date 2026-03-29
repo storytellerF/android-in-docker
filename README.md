@@ -207,10 +207,9 @@ services:
       - ..:/workspace/your-project-name:cached
       - ./logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
       - ./data/authorized_keys:${CONTAINER_HOME}/.ssh/authorized_keys
-      - ~/.gradle/gradle.properties:${CONTAINER_HOME}/gradle.properties # 如果需要GithHub Packages
       - avd_data:${CONTAINER_HOME}/.android/avd
       - sdk_data:${CONTAINER_HOME}/Android/Sdk
-      - bash_history:${CONTAINER_HOME}/.android-in-docker/.bash_history
+      - bash_history:${CONTAINER_HOME}/.desktop-in-docker/.bash_history
       - gradle_data:${CONTAINER_HOME}/.gradle
       - konan_data:${CONTAINER_HOME}/.konan
       - m2_data:${CONTAINER_HOME}/.m2
@@ -219,11 +218,14 @@ services:
       - google_cache:${CONTAINER_HOME}/.cache/Google
       - google_config:${CONTAINER_HOME}/.config/Google
       - google_local:${CONTAINER_HOME}/.local/share/Google
-      - antigravity_config:${CONTAINER_HOME}/.config/Antigravity
       - gemini_data:${CONTAINER_HOME}/.gemini
+      - antigravity_config:${CONTAINER_HOME}/.config/Antigravity
       - antigravity_data:${CONTAINER_HOME:-/home/debian}/.antigravity
     shm_size: '2gb' # Allocate more shared memory
-    privileged: true # Enable KVM acceleration
+    devices:
+      - /dev/kvm
+    security_opt:
+      - seccomp:unconfined
 
 volumes:
   avd_data:
@@ -232,6 +234,8 @@ volumes:
     external: true
   bash_history:
   gradle_data:
+    name: gradle_data
+    external: true
   konan_data:
   m2_data:
   chrome_cache:
@@ -239,8 +243,8 @@ volumes:
   google_cache:
   google_config:
   google_local:
-  antigravity_config:
   gemini_data:
+  antigravity_config:
   antigravity_data:
 ```
 

@@ -10,6 +10,9 @@ services:
     volumes:
       - ./logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
       - ./data/authorized_keys:${CONTAINER_HOME:-/home/debian}/.ssh/authorized_keys
+      - gradle_data:${CONTAINER_HOME:-/home/debian}/.gradle
+      - konan_data:${CONTAINER_HOME:-/home/debian}/.konan
+      - m2_data:${CONTAINER_HOME:-/home/debian}/.m2
       - avd_data:${CONTAINER_HOME:-/home/debian}/.android/avd
       - sdk_data:${CONTAINER_HOME:-/home/debian}/Android/Sdk
       - chrome_cache:${CONTAINER_HOME:-/home/debian}/.cache/google-chrome
@@ -17,16 +20,21 @@ services:
       - google_cache:${CONTAINER_HOME:-/home/debian}/.cache/Google
       - google_config:${CONTAINER_HOME:-/home/debian}/.config/Google
       - google_local:${CONTAINER_HOME:-/home/debian}/.local/share/Google
-      - antigravity_config:${CONTAINER_HOME:-/home/debian}/.config/Antigravity
       - gemini_data:${CONTAINER_HOME:-/home/debian}/.gemini
+      - antigravity_config:${CONTAINER_HOME:-/home/debian}/.config/Antigravity
       - antigravity_data:${CONTAINER_HOME:-/home/debian}/.antigravity
 
 volumes:
+  gradle_data:
+    name: gradle_data
+    external: true
+  konan_data:
+  m2_data:
   chrome_cache:
   chrome_config:
   google_cache:
   google_config:
   google_local:
-  antigravity_config:
   gemini_data:
+  antigravity_config:
   antigravity_data:
