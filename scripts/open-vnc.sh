@@ -82,10 +82,20 @@ else
     echo "Warning: vncpasswd not found. Saving as plain text password file."
 fi
 
+# 3. Launch VNC viewer
+# Check if remmina exists (preferred)
+if command -v remmina &> /dev/null; then
+    echo "Launching remmina vnc://localhost:$VNC_PORT ..."
+    # Note: remmina -c vnc://... works. We attempt to pass the password if available.
+    # If the password includes special characters, this might need encoding, but we'll try simple injection.
+    remmina -c "vnc://localhost:$VNC_PORT?name=Android-In-Docker&password=$VNC_PASSWD" &
+    exit 0
+fi
+
 # Check if vncviewer exists
 if ! command -v vncviewer &> /dev/null; then
-    echo "Error: vncviewer is not installed or not in your PATH."
-    echo "Please install it (e.g., sudo apt install tigervnc-viewer or xtightvncviewer)"
+    echo "Error: vncviewer or remmina is not installed or not in your PATH."
+    echo "Please install one (e.g., sudo apt install remmina or tigervnc-viewer)"
     exit 1
 fi
 
