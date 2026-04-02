@@ -13,7 +13,7 @@ echo "Detected architecture: $ARCH"
 # 检查是否定义了SYS_IMG_PKG，否则报出错误
 if [ -z "$SYS_IMG_PKG" ]; then
     echo "Error: SYS_IMG_PKG is not defined."
-    exit 1
+    exit 0
 fi
 
 if [ "$ARCH" = "x86_64" ]; then

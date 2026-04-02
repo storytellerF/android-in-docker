@@ -268,7 +268,7 @@ fi
 dev.Dockerfile
 
 ```Dockerfile
-FROM storytellerf/android-in-docker:latest-dev
+FROM storytellerf/android-in-docker:dev-latest
 
 ARG USER_NAME
 
@@ -284,12 +284,37 @@ RUN groupadd -g 1001 docker \
 USER $USER_NAME
 WORKDIR /home/$USER_NAME
 
+COPY --chown=$USER_NAME:$USER_NAME ./fcitx.supervisord.conf ./supervisor/conf.d/fcitx.supervisord.conf
 COPY --chown=$USER_NAME:$USER_NAME ./custom-entrypoint.sh ./bin/custom-entrypoint.sh
 RUN chmod +x ./bin/custom-entrypoint.sh
 
 ENTRYPOINT ["sh", "-c", "$HOME/bin/custom-entrypoint.sh"]
 
 ```
+
+fcitx.supervisord.conf
+```ini
+[program:fcitx]
+command=/usr/bin/fcitx
+environment=USER=%(ENV_SUPERVISOR_USER)s,HOME=%(ENV_HOME)s,DISPLAY=:1
+stdout_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stdout.log
+stderr_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stderr.log
+autorestart=false
+user=%(ENV_SUPERVISOR_USER)s
+stopasgroup=true
+killasgroup=true
+```
+
+`android.supervisord.conf` 已经通过 `%(ENV_HOME)s/supervisor/conf.d/*.conf` 自动包含额外的 supervisor 配置，所以只要把 `fcitx.supervisord.conf` 复制到 `~/supervisor/conf.d/`，容器启动时就会由 supervisor 一并拉起。
+
+完成构建后可以这样验证：
+
+```sh
+docker compose exec main supervisorctl status
+docker compose exec main tail -f /home/debian/log/supervisor/fcitx_stdout.log
+```
+
+~~如果还需要让 GUI 应用默认走 fcitx，可以在自己的项目里继续补充 `GTK_IM_MODULE=fcitx`、`QT_IM_MODULE=fcitx` 和 `XMODIFIERS=@im=fcitx` 之类的环境变量。~~
 
 添加ssh 公钥
 

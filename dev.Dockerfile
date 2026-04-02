@@ -14,15 +14,16 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive \
     apt install -y google-chrome-stable \
     && rm -f /etc/apt/sources.list.d/google-chrome*.list
 
-# install antigravity
-RUN mkdir -p /etc/apt/keyrings
-RUN curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | \
-    gpg --dearmor --yes -o /etc/apt/keyrings/antigravity-repo-key.gpg
-RUN echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | \
-    tee /etc/apt/sources.list.d/antigravity.list > /dev/null
-RUN apt update && DEBIAN_FRONTEND=noninteractive \
-    apt install -y antigravity && \
-    rm -f /etc/apt/sources.list.d/antigravity.list
+# install VS Code
+RUN apt-get install -y wget gpg apt-transport-https && \
+    wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
+    install -D -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/microsoft.gpg && \
+    rm -f microsoft.gpg && \
+    printf 'Types: deb\nURIs: https://packages.microsoft.com/repos/code\nSuites: stable\nComponents: main\nArchitectures: amd64,arm64,armhf\nSigned-By: /usr/share/keyrings/microsoft.gpg\n' \
+        > /etc/apt/sources.list.d/vscode.sources && \
+    apt update && DEBIAN_FRONTEND=noninteractive \
+    apt install -y code && \
+    rm -rf /var/lib/apt/lists/*
 
 # 开启公钥认证，禁用密码登录（可选但推荐）
 RUN sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \

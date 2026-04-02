@@ -140,10 +140,24 @@ fi
 ./bin/entrypoint.sh
 EOF
 
-# 5. 生成 dev.Dockerfile
+# 5. 生成 fcitx.supervisord.conf
+echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/fcitx.supervisord.conf${NC}"
+cat > "${DEVCONTAINER_DIR}/fcitx.supervisord.conf" <<'EOF'
+[program:fcitx]
+command=/usr/bin/fcitx
+environment=USER=%(ENV_SUPERVISOR_USER)s,HOME=%(ENV_HOME)s,DISPLAY=:1
+stdout_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stdout.log
+stderr_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stderr.log
+autorestart=false
+user=%(ENV_SUPERVISOR_USER)s
+stopasgroup=true
+killasgroup=true
+EOF
+
+# 6. 生成 dev.Dockerfile
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/dev.Dockerfile${NC}"
 cat > "${DEVCONTAINER_DIR}/dev.Dockerfile" <<EOF
-FROM storytellerf/android-in-docker:latest-dev
+FROM storytellerf/android-in-docker:dev-latest
 
 ARG USER_NAME
 
@@ -159,6 +173,7 @@ RUN groupadd -g 1001 docker \\
 USER \$USER_NAME
 WORKDIR /home/\$USER_NAME
 
+COPY --chown=\$USER_NAME:\$USER_NAME ./.devcontainer/fcitx.supervisord.conf ./supervisor/conf.d/fcitx.supervisord.conf
 COPY --chown=\$USER_NAME:\$USER_NAME ./.devcontainer/custom-entrypoint.sh ./bin/custom-entrypoint.sh
 RUN chmod +x ./bin/custom-entrypoint.sh
 
