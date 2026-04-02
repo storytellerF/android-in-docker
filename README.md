@@ -85,16 +85,22 @@
 
 ## 镜像 Tag 策略
 
-生成的 Tag 格式为：`openjdk{JDK_VERSION}.{BASE_VERSION}.{DATE}[-dev]`
+镜像 Tag 由脚本计算出的基础部分和 `.env` 中的 `IMAGE_TAG_TIME` 组成。
 
-- **JDK_VERSION**: OpenJDK 版本（默认 21）。
-- **BASE_VERSION**: 基础操作系统版本（如 `trixie`）。
-- **DATE**: 构建时间戳 (YYYYMMDDHHMMSS)。
-- **-dev**: 仅开发版镜像带有此后缀。
+- **基础部分**: 由系统版本、桌面类型、JDK 版本自动计算（例如 `trixie-xfce-openjdk21`）。
+- **IMAGE_TAG_TIME**: 时间片段（格式 `YYYYMMDDHHMM` 或 `YYYYMMDDHHMMSS`）。
 
-例如：`openjdk21.trixie.20240314120000-dev`
+最终镜像 tag 形如：`{自动基础部分}-{IMAGE_TAG_TIME}`。
 
-生成的 Tag 会自动同步到 `.env` 的 `IMAGE_TAG` 中。
+例如：`trixie-xfce-openjdk21-202603281653`
+
+默认构建会优先使用 `.env` 中已有的 `IMAGE_TAG_TIME`，因此多次构建不会因为当前时间变化而改变 tag。只有在 `IMAGE_TAG_TIME` 缺失或格式非法时，脚本才会回退到运行时时间。
+
+推荐在 `.env` 中仅维护时间字段：
+
+```dotenv
+IMAGE_TAG_TIME="202603281653"
+```
 
 ## 卷与持久化
 

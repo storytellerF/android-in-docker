@@ -1,5 +1,5 @@
-ARG BASE_TAG=latest
-FROM storytellerf/android-in-docker:${BASE_TAG}
+ARG DESKTOP_TYPE=xfce
+FROM storytellerf/android-in-docker:trixie-${DESKTOP_TYPE}-openjdk21-latest
 
 USER root
 RUN apt update && DEBIAN_FRONTEND=noninteractive \

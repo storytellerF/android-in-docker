@@ -9,6 +9,11 @@ DEFAULT_VNC_PASSWORD="password"
 DEFAULT_SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
 DEFAULT_DESKTOP_TYPE="xfce"
 
+validate_tag_time() {
+    local value=$1
+    [[ "$value" =~ ^[0-9]{12,14}$ ]]
+}
+
 # Function to display usage
 usage() {
     echo "Usage: $0 [OPTIONS]"
@@ -120,9 +125,6 @@ else
 fi
 CONTAINER_HOME="/home/${CONTAINER_USER}"
 
-# Get current date with timestamp
-CURRENT_DATE=$(date +%Y%m%d%H%M%S)
-
 # Load existing .env if present
 if [ -f "$ENV_FILE" ]; then
     echo "Loading configuration from $ENV_FILE..."
@@ -162,6 +164,15 @@ calculate_tag_base() {
 
 calculate_tag_base
 
+TIME_FALLBACK="$(date +%Y%m%d%H%M%S)"
+
+if ! validate_tag_time "$IMAGE_TAG_TIME"; then
+    [ -n "$IMAGE_TAG_TIME" ] && echo "Warning: IMAGE_TAG_TIME '$IMAGE_TAG_TIME' is invalid, fallback to runtime timestamp."
+    IMAGE_TAG_TIME="$TIME_FALLBACK"
+fi
+
+IMAGE_TAG="${TAG_BASE}-${IMAGE_TAG_TIME}"
+
 
 # If creating env, handle interactive mode
 if [ "$CREATE_ENV" = true ]; then
@@ -188,11 +199,6 @@ if [ "$CREATE_ENV" = true ]; then
     read -p "Enter Desktop Type (xfce, lxqt, mate) (default: $DESKTOP_TYPE): " INPUT_DesktopType
     DESKTOP_TYPE="${INPUT_DesktopType:-$DESKTOP_TYPE}"
 
-    # Recalculate Tag Base after potential prompts
-    calculate_tag_base
-    IMAGE_TAG="${TAG_BASE}-${CURRENT_DATE}"
-
-    echo "Updating $ENV_FILE..."
     # Helper to write or update var in file
     update_env_var() {
         local key=$1
@@ -208,25 +214,26 @@ if [ "$CREATE_ENV" = true ]; then
     # Initialize file if not exists
     touch "$ENV_FILE"
 
+    # Recalculate tag components and keep existing timestamp unless missing/invalid.
+    calculate_tag_base
+    if ! validate_tag_time "$IMAGE_TAG_TIME"; then
+        IMAGE_TAG_TIME="$TIME_FALLBACK"
+    fi
+    IMAGE_TAG="${TAG_BASE}-${IMAGE_TAG_TIME}"
+
+    echo "Updating $ENV_FILE..."
+
     update_env_var "DOCKER_USERNAME" "$DOCKER_USERNAME" "$ENV_FILE"
     update_env_var "OPENJDK_VERSION" "$OPENJDK_VERSION" "$ENV_FILE"
     update_env_var "VNC_PASSWD" "$VNC_PASSWD" "$ENV_FILE"
     update_env_var "SYS_IMG_PKG" "$SYS_IMG_PKG" "$ENV_FILE"
     update_env_var "DESKTOP_TYPE" "$DESKTOP_TYPE" "$ENV_FILE"
-    update_env_var "IMAGE_TAG" "$IMAGE_TAG" "$ENV_FILE"
+    update_env_var "IMAGE_TAG_TIME" "$IMAGE_TAG_TIME" "$ENV_FILE"
     update_env_var "CONTAINER_HOME" "$CONTAINER_HOME" "$ENV_FILE"
     
     echo ".env file updated."
 else
-    # Non-interactive Mode: Just calculate tag if not present or needs refresh? 
-    # Actually, if we are just building, we rely on .env values.
-    # If IMAGE_TAG is not in .env, we generate one temporarily for this build?
-    # If any override was provided, or if IMAGE_TAG is not set, calculate it.
-    # Non-interactive Mode: Recalculate Tag Base and IMAGE_TAG if needed
-    calculate_tag_base
-    if [ -n "$JDK_VERSION" ] || [ -n "$DESKTOP_TYPE_INPUT" ] || [ -z "$IMAGE_TAG" ]; then
-         IMAGE_TAG="${TAG_BASE}-${CURRENT_DATE}"
-    fi
+    echo "Using existing configuration from .env or defaults."
 fi
 
 
@@ -251,9 +258,9 @@ run_build() {
     local full_prefix="${TAG_FULL}${suffix}"
     
     # Define common tags (primary timestamped tags)
-    local tags=("-t" "${name}:${base_prefix}-${CURRENT_DATE}")
+    local tags=("-t" "${name}:${base_prefix}-${IMAGE_TAG_TIME}")
     if [ "$base_prefix" != "$full_prefix" ]; then
-         tags+=("-t" "${name}:${full_prefix}-${CURRENT_DATE}")
+            tags+=("-t" "${name}:${full_prefix}-${IMAGE_TAG_TIME}")
     fi
     
     # Add flavor-specific latest and snapshot tags
@@ -290,7 +297,6 @@ run_build() {
             --platform linux/amd64,linux/arm64 \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
-            --build-arg BASE_TAG="$IMAGE_TAG" \
             "${tags[@]}" \
             --push \
             -f "$df" .
@@ -298,7 +304,6 @@ run_build() {
         docker build \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
-            --build-arg BASE_TAG="$IMAGE_TAG" \
             "${tags[@]}" \
             -f "$df" .
     fi
