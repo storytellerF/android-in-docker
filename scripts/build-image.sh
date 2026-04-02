@@ -249,6 +249,7 @@ run_build() {
     local name=$2
     local suffix=$3
     local add_openjdk_tag=$4
+    local add_full_prefix_tag=${5:-true}
 
     echo "--------------------------------------------------------"
     echo "Building: $name (Dockerfile: $df, Suffix: '$suffix')"
@@ -256,30 +257,44 @@ run_build() {
     # Local prefixes for this build flavor
     local base_prefix="${TAG_BASE}${suffix}"
     local full_prefix="${TAG_FULL}${suffix}"
+    local should_add_full_prefix=false
+
+    if [ "$add_full_prefix_tag" = true ] && [ "$base_prefix" != "$full_prefix" ]; then
+        echo "Adding full prefix tag for $name with full prefix '$full_prefix' because it differs from base prefix '$base_prefix'"
+        should_add_full_prefix=true
+    fi
+
+    add_tag_pair() {
+        local tag_suffix=$1
+        tags+=("-t" "${name}:${base_prefix}${tag_suffix}")
+        echo "Added tag: ${name}:${base_prefix}${tag_suffix}"
+        if [ "$should_add_full_prefix" = true ]; then
+            echo "Added tag: ${name}:${full_prefix}${tag_suffix}"
+            tags+=("-t" "${name}:${full_prefix}${tag_suffix}")
+        fi
+    }
     
     # Define common tags (primary timestamped tags)
-    local tags=("-t" "${name}:${base_prefix}-${IMAGE_TAG_TIME}")
-    if [ "$base_prefix" != "$full_prefix" ]; then
-            tags+=("-t" "${name}:${full_prefix}-${IMAGE_TAG_TIME}")
-    fi
+    local tags=()
+    add_tag_pair "-${IMAGE_TAG_TIME}"
     
     # Add flavor-specific latest and snapshot tags
     if [ "$TAG_LATEST" = true ]; then
-        tags+=("-t" "${name}:${base_prefix}-latest")
-        [ "$base_prefix" != "$full_prefix" ] && tags+=("-t" "${name}:${full_prefix}-latest")
+        add_tag_pair "-latest"
     fi
     if [ "$TAG_SNAPSHOT" = true ]; then
-        tags+=("-t" "${name}:${base_prefix}-snapshot")
-        [ "$base_prefix" != "$full_prefix" ] && tags+=("-t" "${name}:${full_prefix}-snapshot")
+        add_tag_pair "-snapshot"
     fi
     
     # Add plain tags ONLY for the default flavor configuration (e.g., :latest, :dev-latest)
     if [ "$BASE_VERSION" = "trixie" ] && [ "$DESKTOP_TYPE" = "xfce" ]; then
         local plain_indicator="${suffix#-}" # Remove leading dash (e.g., "-dev" -> "dev")
         if [ -n "$plain_indicator" ]; then
+            echo "Adding plain tags for $name with indicator '$plain_indicator'"
             [ "$TAG_LATEST" = true ] && tags+=("-t" "${name}:${plain_indicator}-latest")
             [ "$TAG_SNAPSHOT" = true ] && tags+=("-t" "${name}:${plain_indicator}-snapshot")
         else
+            echo "Adding plain tags for $name without indicator"
             [ "$TAG_LATEST" = true ] && tags+=("-t" "${name}:latest")
             [ "$TAG_SNAPSHOT" = true ] && tags+=("-t" "${name}:snapshot")
         fi
@@ -287,8 +302,7 @@ run_build() {
 
     # Add stable alias (e.g., :openjdk21 or :mate-openjdk21-dev)
     if [ "$add_openjdk_tag" = true ]; then
-        tags+=("-t" "${name}:${base_prefix}")
-        [ "$base_prefix" != "$full_prefix" ] && tags+=("-t" "${name}:${full_prefix}")
+        add_tag_pair ""
     fi
 
     # Execute the build
@@ -321,11 +335,11 @@ run_build() {
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     # Automatically build the dependency chain
     if [ "$BUILD_BASE" = true ]; then
-        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true
+        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true false
     else
         echo "Automatically building dependencies..."
         # All target images depend on the base image
-        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true
+        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true false
         
         if [ "$BUILD_DEV" = true ]; then
             run_build "Dockerfile" "${IMAGE_NAME}" "" false
