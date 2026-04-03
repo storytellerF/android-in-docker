@@ -195,10 +195,6 @@ if [ "$CREATE_ENV" = true ]; then
     read -p "Enter System Image Package (default: $SYS_IMG_PKG): " INPUT_SysImg
     SYS_IMG_PKG="${INPUT_SysImg:-$SYS_IMG_PKG}"
 
-    echo "--- Desktop Configuration ---"
-    read -p "Enter Desktop Type (xfce, lxqt, mate) (default: $DESKTOP_TYPE): " INPUT_DesktopType
-    DESKTOP_TYPE="${INPUT_DesktopType:-$DESKTOP_TYPE}"
-
     # Helper to write or update var in file
     update_env_var() {
         local key=$1
@@ -227,9 +223,7 @@ if [ "$CREATE_ENV" = true ]; then
     update_env_var "OPENJDK_VERSION" "$OPENJDK_VERSION" "$ENV_FILE"
     update_env_var "VNC_PASSWD" "$VNC_PASSWD" "$ENV_FILE"
     update_env_var "SYS_IMG_PKG" "$SYS_IMG_PKG" "$ENV_FILE"
-    update_env_var "DESKTOP_TYPE" "$DESKTOP_TYPE" "$ENV_FILE"
     update_env_var "IMAGE_TAG_TIME" "$IMAGE_TAG_TIME" "$ENV_FILE"
-    update_env_var "CONTAINER_HOME" "$CONTAINER_HOME" "$ENV_FILE"
     
     echo ".env file updated."
 else

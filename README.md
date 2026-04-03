@@ -224,9 +224,8 @@ services:
       - google_cache:${CONTAINER_HOME}/.cache/Google
       - google_config:${CONTAINER_HOME}/.config/Google
       - google_local:${CONTAINER_HOME}/.local/share/Google
-      - gemini_data:${CONTAINER_HOME}/.gemini
-      - antigravity_config:${CONTAINER_HOME}/.config/Antigravity
-      - antigravity_data:${CONTAINER_HOME:-/home/debian}/.antigravity
+      - vscode_data:${CONTAINER_HOME}/.vscode
+      - code_config:${CONTAINER_HOME}/.config/Code
     shm_size: '2gb' # Allocate more shared memory
     devices:
       - /dev/kvm
@@ -249,9 +248,8 @@ volumes:
   google_cache:
   google_config:
   google_local:
-  gemini_data:
-  antigravity_config:
-  antigravity_data:
+  vscode_data:
+  code_config:
 ```
 
 需要根据架构更换镜像，否则不会启动模拟器

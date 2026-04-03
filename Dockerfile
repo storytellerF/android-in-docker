@@ -3,6 +3,24 @@ ARG OPENJDK_VERSION=21
 FROM storytellerf/android-in-docker-base:openjdk${OPENJDK_VERSION}
 
 ARG USERNAME=debian
+
+USER root
+
+RUN set -eux; \
+	add_group_for_gid() { \
+		gid="$1"; \
+		fallback_name="$2"; \
+		if getent group "$gid" >/dev/null; then \
+			group_name="$(getent group "$gid" | cut -d: -f1)"; \
+		else \
+			group_name="$fallback_name"; \
+			groupadd -g "$gid" "$group_name"; \
+		fi; \
+		usermod -aG "$group_name" "$USERNAME"; \
+	}; \
+	add_group_for_gid 992 hostkvm1; \
+	add_group_for_gid 993 hostkvm2
+
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 

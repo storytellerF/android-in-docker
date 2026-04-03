@@ -69,8 +69,10 @@ echo "Latest command line tools version available: $LATEST_CLI_VERSION"
 if [ -n "$CLI_VERSION" ] && [ -n "$LATEST_CLI_VERSION" ] && [ "$CLI_VERSION" != "$LATEST_CLI_VERSION" ]; then
     # 使用sdkmanager更新command line tools
     echo "Updating command line tools to the latest version..."
-    sdkmanager --update
+    mv ${ANDROID_HOME}/cmdline-tools/latest ${ANDROID_HOME}/cmdline-tools/backup-${CLI_VERSION}
+    ${ANDROID_HOME}/cmdline-tools/backup-${CLI_VERSION}/bin/sdkmanager "cmdline-tools;latest"
     echo "Android SDK command-line tools updated to version $LATEST_CLI_VERSION."
+    echo "You may want to remove the backup of the old command line tools at ${ANDROID_HOME}/cmdline-tools/backup-${CLI_VERSION} if everything works fine."
 else
     echo "Android SDK command-line tools are up to date."
 fi
