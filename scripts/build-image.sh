@@ -237,6 +237,9 @@ if [ -n "$DOCKER_USERNAME" ]; then
 fi
 
 
+# Global array to accumulate all built tags (format: "dockerfile|tag")
+ALL_BUILT_TAGS=()
+
 # --- Build Function ---
 run_build() {
     local df=$1
@@ -316,13 +319,11 @@ run_build() {
             -f "$df" .
     fi
 
-    # Print summary after completion
+    # Collect tags for final summary (store as "dockerfile|tag")
     if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
-        echo "Successfully finished building and tagging: $name"
         for t in "${tags[@]}"; do
-            [ "$t" != "-t" ] && echo "  - $t"
+            [ "$t" != "-t" ] && ALL_BUILT_TAGS+=("${df}|${t}")
         done
-        echo "--------------------------------------------------------"
     fi
 }
 
@@ -345,6 +346,24 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     fi
     echo "Cleaning up dangling images..."
     docker image prune -f
+
+    # Print summary of all built tags grouped by Dockerfile
+    if [ ${#ALL_BUILT_TAGS[@]} -gt 0 ]; then
+        echo ""
+        echo "========================================================"
+        echo "All built tags:"
+        local current_df=""
+        for entry in "${ALL_BUILT_TAGS[@]}"; do
+            local df_name="${entry%%|*}"
+            local tag="${entry#*|}"
+            if [ "$df_name" != "$current_df" ]; then
+                current_df="$df_name"
+                echo "  [$current_df]"
+            fi
+            echo "    - $tag"
+        done
+        echo "========================================================"
+    fi
 fi
 
 # Start container if requested
