@@ -22,6 +22,8 @@ ARG USERNAME=debian
 USER $USERNAME
 WORKDIR /home/$USERNAME
 
+RUN sudo npm install -g nrm && nrm use taobao
+
 # Setup Appium，全局安装会安装到/usr/local/lib/node_modules，需要sudo权限
 RUN sudo npm install -g appium
 # Setup appium driver and plugin，安装到~/.appium，不需要sudo权限
