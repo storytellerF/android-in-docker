@@ -165,13 +165,31 @@ calculate_tag_base() {
     # Full version always includes system, version and desktop type
     TAG_FULL="${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}"
 
-    # Omitted version removes defaults (debian, trixie, xfce)
+    # Omitted version removes defaults (debian, trixie, xfce, openjdk21)
     local parts=()
     [ "$BASE_SYSTEM" != "debian" ] && parts+=("$BASE_SYSTEM")
     [ "$BASE_VERSION" != "trixie" ] && parts+=("$BASE_VERSION")
     [ "$DESKTOP_TYPE" != "xfce" ] && parts+=("$DESKTOP_TYPE")
-    parts+=("openjdk${OPENJDK_VERSION}")
-    TAG_BASE=$(IFS=-; echo "${parts[*]}")
+    [ "$OPENJDK_VERSION" != "21" ] || [ "${#parts[@]}" -eq 0 ] && parts+=("openjdk${OPENJDK_VERSION}")
+    
+    # If all parts were defaults, TAG_BASE would be empty without the check above.
+    # The [ "${#parts[@]}" -eq 0 ] ensures at least jdk version is present if others are omitted,
+    # OR if jdk is not 21 it's always added.
+    # If the user wants to omit openjdk21 specifically:
+    parts=()
+    [ "$BASE_SYSTEM" != "debian" ] && parts+=("$BASE_SYSTEM")
+    [ "$BASE_VERSION" != "trixie" ] && parts+=("$BASE_VERSION")
+    [ "$DESKTOP_TYPE" != "xfce" ] && parts+=("$DESKTOP_TYPE")
+    [ "$OPENJDK_VERSION" != "21" ] && parts+=("openjdk${OPENJDK_VERSION}")
+    
+    if [ ${#parts[@]} -eq 0 ]; then
+        TAG_BASE="latest" # Or something minimal if all are default
+        # However, IMAGE_TAG uses ${TAG_BASE}-${IMAGE_TAG_TIME}
+        # Let's make TAG_BASE empty if all are default, and handle the dash.
+        TAG_BASE=""
+    else
+        TAG_BASE=$(IFS=-; echo "${parts[*]}")
+    fi
 }
 
 calculate_tag_base
@@ -183,7 +201,11 @@ if ! validate_tag_time "$IMAGE_TAG_TIME"; then
     IMAGE_TAG_TIME="$TIME_FALLBACK"
 fi
 
-IMAGE_TAG="${TAG_BASE}-${IMAGE_TAG_TIME}"
+if [ -n "$TAG_BASE" ]; then
+    IMAGE_TAG="${TAG_BASE}-${IMAGE_TAG_TIME}"
+else
+    IMAGE_TAG="${IMAGE_TAG_TIME}"
+fi
 
 
 # If creating env, handle interactive mode
@@ -227,7 +249,11 @@ if [ "$CREATE_ENV" = true ]; then
     if ! validate_tag_time "$IMAGE_TAG_TIME"; then
         IMAGE_TAG_TIME="$TIME_FALLBACK"
     fi
-    IMAGE_TAG="${TAG_BASE}-${IMAGE_TAG_TIME}"
+    if [ -n "$TAG_BASE" ]; then
+        IMAGE_TAG="${TAG_BASE}-${IMAGE_TAG_TIME}"
+    else
+        IMAGE_TAG="${IMAGE_TAG_TIME}"
+    fi
 
     echo "Updating $ENV_FILE..."
 
@@ -266,7 +292,14 @@ run_build() {
     echo "Building: $name (Dockerfile: $df, Suffix: '$suffix')"
 
     # Local prefixes for this build flavor
-    local base_prefix="${TAG_BASE}${suffix}"
+    local base_prefix=""
+    if [ -n "$TAG_BASE" ]; then
+        base_prefix="${TAG_BASE}${suffix}"
+    else
+        # If TAG_BASE is empty, use suffix without leading dash if possible, or just empty
+        base_prefix="${suffix#-}"
+    fi
+
     local full_prefix="${TAG_FULL}${suffix}"
     local should_add_full_prefix=false
 
@@ -277,43 +310,75 @@ run_build() {
 
     add_tag_pair() {
         local tag_suffix=$1
-        tags+=("-t" "${name}:${base_prefix}${tag_suffix}")
-        echo "Added tag: ${name}:${base_prefix}${tag_suffix}"
+        local tag_reason=${2:-"Primary timestamped tag"}
+        local full_tag_name=""
+        
+        if [ -n "$base_prefix" ]; then
+            full_tag_name="${name}:${base_prefix}${tag_suffix}"
+        else
+            # If both are empty, and tag_suffix is like -2024..., remove leading dash
+            full_tag_name="${name}:${tag_suffix#-}"
+        fi
+
+        tags+=("-t" "$full_tag_name")
+        echo "Added tag: $full_tag_name (Reason: $tag_reason)"
+        ALL_BUILT_TAGS+=("${df}|${full_tag_name}|${tag_reason}")
+
         if [ "$should_add_full_prefix" = true ]; then
-            echo "Added tag: ${name}:${full_prefix}${tag_suffix}"
-            tags+=("-t" "${name}:${full_prefix}${tag_suffix}")
+            local full_os_tag="${name}:${full_prefix}${tag_suffix}"
+            echo "Added tag: $full_os_tag (Reason: $tag_reason, with full OS prefix)"
+            tags+=("-t" "$full_os_tag")
+            ALL_BUILT_TAGS+=("${df}|${full_os_tag}|${tag_reason} (with full OS prefix)")
         fi
     }
     
     # Define common tags (primary timestamped tags)
     local tags=()
-    add_tag_pair "-${IMAGE_TAG_TIME}"
+    add_tag_pair "-${IMAGE_TAG_TIME}" "Primary timestamped tag"
     
     # Add flavor-specific latest and snapshot tags
     if [ "$TAG_LATEST" = true ]; then
-        add_tag_pair "-latest"
+        add_tag_pair "-latest" "Latest release tag"
     fi
     if [ "$TAG_SNAPSHOT" = true ]; then
-        add_tag_pair "-snapshot"
+        add_tag_pair "-snapshot" "Snapshot development tag"
     fi
     
     # Add plain tags ONLY for the default flavor configuration (e.g., :latest, :dev-latest)
     if [ "$BASE_SYSTEM" = "debian" ] && [ "$BASE_VERSION" = "trixie" ] && [ "$DESKTOP_TYPE" = "xfce" ]; then
         local plain_indicator="${suffix#-}" # Remove leading dash (e.g., "-dev" -> "dev")
         if [ -n "$plain_indicator" ]; then
+            local reason="Plain tag for $plain_indicator flavor (default OS/Desktop)"
             echo "Adding plain tags for $name with indicator '$plain_indicator'"
-            [ "$TAG_LATEST" = true ] && tags+=("-t" "${name}:${plain_indicator}-latest")
-            [ "$TAG_SNAPSHOT" = true ] && tags+=("-t" "${name}:${plain_indicator}-snapshot")
+            if [ "$TAG_LATEST" = true ]; then
+                local t="${name}:${plain_indicator}-latest"
+                tags+=("-t" "$t")
+                ALL_BUILT_TAGS+=("${df}|${t}|${reason}")
+            fi
+            if [ "$TAG_SNAPSHOT" = true ]; then
+                local t="${name}:${plain_indicator}-snapshot"
+                tags+=("-t" "$t")
+                ALL_BUILT_TAGS+=("${df}|${t}|${reason}")
+            fi
         else
+            local reason="Plain tag for default flavor (default OS/Desktop)"
             echo "Adding plain tags for $name without indicator"
-            [ "$TAG_LATEST" = true ] && tags+=("-t" "${name}:latest")
-            [ "$TAG_SNAPSHOT" = true ] && tags+=("-t" "${name}:snapshot")
+            if [ "$TAG_LATEST" = true ]; then
+                local t="${name}:latest"
+                tags+=("-t" "$t")
+                ALL_BUILT_TAGS+=("${df}|${t}|${reason}")
+            fi
+            if [ "$TAG_SNAPSHOT" = true ]; then
+                local t="${name}:snapshot"
+                tags+=("-t" "$t")
+                ALL_BUILT_TAGS+=("${df}|${t}|${reason}")
+            fi
         fi
     fi
 
     # Add stable alias (e.g., :openjdk21 or :mate-openjdk21-dev)
     if [ "$add_openjdk_tag" = true ]; then
-        add_tag_pair ""
+        add_tag_pair "" "Stable version alias (OpenJDK only)"
     fi
 
     # Execute the build
@@ -336,52 +401,27 @@ run_build() {
             "${tags[@]}" \
             -f "$df" .
     fi
-
-    # Collect tags for final summary (store as "dockerfile|tag")
-    if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
-        for t in "${tags[@]}"; do
-            [ "$t" != "-t" ] && ALL_BUILT_TAGS+=("${df}|${t}")
-        done
-    fi
 }
 
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     # Automatically build the dependency chain
     if [ "$BUILD_BASE" = true ]; then
-        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true false
+        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true true
     else
         echo "Automatically building dependencies..."
         # All target images depend on the base image
-        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true false
+        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true true
         
         if [ "$BUILD_DEV" = true ]; then
-            run_build "Dockerfile" "${IMAGE_NAME}" "" false
+            run_build "Dockerfile" "${IMAGE_NAME}" "" false true
             
-            run_build "dev.Dockerfile" "${IMAGE_NAME}" "-dev" false
+            run_build "dev.Dockerfile" "${IMAGE_NAME}" "-dev" false true
         else
-            run_build "Dockerfile" "${IMAGE_NAME}" "" false
+            run_build "Dockerfile" "${IMAGE_NAME}" "" false true
         fi
     fi
     echo "Cleaning up dangling images..."
     docker image prune -f
-
-    # Print summary of all built tags grouped by Dockerfile
-    if [ ${#ALL_BUILT_TAGS[@]} -gt 0 ]; then
-        echo ""
-        echo "========================================================"
-        echo "All built tags:"
-        local current_df=""
-        for entry in "${ALL_BUILT_TAGS[@]}"; do
-            local df_name="${entry%%|*}"
-            local tag="${entry#*|}"
-            if [ "$df_name" != "$current_df" ]; then
-                current_df="$df_name"
-                echo "  [$current_df]"
-            fi
-            echo "    - $tag"
-        done
-        echo "========================================================"
-    fi
 fi
 
 # Start container if requested
@@ -441,4 +481,27 @@ if [ "$START_CONTAINER" = true ]; then
             echo "Failed to start docker compose."
         fi
     fi
+fi
+
+# Print summary of all built tags grouped by Dockerfile at the very end
+if [ ${#ALL_BUILT_TAGS[@]} -gt 0 ]; then
+    echo ""
+    echo "========================================================"
+    echo "Final Summary of All Built Tags:"
+    current_df=""
+    for entry in "${ALL_BUILT_TAGS[@]}"; do
+        # Format: dockerfile|tag|reason
+        df_name="${entry%%|*}"
+        tag_info="${entry#*|}"
+        tag_name="${tag_info%%|*}"
+        tag_reason="${tag_info#*|}"
+
+        if [ "$df_name" != "$current_df" ]; then
+            current_df="$df_name"
+            echo "  [$current_df]"
+        fi
+        echo "    - $tag_name"
+        echo "      (Reason: $tag_reason)"
+    done
+    echo "========================================================"
 fi

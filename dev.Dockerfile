@@ -1,7 +1,8 @@
 ARG BASE_SYSTEM=debian
 ARG BASE_VERSION=trixie
 ARG DESKTOP_TYPE=xfce
-FROM storytellerf/android-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk21-latest
+ARG OPENJDK_VERSION=21
+FROM storytellerf/android-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}-latest
 
 USER root
 RUN apt update && DEBIAN_FRONTEND=noninteractive \

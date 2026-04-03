@@ -1,6 +1,9 @@
 ARG OPENJDK_VERSION=21
+ARG BASE_SYSTEM=debian
+ARG BASE_VERSION=trixie
+ARG DESKTOP_TYPE=xfce
 # This should be built from base.Dockerfile with `sh build-image.sh -B`
-FROM storytellerf/android-in-docker-base:openjdk${OPENJDK_VERSION}
+FROM storytellerf/android-in-docker-base:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}
 
 ARG USERNAME=debian
 
