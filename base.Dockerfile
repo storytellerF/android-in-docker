@@ -1,5 +1,7 @@
+ARG BASE_SYSTEM=debian
+ARG BASE_VERSION=trixie
 ARG DESKTOP_TYPE=xfce
-FROM storytellerf/desktop-in-docker:trixie-${DESKTOP_TYPE}-latest
+FROM storytellerf/desktop-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-latest
 
 ARG OPENJDK_VERSION=21
 

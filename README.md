@@ -163,6 +163,13 @@ CONTAINER_HOME=/home/debian
 VNC_PASSWD=password
 ```
 
+.devcontainer/switch-docker-mirror.sh
+```shell
+bash <(curl -sSL https://linuxmirrors.cn/docker.sh) \
+  --only-registry \
+  --source-registry "docker.1ms.run,docker.1panel.live,docker.m.daocloud.io"
+```
+
 .devcontainer/devcontainer.json
 
 ```json
@@ -177,11 +184,15 @@ VNC_PASSWD=password
 	"workspaceFolder": "/workspace/your-project-name",
 	"shutdownAction": "stopCompose",
 	// Features to add to the dev container. More info: https://containers.dev/features.
-	// "features": {},
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"moby": false
+		}
+	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Uncomment the next line to run commands after the container is created.
-	// "postCreateCommand": "cat /etc/os-release",
+	"postCreateCommand": "sudo .devcontainer/switch-docker-mirror.sh",
 	// Configure tool-specific properties.
 	// "customizations": {},
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.

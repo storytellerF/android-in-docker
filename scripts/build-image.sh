@@ -8,6 +8,8 @@ DEFAULT_JDK_VERSION="21"
 DEFAULT_VNC_PASSWORD="password"
 DEFAULT_SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
 DEFAULT_DESKTOP_TYPE="xfce"
+DEFAULT_BASE_SYSTEM="debian"
+DEFAULT_BASE_VERSION="trixie"
 
 validate_tag_time() {
     local value=$1
@@ -22,6 +24,8 @@ usage() {
     echo "  -p, --password <password>    Specify the VNC password (default: $DEFAULT_VNC_PASSWORD)"
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
+    echo "  --base-system <system>       Specify the base system (default: $DEFAULT_BASE_SYSTEM)"
+    echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
     echo "  -B, --base                   Build the base image from base.Dockerfile"
@@ -48,6 +52,8 @@ JDK_VERSION=""
 VNC_PASSWORD=""
 SYS_IMG_PKG=""
 DESKTOP_TYPE_INPUT=""
+BASE_SYSTEM_INPUT=""
+BASE_VERSION_INPUT=""
 TAG_LATEST=false
 TAG_SNAPSHOT=true
 
@@ -67,6 +73,14 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -t|--desktop-type)
             DESKTOP_TYPE_INPUT="$2"
+            shift
+            ;;
+        --base-system)
+            BASE_SYSTEM_INPUT="$2"
+            shift
+            ;;
+        --base-version)
+            BASE_VERSION_INPUT="$2"
             shift
             ;;
         -c|--create-env)
@@ -107,14 +121,7 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# Get base image version from base.Dockerfile or Dockerfile (preferring base.Dockerfile)
-if [ -f "base.Dockerfile" ]; then
-    BASE_VERSION=$(grep "^FROM " base.Dockerfile | cut -d':' -f2 | cut -d'-' -f1 | tr -d '\r' | tr -d ' ')
-elif [ -f "Dockerfile" ]; then
-    BASE_VERSION=$(grep "^FROM " Dockerfile | cut -d':' -f2 | cut -d'-' -f1 | tr -d '\r' | tr -d ' ')
-else
-    BASE_VERSION="unknown"
-fi
+# Base system and version are parameterized (base.Dockerfile always exists)
 
 if [ -f "Dockerfile" ]; then
     # Extract USERNAME from Dockerfile (ARG USERNAME=...)
@@ -142,20 +149,25 @@ fi
 # SYS_IMG_PKG from args overrides the default legacy entry in .env
 [ -n "$SYS_IMG_PKG" ] && SYS_IMG_PKG="$SYS_IMG_PKG"
 [ -n "$DESKTOP_TYPE_INPUT" ] && DESKTOP_TYPE="$DESKTOP_TYPE_INPUT"
+[ -n "$BASE_SYSTEM_INPUT" ] && BASE_SYSTEM="$BASE_SYSTEM_INPUT"
+[ -n "$BASE_VERSION_INPUT" ] && BASE_VERSION="$BASE_VERSION_INPUT"
 
 # Set defaults if still empty
 OPENJDK_VERSION="${OPENJDK_VERSION:-$DEFAULT_JDK_VERSION}"
 VNC_PASSWD="${VNC_PASSWD:-$DEFAULT_VNC_PASSWORD}"
 SYS_IMG_PKG="${SYS_IMG_PKG:-$DEFAULT_SYS_IMG_PKG}"
 DESKTOP_TYPE="${DESKTOP_TYPE:-$DEFAULT_DESKTOP_TYPE}"
+BASE_SYSTEM="${BASE_SYSTEM:-$DEFAULT_BASE_SYSTEM}"
+BASE_VERSION="${BASE_VERSION:-$DEFAULT_BASE_VERSION}"
 
 # Calculate Tag Base (both full and omitted versions)
 calculate_tag_base() {
-    # Full version always includes system and desktop type
-    TAG_FULL="${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}"
+    # Full version always includes system, version and desktop type
+    TAG_FULL="${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}"
 
-    # Omitted version removes defaults (trixie, xfce)
+    # Omitted version removes defaults (debian, trixie, xfce)
     local parts=()
+    [ "$BASE_SYSTEM" != "debian" ] && parts+=("$BASE_SYSTEM")
     [ "$BASE_VERSION" != "trixie" ] && parts+=("$BASE_VERSION")
     [ "$DESKTOP_TYPE" != "xfce" ] && parts+=("$DESKTOP_TYPE")
     parts+=("openjdk${OPENJDK_VERSION}")
@@ -223,6 +235,8 @@ if [ "$CREATE_ENV" = true ]; then
     update_env_var "OPENJDK_VERSION" "$OPENJDK_VERSION" "$ENV_FILE"
     update_env_var "VNC_PASSWD" "$VNC_PASSWD" "$ENV_FILE"
     update_env_var "SYS_IMG_PKG" "$SYS_IMG_PKG" "$ENV_FILE"
+    update_env_var "BASE_SYSTEM" "$BASE_SYSTEM" "$ENV_FILE"
+    update_env_var "BASE_VERSION" "$BASE_VERSION" "$ENV_FILE"
     update_env_var "IMAGE_TAG_TIME" "$IMAGE_TAG_TIME" "$ENV_FILE"
     
     echo ".env file updated."
@@ -284,7 +298,7 @@ run_build() {
     fi
     
     # Add plain tags ONLY for the default flavor configuration (e.g., :latest, :dev-latest)
-    if [ "$BASE_VERSION" = "trixie" ] && [ "$DESKTOP_TYPE" = "xfce" ]; then
+    if [ "$BASE_SYSTEM" = "debian" ] && [ "$BASE_VERSION" = "trixie" ] && [ "$DESKTOP_TYPE" = "xfce" ]; then
         local plain_indicator="${suffix#-}" # Remove leading dash (e.g., "-dev" -> "dev")
         if [ -n "$plain_indicator" ]; then
             echo "Adding plain tags for $name with indicator '$plain_indicator'"
@@ -306,6 +320,8 @@ run_build() {
     if [ "$PUBLISH" = true ]; then
         docker buildx build \
             --platform linux/amd64,linux/arm64 \
+            --build-arg BASE_SYSTEM="$BASE_SYSTEM" \
+            --build-arg BASE_VERSION="$BASE_VERSION" \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
             "${tags[@]}" \
@@ -313,6 +329,8 @@ run_build() {
             -f "$df" .
     elif [ "$EXECUTE_BUILD" = true ]; then
         docker build \
+            --build-arg BASE_SYSTEM="$BASE_SYSTEM" \
+            --build-arg BASE_VERSION="$BASE_VERSION" \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
             "${tags[@]}" \
