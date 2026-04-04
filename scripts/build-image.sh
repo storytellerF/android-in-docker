@@ -336,12 +336,10 @@ run_build() {
         fi
 
         tags+=("-t" "$full_tag_name")
-        echo "Added tag: $full_tag_name (Reason: $tag_reason)"
         ALL_BUILT_TAGS+=("${df}|${full_tag_name}|${tag_reason}")
 
         if [ "$should_add_full_prefix" = true ]; then
             local full_os_tag="${name}:${full_prefix}${tag_suffix}"
-            echo "Added tag: $full_os_tag (Reason: $tag_reason, with full OS prefix)"
             tags+=("-t" "$full_os_tag")
             ALL_BUILT_TAGS+=("${df}|${full_os_tag}|${tag_reason} (with full OS prefix)")
         fi
@@ -364,7 +362,6 @@ run_build() {
         local plain_indicator="${suffix#-}" # Remove leading dash (e.g., "-dev" -> "dev")
         if [ -n "$plain_indicator" ]; then
             local reason="Plain tag for $plain_indicator flavor (default OS/Desktop)"
-            echo "Adding plain tags for $name with indicator '$plain_indicator'"
             if [ "$TAG_LATEST" = true ]; then
                 local t="${name}:${plain_indicator}-latest"
                 tags+=("-t" "$t")
@@ -377,7 +374,6 @@ run_build() {
             fi
         else
             local reason="Plain tag for default flavor (default OS/Desktop)"
-            echo "Adding plain tags for $name without indicator"
             if [ "$TAG_LATEST" = true ]; then
                 local t="${name}:latest"
                 tags+=("-t" "$t")
@@ -505,20 +501,53 @@ if [ ${#ALL_BUILT_TAGS[@]} -gt 0 ]; then
     echo ""
     echo "========================================================"
     echo "Final Summary of All Built Tags:"
-    current_df=""
-    for entry in "${ALL_BUILT_TAGS[@]}"; do
-        # Format: dockerfile|tag|reason
-        df_name="${entry%%|*}"
-        tag_info="${entry#*|}"
-        tag_name="${tag_info%%|*}"
-        tag_reason="${tag_info#*|}"
+    echo "========================================================"
 
-        if [ "$df_name" != "$current_df" ]; then
-            current_df="$df_name"
-            echo "  [$current_df]"
+    # Collect unique Dockerfiles in order
+    declare -a unique_dfs=()
+    for entry in "${ALL_BUILT_TAGS[@]}"; do
+        df_name="${entry%%|*}"
+        found=false
+        for u in "${unique_dfs[@]}"; do
+            [[ "$u" == "$df_name" ]] && found=true && break
+        done
+        if [ "$found" = false ]; then
+            unique_dfs+=("$df_name")
         fi
-        echo "    - $tag_name"
-        echo "      (Reason: $tag_reason)"
     done
+
+    # Print a table per Dockerfile
+    for current_df in "${unique_dfs[@]}"; do
+        # Calculate column widths for this group
+        max_tag=3
+        max_reason=6
+        for entry in "${ALL_BUILT_TAGS[@]}"; do
+            df_name="${entry%%|*}"
+            [[ "$df_name" != "$current_df" ]] && continue
+            tag_info="${entry#*|}"
+            tag_name="${tag_info%%|*}"
+            tag_reason="${tag_info#*|}"
+            (( ${#tag_name} > max_tag )) && max_tag=${#tag_name}
+            (( ${#tag_reason} > max_reason )) && max_reason=${#tag_reason}
+        done
+
+        echo ""
+        echo "  [$current_df]"
+        printf "  %-${max_tag}s | %-${max_reason}s\n" "Tag" "Reason"
+        printf "  %-${max_tag}s-+-%-${max_reason}s\n" \
+            "$(printf '%*s' "$max_tag" '' | tr ' ' '-')" \
+            "$(printf '%*s' "$max_reason" '' | tr ' ' '-')"
+
+        for entry in "${ALL_BUILT_TAGS[@]}"; do
+            df_name="${entry%%|*}"
+            [[ "$df_name" != "$current_df" ]] && continue
+            tag_info="${entry#*|}"
+            tag_name="${tag_info%%|*}"
+            tag_reason="${tag_info#*|}"
+            printf "  %-${max_tag}s | %-${max_reason}s\n" "$tag_name" "$tag_reason"
+        done
+    done
+
+    echo ""
     echo "========================================================"
 fi
