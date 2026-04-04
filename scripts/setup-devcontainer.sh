@@ -3,9 +3,9 @@
 # setup-devcontainer.sh
 # 此脚本用于在当前项目中初始化基于 storytellerf/android-in-docker 的 devcontainer 配置。
 # 请在目标项目的根目录下执行此脚本。
-# 示例： /path/to/android-in-docker/setup-devcontainer.sh
+# 示例： /path/to/android-in-docker/scripts/setup-devcontainer.sh
 
-set -e
+set -euo pipefail
 
 # 设置输出颜色
 GREEN='\033[0;32m'
@@ -21,9 +21,14 @@ echo -e "${GREEN}开始在当前目录初始化 ${PROJECT_NAME} 的 devcontainer
 
 # 创建 .devcontainer 目录
 mkdir -p "$DEVCONTAINER_DIR"
+mkdir -p "$DEVCONTAINER_DIR/logs" "$DEVCONTAINER_DIR/data"
 
 # 获取脚本所在目录的绝对路径
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 初始化 SSH authorized_keys 文件
+touch "${DEVCONTAINER_DIR}/data/authorized_keys"
+chmod 600 "${DEVCONTAINER_DIR}/data/authorized_keys"
 
 # 1. 生成 .env
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/.env${NC}"
@@ -34,6 +39,17 @@ CONTAINER_HOME=/home/debian
 VNC_PASSWD=password
 EOF
 
+# 1.1 生成切换 Docker 镜像源脚本
+echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/switch-docker-mirror.sh${NC}"
+cat > "${DEVCONTAINER_DIR}/switch-docker-mirror.sh" <<'EOF'
+#!/bin/bash
+
+bash <(curl -sSL https://linuxmirrors.cn/docker.sh) \
+  --only-registry \
+  --source-registry "docker.1ms.run,docker.1panel.live,docker.m.daocloud.io"
+EOF
+chmod +x "${DEVCONTAINER_DIR}/switch-docker-mirror.sh"
+
 # 2. 生成 devcontainer.json
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/devcontainer.json${NC}"
 cat > "${DEVCONTAINER_DIR}/devcontainer.json" <<EOF
@@ -43,17 +59,15 @@ cat > "${DEVCONTAINER_DIR}/devcontainer.json" <<EOF
 		"./docker-compose.yml"
 	],
 	"service": "main",
-	"workspaceFolder": "/home/debian/workspace/${PROJECT_NAME}",
+  "workspaceFolder": "/workspace/${PROJECT_NAME}",
 	"shutdownAction": "stopCompose",
-	"remoteUser": "debian",
-	"customizations": {
-		"vscode": {
-			"extensions": [
-				"ms-python.python",
-				"vscjava.vscode-java-pack"
-			]
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
 		}
-	}
+  },
+  "postCreateCommand": "sudo .devcontainer/switch-docker-mirror.sh",
+  "remoteUser": "debian"
 }
 EOF
 
@@ -64,7 +78,7 @@ services:
   main:
     build:
       context: ..
-      dockerfile: .devcontainer/dev.Dockerfile
+      dockerfile: ./.devcontainer/dev.Dockerfile
       args:
         - USER_NAME=\${CONTAINER_USERNAME}
     ports:
@@ -78,25 +92,23 @@ services:
       - VNC_GEOMETRY=1920x1080
       - VNC_DEPTH=24
     volumes:
-      - ..:/home/debian/workspace/${PROJECT_NAME}:cached
-      - ./logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
-      - ${SCRIPT_DIR}/data/authorized_keys:${CONTAINER_HOME}/.ssh/authorized_keys
-      - avd_data:${CONTAINER_HOME}/.android/avd
-      - sdk_data:${CONTAINER_HOME}/Android/Sdk
-      - bash_history:${CONTAINER_HOME}/.desktop-in-docker/.bash_history
-      - gradle_data:${CONTAINER_HOME}/.gradle
-      - konan_data:${CONTAINER_HOME}/.konan
-      - m2_data:${CONTAINER_HOME}/.m2
-      - chrome_cache:${CONTAINER_HOME}/.cache/google-chrome
-      - chrome_config:${CONTAINER_HOME}/.config/google-chrome
-      - google_cache:${CONTAINER_HOME}/.cache/Google
-      - google_config:${CONTAINER_HOME}/.config/Google
-      - google_local:${CONTAINER_HOME}/.local/share/Google
-      - gemini_data:${CONTAINER_HOME}/.gemini
-      - antigravity_config:${CONTAINER_HOME}/.config/Antigravity
-      - antigravity_data:${CONTAINER_HOME:-/home/debian}/.antigravity
+      - ..:/workspace/${PROJECT_NAME}:cached
+      - ./logs:\${CONTAINER_HOME:-/home/debian}/log/supervisor
+      - ./data/authorized_keys:\${CONTAINER_HOME}/.ssh/authorized_keys
+      - avd_data:\${CONTAINER_HOME}/.android/avd
+      - sdk_data:\${CONTAINER_HOME}/Android/Sdk
+      - bash_history:\${CONTAINER_HOME}/.desktop-in-docker/.bash_history
+      - gradle_data:\${CONTAINER_HOME}/.gradle
+      - konan_data:\${CONTAINER_HOME}/.konan
+      - m2_data:\${CONTAINER_HOME}/.m2
+      - chrome_cache:\${CONTAINER_HOME}/.cache/google-chrome
+      - chrome_config:\${CONTAINER_HOME}/.config/google-chrome
+      - google_cache:\${CONTAINER_HOME}/.cache/Google
+      - google_config:\${CONTAINER_HOME}/.config/Google
+      - google_local:\${CONTAINER_HOME}/.local/share/Google
+      - vscode_data:\${CONTAINER_HOME}/.vscode
+      - code_config:\${CONTAINER_HOME}/.config/Code
     shm_size: '2gb' # Allocate more shared memory
-    privileged: true
     devices:
       - /dev/kvm
     security_opt:
@@ -105,8 +117,12 @@ services:
 volumes:
   avd_data:
   sdk_data:
+    name: sdk_data
+    external: true
   bash_history:
   gradle_data:
+    name: gradle_data
+    external: true
   konan_data:
   m2_data:
   chrome_cache:
@@ -114,9 +130,8 @@ volumes:
   google_cache:
   google_config:
   google_local:
-  gemini_data:
-  antigravity_config:
-  antigravity_data:
+  vscode_data:
+  code_config:
 EOF
 
 # 4. 生成 custom-entrypoint.sh
@@ -152,7 +167,7 @@ EOF
 # 6. 生成 dev.Dockerfile
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/dev.Dockerfile${NC}"
 cat > "${DEVCONTAINER_DIR}/dev.Dockerfile" <<EOF
-FROM storytellerf/android-in-docker:mate-openjdk21-latest
+FROM storytellerf/android-in-docker:dev-latest
 
 ARG USER_NAME
 
@@ -161,19 +176,12 @@ USER root
 # 如果需要中文输入法
 RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y fcitx fcitx-googlepinyin
 
-# 如果需要在容器中访问docker
-RUN groupadd -g 1001 docker \\
-    && usermod -aG docker \$USER_NAME
-
 USER \$USER_NAME
 WORKDIR /home/\$USER_NAME
 
 COPY --chown=\$USER_NAME:\$USER_NAME ./.devcontainer/fcitx.supervisord.conf ./supervisor/conf.d/fcitx.supervisord.conf
 COPY --chown=\$USER_NAME:\$USER_NAME ./.devcontainer/custom-entrypoint.sh ./bin/custom-entrypoint.sh
 RUN chmod +x ./bin/custom-entrypoint.sh
-
-# 替换 entrypoint.sh 注入点，确保每次启动容器时都能清理 Chrome 的 Singleton 锁文件，避免 Chrome 无法启动的问题
-RUN sed -i "/# inject point/a rm -f /home/\$USER_NAME/.config/google-chrome/Singleton*" /home/\$USER_NAME/bin/entrypoint.sh
 
 ENTRYPOINT ["sh", "-c", "\$HOME/bin/custom-entrypoint.sh"]
 EOF
@@ -182,4 +190,5 @@ echo -e "${GREEN}完成！${NC}"
 echo -e "接下来你可以："
 echo -e "1. 检查生成的 .devcontainer 目录下的文件是否符合需求"
 echo -e "2. 如果需要配置 SSH 免密登录，请运行: ${YELLOW}cd .devcontainer && ${SCRIPT_DIR}/add-ssh-key.sh${NC}"
-echo -e "3. 使用 VS Code 打开当前目录，并在提示时选择 'Reopen in Container'"
+echo -e "3. 如果外部卷不存在，请先执行: ${YELLOW}docker volume create sdk_data && docker volume create gradle_data${NC}"
+echo -e "4. 使用 VS Code 打开当前目录，并在提示时选择 'Reopen in Container'"
