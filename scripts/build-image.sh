@@ -24,6 +24,7 @@ usage() {
     echo "  -p, --password <password>    Specify the VNC password (default: $DEFAULT_VNC_PASSWORD)"
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
+    echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
     echo "  --base-system <system>       Specify the base system (default: $DEFAULT_BASE_SYSTEM)"
     echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
@@ -54,6 +55,7 @@ SYS_IMG_PKG=""
 DESKTOP_TYPE_INPUT=""
 BASE_SYSTEM_INPUT=""
 BASE_VERSION_INPUT=""
+TIMEZONE_INPUT=""
 TAG_LATEST=false
 TAG_SNAPSHOT=true
 
@@ -81,6 +83,10 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         --base-version)
             BASE_VERSION_INPUT="$2"
+            shift
+            ;;
+        -z|--timezone)
+            TIMEZONE_INPUT="$2"
             shift
             ;;
         -c|--create-env)
@@ -159,6 +165,15 @@ SYS_IMG_PKG="${SYS_IMG_PKG:-$DEFAULT_SYS_IMG_PKG}"
 DESKTOP_TYPE="${DESKTOP_TYPE:-$DEFAULT_DESKTOP_TYPE}"
 BASE_SYSTEM="${BASE_SYSTEM:-$DEFAULT_BASE_SYSTEM}"
 BASE_VERSION="${BASE_VERSION:-$DEFAULT_BASE_VERSION}"
+
+# Timezone: use CLI argument if provided, otherwise detect from host
+if [ -n "$TIMEZONE_INPUT" ]; then
+    SYSTEM_TIMEZONE="$TIMEZONE_INPUT"
+    echo "Timezone set from argument: $SYSTEM_TIMEZONE"
+else
+    SYSTEM_TIMEZONE=$(cat /etc/timezone 2>/dev/null || timedatectl show --property=Timezone --value 2>/dev/null || echo "Asia/Shanghai")
+    echo "System timezone detected from host: $SYSTEM_TIMEZONE"
+fi
 
 # Calculate Tag Base (both full and omitted versions)
 calculate_tag_base() {
@@ -389,6 +404,7 @@ run_build() {
             --build-arg BASE_VERSION="$BASE_VERSION" \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
+            --build-arg TIMEZONE="$SYSTEM_TIMEZONE" \
             "${tags[@]}" \
             --push \
             -f "$df" .
@@ -398,6 +414,7 @@ run_build() {
             --build-arg BASE_VERSION="$BASE_VERSION" \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
+            --build-arg TIMEZONE="$SYSTEM_TIMEZONE" \
             "${tags[@]}" \
             -f "$df" .
     fi

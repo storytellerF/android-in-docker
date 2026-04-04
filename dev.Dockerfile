@@ -10,12 +10,16 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive \
     apt install -y fonts-noto && \
     rm -rf /var/lib/apt/lists/*
 
-# install chrome
-RUN sed -i 's/# - non-free/- non-free/' /etc/extrepo/config.yaml
-RUN extrepo enable google_chrome
-RUN apt update && DEBIAN_FRONTEND=noninteractive \
-    apt install -y google-chrome-stable \
-    && rm -f /etc/apt/sources.list.d/google-chrome*.list
+# install firefox
+RUN install -d -m 0755 /etc/apt/keyrings && \
+    wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null && \
+    printf 'Types: deb\nURIs: https://packages.mozilla.org/apt\nSuites: mozilla\nComponents: main\nSigned-By: /etc/apt/keyrings/packages.mozilla.org.asc\n' \
+        > /etc/apt/sources.list.d/mozilla.sources && \
+    printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
+        > /etc/apt/preferences.d/mozilla && \
+    apt update && DEBIAN_FRONTEND=noninteractive \
+    apt install -y firefox && \
+    rm -rf /var/lib/apt/lists/*
 
 # install VS Code
 RUN apt-get install -y wget gpg apt-transport-https && \
@@ -56,8 +60,7 @@ COPY --chown=${USER_UID}:${USER_GID} ssh.supervisord.conf /home/${USER_NAME}/sup
 COPY --chown=${USER_UID}:${USER_GID} scripts/start-ssh.sh /home/${USER_NAME}/bin/start-ssh.sh
 RUN chmod +x /home/${USER_NAME}/bin/start-ssh.sh
 
-# 替换 entrypoint.sh 注入点，确保每次启动容器时都能清理 Chrome 的 Singleton 锁文件，避免 Chrome 无法启动的问题
-RUN sed -i "/# inject point/a rm -f /home/${USER_NAME}/.config/google-chrome/Singleton*" /home/${USER_NAME}/bin/entrypoint.sh
+
 
 # 设置环境变量
 ENV PATH="/home/${USER_NAME}/Applications/android-studio/bin:${PATH}"

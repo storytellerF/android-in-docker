@@ -22,11 +22,6 @@ ARG USERNAME=debian
 USER $USERNAME
 WORKDIR /home/$USERNAME
 
-RUN sudo npm install -g nrm && sudo nrm use taobao
-
-# Setup Appium，全局安装会安装到/usr/local/lib/node_modules，需要sudo权限
-RUN sudo npm install -g appium
-# Setup appium driver and plugin，安装到~/.appium，不需要sudo权限
-RUN appium driver install uiautomator2
-RUN appium plugin install storage
-RUN appium plugin install inspector
+ARG TIMEZONE=Asia/Shanghai
+COPY --chown=$USERNAME:$USERNAME base-scripts/install-appium.sh ./base-scripts/install-appium.sh
+RUN chmod +x ./base-scripts/install-appium.sh && ./base-scripts/install-appium.sh $TIMEZONE
