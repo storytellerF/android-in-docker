@@ -166,9 +166,19 @@ VNC_PASSWD=password
 .devcontainer/switch-docker-mirror.sh
 ```shell
 #!/bin/bash
-bash <(curl -sSL https://linuxmirrors.cn/docker.sh) \
-  --only-registry \
-  --source-registry "docker.1ms.run,docker.1panel.live,docker.m.daocloud.io"
+#!/bin/bash
+use_cn_mirror=$1
+if [ "$use_cn_mirror" != "true" ]; then
+    echo "Using default Docker registry mirrors."
+    exit 0
+fi
+echo "Using China Docker registry mirrors."
+SOURCE_REGISTRY='"https://docker.1ms.run","https://docker.1panel.live","https://docker.m.daocloud.io"'
+
+mkdir -p /etc/docker
+[ -s "/etc/docker/daemon.json" ] || echo "{}" >/etc/docker/daemon.json
+jq '.["registry-mirrors"] = ['"${SOURCE_REGISTRY}"']' /etc/docker/daemon.json >/etc/docker/daemon.json.tmp \
+    && mv /etc/docker/daemon.json.tmp /etc/docker/daemon.json
 ```
 
 .devcontainer/devcontainer.json
@@ -193,7 +203,7 @@ bash <(curl -sSL https://linuxmirrors.cn/docker.sh) \
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Uncomment the next line to run commands after the container is created.
-	"postCreateCommand": "sudo .devcontainer/switch-docker-mirror.sh",
+	// "postCreateCommand": "",
 	// Configure tool-specific properties.
 	// "customizations": {},
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
@@ -291,7 +301,11 @@ ARG USER_NAME
 USER root
 
 # 如果需要中文输入法
-RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y fcitx fcitx-googlepinyin
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y jq fcitx fcitx-googlepinyin
+
+COPY --chown=$USER_NAME:$USER_NAME .devcontainer/switch-docker-mirror.sh ./bin/switch-docker-mirror.sh
+RUN chmod +x ./bin/switch-docker-mirror.sh
+RUN ./bin/switch-docker-mirror.sh $USE_CN_MIRROR
 
 USER $USER_NAME
 WORKDIR /home/$USER_NAME

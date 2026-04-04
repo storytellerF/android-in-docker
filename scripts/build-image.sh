@@ -29,7 +29,6 @@ usage() {
     echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
-    echo "  -B, --base                   Build the base image from base.Dockerfile"
     echo "  -D, --dev                    Build dev.Dockerfile instead of Dockerfile (includes SSH, Chrome, Android Studio)"
     echo "  -S, --start                  Start docker compose up --build after building the image"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
@@ -43,7 +42,6 @@ usage() {
 # Parse arguments
 CREATE_ENV=false
 EXECUTE_BUILD=false
-BUILD_BASE=false
 BUILD_DEV=false
 START_CONTAINER=false
 PUBLISH=false
@@ -95,9 +93,6 @@ while [[ "$#" -gt 0 ]]; do
         -b|--build)
             EXECUTE_BUILD=true
             ;;
-        -B|--base)
-            BUILD_BASE=true
-            ;;
         -D|--dev)
             BUILD_DEV=true
             ;;
@@ -126,8 +121,6 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
-
-# Base system and version are parameterized (base.Dockerfile always exists)
 
 if [ -f "Dockerfile" ]; then
     # Extract USERNAME from Dockerfile (ARG USERNAME=...)
@@ -417,21 +410,11 @@ run_build() {
 }
 
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
-    # Automatically build the dependency chain
-    if [ "$BUILD_BASE" = true ]; then
-        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true true
+    if [ "$BUILD_DEV" = true ]; then
+        run_build "Dockerfile" "${IMAGE_NAME}" "" false true
+        run_build "dev.Dockerfile" "${IMAGE_NAME}" "-dev" false true
     else
-        echo "Automatically building dependencies..."
-        # All target images depend on the base image
-        run_build "base.Dockerfile" "${IMAGE_NAME}-base" "" true true
-        
-        if [ "$BUILD_DEV" = true ]; then
-            run_build "Dockerfile" "${IMAGE_NAME}" "" false true
-            
-            run_build "dev.Dockerfile" "${IMAGE_NAME}" "-dev" false true
-        else
-            run_build "Dockerfile" "${IMAGE_NAME}" "" false true
-        fi
+        run_build "Dockerfile" "${IMAGE_NAME}" "" false true
     fi
     echo "Cleaning up dangling images..."
     docker image prune -f

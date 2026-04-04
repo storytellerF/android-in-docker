@@ -1,31 +1,40 @@
-ARG OPENJDK_VERSION=21
 ARG BASE_SYSTEM=debian
 ARG BASE_VERSION=trixie
 ARG DESKTOP_TYPE=xfce
-# This should be built from base.Dockerfile with `sh build-image.sh -B`
-FROM storytellerf/android-in-docker-base:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}
+FROM storytellerf/desktop-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-latest
 
+ARG OPENJDK_VERSION=21
 ARG USERNAME=debian
 
 USER root
 
-# RUN set -eux; \
-# 	add_group_for_gid() { \
-# 		gid="$1"; \
-# 		fallback_name="$2"; \
-# 		if getent group "$gid" >/dev/null; then \
-# 			group_name="$(getent group "$gid" | cut -d: -f1)"; \
-# 		else \
-# 			group_name="$fallback_name"; \
-# 			groupadd -g "$gid" "$group_name"; \
-# 		fi; \
-# 		usermod -aG "$group_name" "$USERNAME"; \
-# 	}; \
-# 	add_group_for_gid 992 hostkvm1; \
-# 	add_group_for_gid 993 hostkvm2
+# Install Dependencies: Java, KVM, and other tools
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --no-install-recommends --no-install-suggests \
+    openjdk-${OPENJDK_VERSION}-jdk \
+    qemu-kvm \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+	add_group_for_gid() { \
+		gid="$1"; \
+		fallback_name="$2"; \
+		if getent group "$gid" >/dev/null; then \
+			group_name="$(getent group "$gid" | cut -d: -f1)"; \
+		else \
+			group_name="$fallback_name"; \
+			groupadd -g "$gid" "$group_name"; \
+		fi; \
+		usermod -aG "$group_name" "$USERNAME"; \
+	}; \
+	add_group_for_gid 992 hostkvm1; \
+	add_group_for_gid 993 hostkvm2
 
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
+ARG TIMEZONE=Asia/Shanghai
 
 USER $USERNAME
 WORKDIR /home/$USERNAME
@@ -33,6 +42,9 @@ WORKDIR /home/$USERNAME
 # Copy Scripts
 COPY --chown=${USER_UID}:${USER_GID} base-scripts ./bin
 RUN chmod +x ./bin/*.sh
+
+# Install Appium and Node.js
+RUN ./bin/install-appium.sh $TIMEZONE
 
 RUN mkdir -p log/supervisor run
 
