@@ -165,6 +165,7 @@ VNC_PASSWD=password
 
 .devcontainer/switch-docker-mirror.sh
 ```shell
+#!/bin/bash
 bash <(curl -sSL https://linuxmirrors.cn/docker.sh) \
   --only-registry \
   --source-registry "docker.1ms.run,docker.1panel.live,docker.m.daocloud.io"
