@@ -43,10 +43,18 @@ EOF
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/switch-docker-mirror.sh${NC}"
 cat > "${DEVCONTAINER_DIR}/switch-docker-mirror.sh" <<'EOF'
 #!/bin/bash
+use_cn_mirror=$1
+if [ "$use_cn_mirror" != "true" ]; then
+    echo "Using default Docker registry mirrors."
+    exit 0
+fi
+echo "Using China Docker registry mirrors."
+SOURCE_REGISTRY='"https://docker.1ms.run","https://docker.1panel.live","https://docker.m.daocloud.io"'
 
-bash <(curl -sSL https://linuxmirrors.cn/docker.sh) \
-  --only-registry \
-  --source-registry "docker.1ms.run,docker.1panel.live,docker.m.daocloud.io"
+mkdir -p /etc/docker
+[ -s "/etc/docker/daemon.json" ] || echo "{}" >/etc/docker/daemon.json
+jq '.["registry-mirrors"] = ['"${SOURCE_REGISTRY}"']' /etc/docker/daemon.json >/etc/docker/daemon.json.tmp \
+    && mv /etc/docker/daemon.json.tmp /etc/docker/daemon.json
 EOF
 chmod +x "${DEVCONTAINER_DIR}/switch-docker-mirror.sh"
 
@@ -66,7 +74,6 @@ cat > "${DEVCONTAINER_DIR}/devcontainer.json" <<EOF
       "moby": false
 		}
   },
-  "postCreateCommand": "sudo .devcontainer/switch-docker-mirror.sh",
   "remoteUser": "debian"
 }
 EOF
@@ -174,13 +181,17 @@ ARG USER_NAME
 USER root
 
 # 如果需要中文输入法
-RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y fcitx fcitx-googlepinyin
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y jq fcitx fcitx-googlepinyin
+
+COPY --chown=\$USER_NAME:\$USER_NAME .devcontainer/switch-docker-mirror.sh ./bin/switch-docker-mirror.sh
+RUN chmod +x ./bin/switch-docker-mirror.sh
+RUN ./bin/switch-docker-mirror.sh \$USE_CN_MIRROR
 
 USER \$USER_NAME
 WORKDIR /home/\$USER_NAME
 
-COPY --chown=\$USER_NAME:\$USER_NAME ./.devcontainer/fcitx.supervisord.conf ./supervisor/conf.d/fcitx.supervisord.conf
-COPY --chown=\$USER_NAME:\$USER_NAME ./.devcontainer/custom-entrypoint.sh ./bin/custom-entrypoint.sh
+COPY --chown=\$USER_NAME:\$USER_NAME .devcontainer/fcitx.supervisord.conf ./supervisor/conf.d/fcitx.supervisord.conf
+COPY --chown=\$USER_NAME:\$USER_NAME .devcontainer/custom-entrypoint.sh ./bin/custom-entrypoint.sh
 RUN chmod +x ./bin/custom-entrypoint.sh
 
 ENTRYPOINT ["sh", "-c", "\$HOME/bin/custom-entrypoint.sh"]
