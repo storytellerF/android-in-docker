@@ -13,12 +13,13 @@
 2. 使用脚本构建镜像：
 
     ```sh
-    ./build-image.sh [OPTIONS]
+  ./scripts/build-image.sh [OPTIONS]
     ```
 
     **常用选项**：
     - `-b, --build`: 本地构建镜像。
     - `-D, --dev`: 构建开发版镜像（基于 `dev.Dockerfile`，包含 SSH, Chrome 等）。
+    - `--cn-env`: 构建中国环境变体（最终 `Dockerfile` 会基于 `nrm.Dockerfile`）。
     - `-j, --jdk-version`: 指定 OpenJDK 版本（默认 21）。
     - `-P, --publish`: 构建并发布多架构镜像到 Docker Hub。
     - `-S, --start`: 构建后自动启动 Docker Compose。
@@ -26,19 +27,22 @@
     **示例**：
     ```sh
     # 1. 首次配置环境（交互式）
-    ./build-image.sh -c
+    ./scripts/build-image.sh -c
 
     # 2. 本地构建标准版镜像
-    ./build-image.sh -b
+    ./scripts/build-image.sh -b
 
-    # 3. 构建并启动开发版（包含 SSH 和 Chrome）
-    ./build-image.sh -D -S
+    # 3. 构建中国环境镜像
+    ./scripts/build-image.sh -b --cn-env
+
+    # 4. 构建并启动开发版（包含 SSH 和 Chrome）
+    ./scripts/build-image.sh -D -S
     ```
 
     **启用 Bash 补全**：
     
     ```bash
-    source completion.bash
+    source scripts/completion.bash
     ```
     
     之后可以使用 TAB 键补全参数。
@@ -46,7 +50,7 @@
 3. 通过脚本一键启动（推荐）
 
     ```sh
-    ./build-image.sh -S
+    ./scripts/build-image.sh -S
     ```
 
     脚本会根据环境自动选择配置：
@@ -68,9 +72,11 @@
 ## 主要文件与脚本
 
 - **构建相关**
-  - `Dockerfile`: 标准镜像定义。
+  - `base.Dockerfile`: 基础镜像定义，只安装 apt 包。
+  - `nrm.Dockerfile`: 基于基础镜像，安装 `nrm` 并切换 npm mirror。
+  - `Dockerfile`: 最终运行镜像定义；标准构建基于 `base.Dockerfile`，中国环境构建基于 `nrm.Dockerfile`。
   - `dev.Dockerfile`: 开发版镜像定义（包含 SSH, Chrome, Android Studio 等）。
-  - `build-image.sh`: 统一构建与启动入口。
+  - `scripts/build-image.sh`: 统一构建与启动入口。
 
 - **核心脚本 (位于 `base-scripts/`)**
   - `start-android.sh`: 启动 Android Emulator（自动调用 `install-sdk.sh`）。
@@ -85,16 +91,35 @@
 
 ## 镜像 Tag 策略
 
-镜像 Tag 由脚本计算出的基础部分和 `.env` 中的 `IMAGE_TAG_TIME` 组成。
+镜像 Tag 由完整前缀和 `.env` 中的 `IMAGE_TAG_TIME` 组成，不再省略默认字段。
 
-- **基础部分**: 由系统版本、桌面类型、JDK 版本自动计算（例如 `trixie-xfce-openjdk21`）。
-- **IMAGE_TAG_TIME**: 时间片段（格式 `YYYYMMDDHHMM` 或 `YYYYMMDDHHMMSS`）。
+- `base.Dockerfile`：`系统-版本-桌面-openjdk版本-base-时间/latest/snapshot`
+- `nrm.Dockerfile`：`系统-版本-桌面-openjdk版本-nrm-时间/latest/snapshot`
+- 标准最终镜像：`系统-版本-桌面-openjdk版本-时间/latest/snapshot`
+- 中国环境镜像：`系统-版本-桌面-openjdk版本-cn-时间/latest/snapshot`
+- 开发镜像（基于标准镜像）：`系统-版本-桌面-openjdk版本-dev-时间/latest/snapshot`
+- 开发镜像（基于中国环境镜像）：`系统-版本-桌面-openjdk版本-cn-dev-时间/latest/snapshot`
 
-最终镜像 tag 形如：`{自动基础部分}-{IMAGE_TAG_TIME}`。
+例如：
 
-例如：`trixie-xfce-openjdk21-202603281653`
+- `debian-trixie-xfce-openjdk21-base-202603281653`
+- `debian-trixie-xfce-openjdk21-nrm-latest`
+- `debian-trixie-xfce-openjdk21-202603281653`
+- `debian-trixie-xfce-openjdk21-cn-snapshot`
+- `debian-trixie-xfce-openjdk21-dev-latest`
+- `debian-trixie-xfce-openjdk21-cn-dev-202603281653`
 
 默认构建会优先使用 `.env` 中已有的 `IMAGE_TAG_TIME`，因此多次构建不会因为当前时间变化而改变 tag。只有在 `IMAGE_TAG_TIME` 缺失或格式非法时，脚本才会回退到运行时时间。
+
+还会额外提供“省略默认字段”的短标签别名：系统是 `debian` 就省略系统段，版本是 `trixie` 就省略版本段，桌面是 `xfce` 就省略桌面段，JDK 是 `openjdk21` 就省略 JDK 段。
+
+例如：
+
+- `debian-trixie-xfce-openjdk21` 会额外提供 `时间/latest/snapshot`
+- `debian-trixie-mate-openjdk21` 会额外提供 `mate-时间/latest/snapshot`
+- `ubuntu-trixie-xfce-openjdk17` 会额外提供 `ubuntu-openjdk17-时间/latest/snapshot`
+- `debian-trixie-xfce-openjdk21-cn` 会额外提供 `cn-时间/latest/snapshot`
+- `debian-bookworm-xfce-openjdk21-dev` 会额外提供 `bookworm-dev-时间/latest/snapshot`
 
 推荐在 `.env` 中仅维护时间字段：
 
@@ -161,7 +186,6 @@ COMPOSE_PROJECT_NAME=a-dev-container
 CONTAINER_USERNAME=debian
 CONTAINER_HOME=/home/debian
 VNC_PASSWD=password
-USE_CN_MIRROR=true
 ```
 
 .devcontainer/.gitignore
@@ -172,23 +196,7 @@ logs
 .env
 ```
 
-.devcontainer/switch-docker-mirror.sh
-```shell
-#!/bin/bash
-#!/bin/bash
-use_cn_mirror=$1
-if [ "$use_cn_mirror" != "true" ]; then
-    echo "Using default Docker registry mirrors."
-    exit 0
-fi
-echo "Using China Docker registry mirrors."
-SOURCE_REGISTRY='"https://docker.1ms.run","https://docker.1panel.live","https://docker.m.daocloud.io"'
-
-mkdir -p /etc/docker
-[ -s "/etc/docker/daemon.json" ] || echo "{}" >/etc/docker/daemon.json
-jq '.["registry-mirrors"] = ['"${SOURCE_REGISTRY}"']' /etc/docker/daemon.json >/etc/docker/daemon.json.tmp \
-    && mv /etc/docker/daemon.json.tmp /etc/docker/daemon.json
-```
+如果需要中国环境，请直接基于 `*-cn` 或 `*-cn-dev` tag。Dockerfile 会在中国环境下基于 `nrm.Dockerfile`，并额外注入 Docker registry mirror、输入法和相关配置，因此不需要再额外复制 `switch-docker-mirror.sh`。
 
 .devcontainer/devcontainer.json
 
@@ -230,7 +238,6 @@ services:
       dockerfile: .devcontainer/dev.Dockerfile
       args:
         - USER_NAME=${CONTAINER_USERNAME}
-        - USE_CN_MIRROR=${USE_CN_MIRROR}
     ports:
       - "6080" # noVNC web interface
       - "5901" # VNC direct connection
@@ -304,15 +311,11 @@ fi
 dev.Dockerfile
 
 ```Dockerfile
-FROM storytellerf/android-in-docker:dev-latest
+FROM storytellerf/android-in-docker:debian-trixie-xfce-openjdk21-cn-dev-latest
 
 ARG USER_NAME
 
 USER root
-
-COPY --chown=$USER_NAME:$USER_NAME .devcontainer/switch-docker-mirror.sh ./bin/switch-docker-mirror.sh
-RUN chmod +x ./bin/switch-docker-mirror.sh
-RUN ./bin/switch-docker-mirror.sh $USE_CN_MIRROR
 
 USER $USER_NAME
 WORKDIR /home/$USER_NAME

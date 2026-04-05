@@ -1,18 +1,7 @@
 #!/bin/bash
 set -e
 
-# Usage: ./install-appium.sh <use_cn_env>
-USE_CN_ENV=${1:-false}
-
-echo "Setting up Appium (USE_CN_ENV: $USE_CN_ENV)..."
-
-# Check if we should use Chinese mirrors
-if [ "$USE_CN_ENV" = "true" ]; then
-    echo "CN environment enabled. Using Chinese npm mirrors..."
-    sudo npm install -g nrm && sudo nrm use taobao && nrm use taobao
-else
-    echo "Using default NPM registry."
-fi
+echo "Setting up Appium..."
 
 # Setup Appium，全局安装会安装到/usr/local/lib/node_modules，需要sudo权限
 echo "Installing Appium..."

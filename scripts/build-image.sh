@@ -25,8 +25,8 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
     echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)
-  --cn-env                     Enable Chinese environment (fcitx input method, CN npm mirror)
-  --no-cn-env                  Disable Chinese environment (default: auto-detect from timezone/locale)"
+    --cn-env                     Build the China image variant (Dockerfile based on nrm.Dockerfile)
+    --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
     echo "  --base-system <system>       Specify the base system (default: $DEFAULT_BASE_SYSTEM)"
     echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
@@ -198,45 +198,71 @@ else
     echo "USE_CN_ENV auto-detected: $USE_CN_ENV (cn_tz=$_is_cn_tz, cn_locale=$_is_cn_locale)"
 fi
 
-# Calculate Tag Base (both full and omitted versions)
-calculate_tag_base() {
-    # Full version always includes system, version and desktop type
-    TAG_FULL="${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}"
+# Build fully-qualified tag prefixes.
+build_tag_prefix() {
+    local prefix="${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}"
+    if [ -n "$1" ]; then
+        prefix="${prefix}-$1"
+    fi
+    if [ -n "$2" ]; then
+        prefix="${prefix}-$2"
+    fi
+    echo "$prefix"
+}
 
-    # Omitted version removes defaults (debian, trixie, xfce, openjdk21)
+build_image_tag() {
+    local prefix=$1
+    local label=$2
+    echo "${prefix}-${label}"
+}
+
+build_short_core_prefix() {
     local parts=()
-    [ "$BASE_SYSTEM" != "debian" ] && parts+=("$BASE_SYSTEM")
-    [ "$BASE_VERSION" != "trixie" ] && parts+=("$BASE_VERSION")
-    [ "$DESKTOP_TYPE" != "xfce" ] && parts+=("$DESKTOP_TYPE")
-    [ "$OPENJDK_VERSION" != "21" ] || [ "${#parts[@]}" -eq 0 ] && parts+=("openjdk${OPENJDK_VERSION}")
-    
-    # If all parts were defaults, TAG_BASE would be empty without the check above.
-    # The [ "${#parts[@]}" -eq 0 ] ensures at least jdk version is present if others are omitted,
-    # OR if jdk is not 21 it's always added.
-    # If the user wants to omit openjdk21 specifically:
-    parts=()
-    [ "$BASE_SYSTEM" != "debian" ] && parts+=("$BASE_SYSTEM")
-    [ "$BASE_VERSION" != "trixie" ] && parts+=("$BASE_VERSION")
-    [ "$DESKTOP_TYPE" != "xfce" ] && parts+=("$DESKTOP_TYPE")
-    [ "$OPENJDK_VERSION" != "21" ] && parts+=("openjdk${OPENJDK_VERSION}")
-    
-    if [ ${#parts[@]} -eq 0 ]; then
-        TAG_BASE="latest" # Or something minimal if all are default
-        # However, IMAGE_TAG uses ${TAG_BASE}-${IMAGE_TAG_TIME}
-        # Let's make TAG_BASE empty if all are default, and handle the dash.
-        TAG_BASE=""
-    else
-        TAG_BASE=$(IFS=-; echo "${parts[*]}")
+
+    [ "$BASE_SYSTEM" != "$DEFAULT_BASE_SYSTEM" ] && parts+=("$BASE_SYSTEM")
+    [ "$BASE_VERSION" != "$DEFAULT_BASE_VERSION" ] && parts+=("$BASE_VERSION")
+    [ "$DESKTOP_TYPE" != "$DEFAULT_DESKTOP_TYPE" ] && parts+=("$DESKTOP_TYPE")
+    [ "$OPENJDK_VERSION" != "$DEFAULT_JDK_VERSION" ] && parts+=("openjdk${OPENJDK_VERSION}")
+
+    if [ ${#parts[@]} -gt 0 ]; then
+        printf '%s' "$(IFS=-; echo "${parts[*]}")"
     fi
 }
 
-calculate_tag_base
+build_short_tag_prefix() {
+    local suffix=$1
+    local core_prefix
+    core_prefix=$(build_short_core_prefix)
 
-# Append -cn suffix to tags when Chinese environment is enabled
-if [ "$USE_CN_ENV" = "true" ]; then
-    TAG_BASE="${TAG_BASE:+${TAG_BASE}-}cn"
-    TAG_FULL="${TAG_FULL}-cn"
-fi
+    if [ -n "$core_prefix" ] && [ -n "$suffix" ]; then
+        echo "${core_prefix}-${suffix}"
+    elif [ -n "$core_prefix" ]; then
+        echo "$core_prefix"
+    else
+        echo "$suffix"
+    fi
+}
+
+refresh_tag_context() {
+    STANDARD_TAG_PREFIX=$(build_tag_prefix)
+    BASE_TAG_PREFIX=$(build_tag_prefix "base")
+    NRM_TAG_PREFIX=$(build_tag_prefix "nrm")
+    CHINA_TAG_PREFIX=$(build_tag_prefix "cn")
+    DEV_BASE_IMAGE_VARIANT_SUFFIX=""
+
+    if [ "$USE_CN_ENV" = "true" ]; then
+        TARGET_TAG_PREFIX="$CHINA_TAG_PREFIX"
+        DEV_BASE_IMAGE_VARIANT_SUFFIX="-cn"
+    else
+        TARGET_TAG_PREFIX="$STANDARD_TAG_PREFIX"
+    fi
+
+    if [ "$BUILD_DEV" = "true" ]; then
+        TARGET_TAG_PREFIX="${TARGET_TAG_PREFIX}-dev"
+    fi
+
+    IMAGE_TAG=$(build_image_tag "$TARGET_TAG_PREFIX" "$IMAGE_TAG_TIME")
+}
 
 TIME_FALLBACK="$(date +%Y%m%d%H%M%S)"
 
@@ -245,11 +271,7 @@ if ! validate_tag_time "$IMAGE_TAG_TIME"; then
     IMAGE_TAG_TIME="$TIME_FALLBACK"
 fi
 
-if [ -n "$TAG_BASE" ]; then
-    IMAGE_TAG="${TAG_BASE}-${IMAGE_TAG_TIME}"
-else
-    IMAGE_TAG="${IMAGE_TAG_TIME}"
-fi
+refresh_tag_context
 
 
 # If creating env, handle interactive mode
@@ -288,20 +310,10 @@ if [ "$CREATE_ENV" = true ]; then
     # Initialize file if not exists
     touch "$ENV_FILE"
 
-    # Recalculate tag components and keep existing timestamp unless missing/invalid.
-    calculate_tag_base
-    if [ "$USE_CN_ENV" = "true" ]; then
-        TAG_BASE="${TAG_BASE:+${TAG_BASE}-}cn"
-        TAG_FULL="${TAG_FULL}-cn"
-    fi
     if ! validate_tag_time "$IMAGE_TAG_TIME"; then
         IMAGE_TAG_TIME="$TIME_FALLBACK"
     fi
-    if [ -n "$TAG_BASE" ]; then
-        IMAGE_TAG="${TAG_BASE}-${IMAGE_TAG_TIME}"
-    else
-        IMAGE_TAG="${IMAGE_TAG_TIME}"
-    fi
+    refresh_tag_context
 
     echo "Updating $ENV_FILE..."
 
@@ -332,135 +344,125 @@ ALL_BUILT_TAGS=()
 run_build() {
     local df=$1
     local name=$2
-    local suffix=$3
-    local add_openjdk_tag=$4
-    local add_full_prefix_tag=${5:-true}
+    local tag_prefix=$3
+    local short_tag_prefix=${4:-}
+    shift 4
 
     echo "--------------------------------------------------------"
-    echo "Building: $name (Dockerfile: $df, Suffix: '$suffix')"
-
-    # Local prefixes for this build flavor
-    local base_prefix=""
-    if [ -n "$TAG_BASE" ]; then
-        base_prefix="${TAG_BASE}${suffix}"
-    else
-        # If TAG_BASE is empty, use suffix without leading dash if possible, or just empty
-        base_prefix="${suffix#-}"
-    fi
-
-    local full_prefix="${TAG_FULL}${suffix}"
-    local should_add_full_prefix=false
-
-    if [ "$add_full_prefix_tag" = true ] && [ "$base_prefix" != "$full_prefix" ]; then
-        echo "Adding full prefix tag for $name with full prefix '$full_prefix' because it differs from base prefix '$base_prefix'"
-        should_add_full_prefix=true
-    fi
+    echo "Building: $name (Dockerfile: $df, Tag Prefix: '$tag_prefix')"
 
     add_tag_pair() {
-        local tag_suffix=$1
+        local tag_label=$1
         local tag_reason=${2:-"Primary timestamped tag"}
-        local full_tag_name=""
-        
-        if [ -n "$base_prefix" ]; then
-            full_tag_name="${name}:${base_prefix}${tag_suffix}"
-        else
-            # If both are empty, and tag_suffix is like -2024..., remove leading dash
-            full_tag_name="${name}:${tag_suffix#-}"
-        fi
+        local full_tag_name="${name}:$(build_image_tag "$tag_prefix" "$tag_label")"
 
         tags+=("-t" "$full_tag_name")
         ALL_BUILT_TAGS+=("${df}|${full_tag_name}|${tag_reason}")
+    }
 
-        if [ "$should_add_full_prefix" = true ]; then
-            local full_os_tag="${name}:${full_prefix}${tag_suffix}"
-            tags+=("-t" "$full_os_tag")
-            ALL_BUILT_TAGS+=("${df}|${full_os_tag}|${tag_reason} (with full OS prefix)")
+    add_short_tag_pair() {
+        local tag_label=$1
+        local tag_reason=${2:-"Short default tag alias"}
+        local short_tag_name=""
+
+        if [ -n "$short_tag_prefix" ]; then
+            short_tag_name="${name}:$(build_image_tag "$short_tag_prefix" "$tag_label")"
+        else
+            short_tag_name="${name}:${tag_label}"
         fi
+
+        tags+=("-t" "$short_tag_name")
+        ALL_BUILT_TAGS+=("${df}|${short_tag_name}|${tag_reason}")
     }
     
     # Define common tags (primary timestamped tags)
     local tags=()
-    add_tag_pair "-${IMAGE_TAG_TIME}" "Primary timestamped tag"
+    add_tag_pair "$IMAGE_TAG_TIME" "Primary timestamped tag"
     
     # Add flavor-specific latest and snapshot tags
     if [ "$TAG_LATEST" = true ]; then
-        add_tag_pair "-latest" "Latest release tag"
+        add_tag_pair "latest" "Latest release tag"
     fi
     if [ "$TAG_SNAPSHOT" = true ]; then
-        add_tag_pair "-snapshot" "Snapshot development tag"
+        add_tag_pair "snapshot" "Snapshot development tag"
     fi
-    
-    # Add plain tags ONLY for the default flavor configuration (e.g., :latest, :dev-latest)
-    if [ "$BASE_SYSTEM" = "debian" ] && [ "$BASE_VERSION" = "trixie" ] && [ "$DESKTOP_TYPE" = "xfce" ]; then
-        local plain_indicator="${suffix#-}" # Remove leading dash (e.g., "-dev" -> "dev")
-        if [ -n "$plain_indicator" ]; then
-            local reason="Plain tag for $plain_indicator flavor (default OS/Desktop)"
-            if [ "$TAG_LATEST" = true ]; then
-                local t="${name}:${plain_indicator}-latest"
-                tags+=("-t" "$t")
-                ALL_BUILT_TAGS+=("${df}|${t}|${reason}")
-            fi
-            if [ "$TAG_SNAPSHOT" = true ]; then
-                local t="${name}:${plain_indicator}-snapshot"
-                tags+=("-t" "$t")
-                ALL_BUILT_TAGS+=("${df}|${t}|${reason}")
-            fi
-        else
-            local reason="Plain tag for default flavor (default OS/Desktop)"
-            if [ "$TAG_LATEST" = true ]; then
-                local t="${name}:latest"
-                tags+=("-t" "$t")
-                ALL_BUILT_TAGS+=("${df}|${t}|${reason}")
-            fi
-            if [ "$TAG_SNAPSHOT" = true ]; then
-                local t="${name}:snapshot"
-                tags+=("-t" "$t")
-                ALL_BUILT_TAGS+=("${df}|${t}|${reason}")
-            fi
+
+    if [ "$short_tag_prefix" != "$tag_prefix" ]; then
+        add_short_tag_pair "$IMAGE_TAG_TIME" "Short default timestamp alias"
+        if [ "$TAG_LATEST" = true ]; then
+            add_short_tag_pair "latest" "Short default latest alias"
+        fi
+        if [ "$TAG_SNAPSHOT" = true ]; then
+            add_short_tag_pair "snapshot" "Short default snapshot alias"
         fi
     fi
 
-    # Add stable alias (e.g., :openjdk21 or :mate-openjdk21-dev)
-    if [ "$add_openjdk_tag" = true ]; then
-        add_tag_pair "" "Stable version alias (OpenJDK only)"
-    fi
+    local build_args=(
+        --build-arg BASE_SYSTEM="$BASE_SYSTEM"
+        --build-arg BASE_VERSION="$BASE_VERSION"
+        --build-arg OPENJDK_VERSION="$OPENJDK_VERSION"
+        --build-arg DESKTOP_TYPE="$DESKTOP_TYPE"
+    )
+
+    while [ "$#" -gt 0 ]; do
+        build_args+=("$1")
+        shift
+    done
 
     # Execute the build
     if [ "$PUBLISH" = true ]; then
-        local cn_suffix_arg=""
-        [ "$USE_CN_ENV" = "true" ] && cn_suffix_arg="-cn"
         docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            --build-arg BASE_SYSTEM="$BASE_SYSTEM" \
-            --build-arg BASE_VERSION="$BASE_VERSION" \
-            --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
-            --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
-            --build-arg USE_CN_ENV="$USE_CN_ENV" \
-            --build-arg CN_SUFFIX="$cn_suffix_arg" \
+            "${build_args[@]}" \
             "${tags[@]}" \
             --push \
             -f "$df" .
     elif [ "$EXECUTE_BUILD" = true ]; then
-        local cn_suffix_arg=""
-        [ "$USE_CN_ENV" = "true" ] && cn_suffix_arg="-cn"
         docker build \
-            --build-arg BASE_SYSTEM="$BASE_SYSTEM" \
-            --build-arg BASE_VERSION="$BASE_VERSION" \
-            --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
-            --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
-            --build-arg USE_CN_ENV="$USE_CN_ENV" \
-            --build-arg CN_SUFFIX="$cn_suffix_arg" \
+            "${build_args[@]}" \
             "${tags[@]}" \
             -f "$df" .
     fi
 }
 
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
+    run_build "base.Dockerfile" "${IMAGE_NAME}" "$BASE_TAG_PREFIX" "$(build_short_tag_prefix "base")"
+
     if [ "$BUILD_DEV" = true ]; then
-        run_build "Dockerfile" "${IMAGE_NAME}" "" false true
-        run_build "dev.Dockerfile" "${IMAGE_NAME}" "-dev" false true
+        if [ "$USE_CN_ENV" = "true" ]; then
+            run_build "nrm.Dockerfile" "${IMAGE_NAME}" "$NRM_TAG_PREFIX" "$(build_short_tag_prefix "nrm")" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-base" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+            run_build "Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-nrm" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
+                --build-arg USE_CN_ENV=true
+            run_build "dev.Dockerfile" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-cn" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+        else
+            run_build "Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-base" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
+                --build-arg USE_CN_ENV=false
+            run_build "dev.Dockerfile" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+        fi
     else
-        run_build "Dockerfile" "${IMAGE_NAME}" "" false true
+        if [ "$USE_CN_ENV" = "true" ]; then
+            run_build "nrm.Dockerfile" "${IMAGE_NAME}" "$NRM_TAG_PREFIX" "$(build_short_tag_prefix "nrm")" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-base" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+            run_build "Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-nrm" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
+                --build-arg USE_CN_ENV=true
+        else
+            run_build "Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-base" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
+                --build-arg USE_CN_ENV=false
+        fi
     fi
     echo "Cleaning up dangling images..."
     docker image prune -f
