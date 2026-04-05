@@ -2,7 +2,8 @@ ARG BASE_SYSTEM=debian
 ARG BASE_VERSION=trixie
 ARG DESKTOP_TYPE=xfce
 ARG OPENJDK_VERSION=21
-FROM storytellerf/android-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}-latest
+ARG CN_SUFFIX=
+FROM storytellerf/android-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}${CN_SUFFIX}-latest
 
 USER root
 RUN apt update && DEBIAN_FRONTEND=noninteractive \
@@ -59,8 +60,6 @@ RUN mkdir -p /home/${USER_NAME}/Desktop && \
 COPY --chown=${USER_UID}:${USER_GID} ssh.supervisord.conf /home/${USER_NAME}/supervisor/conf.d/ssh.supervisord.conf
 COPY --chown=${USER_UID}:${USER_GID} scripts/start-ssh.sh /home/${USER_NAME}/bin/start-ssh.sh
 RUN chmod +x /home/${USER_NAME}/bin/start-ssh.sh
-
-
 
 # 设置环境变量
 ENV PATH="/home/${USER_NAME}/Applications/android-studio/bin:${PATH}"

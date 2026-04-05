@@ -15,6 +15,7 @@ RUN apt-get update && \
     openjdk-${OPENJDK_VERSION}-jdk \
     qemu-kvm \
     npm \
+	jq \
     && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
@@ -34,7 +35,14 @@ RUN set -eux; \
 
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
-ARG TIMEZONE=Asia/Shanghai
+ARG USE_CN_ENV=false
+
+# Install fcitx input method
+RUN if [ "$USE_CN_ENV" = "true" ]; then \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y fcitx fcitx-googlepinyin && \
+    rm -rf /var/lib/apt/lists/*; \
+fi
 
 USER $USERNAME
 WORKDIR /home/$USERNAME
@@ -44,12 +52,27 @@ COPY --chown=${USER_UID}:${USER_GID} base-scripts ./bin
 RUN chmod +x ./bin/*.sh
 
 # Install Appium and Node.js
-RUN ./bin/install-appium.sh $TIMEZONE
+RUN ./bin/install-appium.sh $USE_CN_ENV
 
 RUN mkdir -p log/supervisor run
 
 # Copy supervisor configuration
 COPY --chown=${USER_UID}:${USER_GID} android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf
+
+# Setup fcitx supervisord config
+RUN if [ "$USE_CN_ENV" = "true" ]; then \
+    { \
+      echo '[program:fcitx]'; \
+      echo 'command=/usr/bin/fcitx -D'; \
+      echo 'environment=USER=%(ENV_SUPERVISOR_USER)s,HOME=%(ENV_HOME)s,DISPLAY=:1'; \
+      echo 'stdout_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stdout.log'; \
+      echo 'stderr_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stderr.log'; \
+      echo 'autorestart=false'; \
+      echo 'user=%(ENV_SUPERVISOR_USER)s'; \
+      echo 'stopasgroup=true'; \
+      echo 'killasgroup=true'; \
+    } > supervisor/conf.d/fcitx.supervisord.conf; \
+fi
 
 # Setup Android SDK Environment
 ENV ANDROID_HOME=/home/${USERNAME}/Android/Sdk

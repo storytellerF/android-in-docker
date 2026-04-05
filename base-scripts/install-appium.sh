@@ -1,17 +1,17 @@
 #!/bin/bash
 set -e
 
-# Usage: ./install-appium.sh <timezone>
-TIMEZONE=${1:?"Timezone argument is required"}
+# Usage: ./install-appium.sh <use_cn_env>
+USE_CN_ENV=${1:-false}
 
-echo "Setting up Appium (Timezone: $TIMEZONE)..."
+echo "Setting up Appium (USE_CN_ENV: $USE_CN_ENV)..."
 
 # Check if we should use Chinese mirrors
-if [[ "$TIMEZONE" == "Asia/Shanghai" || "$TIMEZONE" == "Asia/Chongqing" || "$TIMEZONE" == "PRC" ]]; then
-    echo "Timezone detected as China ($TIMEZONE). Using Chinese mirrors..."
+if [ "$USE_CN_ENV" = "true" ]; then
+    echo "CN environment enabled. Using Chinese npm mirrors..."
     sudo npm install -g nrm && sudo nrm use taobao && nrm use taobao
 else
-    echo "Timezone is $TIMEZONE. Using default NPM registry."
+    echo "Using default NPM registry."
 fi
 
 # Setup Appium，全局安装会安装到/usr/local/lib/node_modules，需要sudo权限

@@ -36,6 +36,7 @@ cat > "${DEVCONTAINER_DIR}/.gitignore" <<'EOF'
 data
 tmp
 logs
+.env
 EOF
 
 # 1. 生成 .env
@@ -167,21 +168,7 @@ fi
 ./bin/entrypoint.sh
 EOF
 
-# 5. 生成 fcitx.supervisord.conf
-echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/fcitx.supervisord.conf${NC}"
-cat > "${DEVCONTAINER_DIR}/fcitx.supervisord.conf" <<'EOF'
-[program:fcitx]
-command=/usr/bin/fcitx
-environment=USER=%(ENV_SUPERVISOR_USER)s,HOME=%(ENV_HOME)s,DISPLAY=:1
-stdout_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stdout.log
-stderr_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stderr.log
-autorestart=false
-user=%(ENV_SUPERVISOR_USER)s
-stopasgroup=true
-killasgroup=true
-EOF
-
-# 6. 生成 dev.Dockerfile
+# 5. 生成 dev.Dockerfile
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/dev.Dockerfile${NC}"
 cat > "${DEVCONTAINER_DIR}/dev.Dockerfile" <<EOF
 FROM storytellerf/android-in-docker:dev-latest
@@ -190,9 +177,6 @@ ARG USER_NAME
 
 USER root
 
-# 如果需要中文输入法
-RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y jq fcitx fcitx-googlepinyin
-
 COPY --chown=\$USER_NAME:\$USER_NAME .devcontainer/switch-docker-mirror.sh ./bin/switch-docker-mirror.sh
 RUN chmod +x ./bin/switch-docker-mirror.sh
 RUN ./bin/switch-docker-mirror.sh \$USE_CN_MIRROR
@@ -200,7 +184,6 @@ RUN ./bin/switch-docker-mirror.sh \$USE_CN_MIRROR
 USER \$USER_NAME
 WORKDIR /home/\$USER_NAME
 
-COPY --chown=\$USER_NAME:\$USER_NAME .devcontainer/fcitx.supervisord.conf ./supervisor/conf.d/fcitx.supervisord.conf
 COPY --chown=\$USER_NAME:\$USER_NAME .devcontainer/custom-entrypoint.sh ./bin/custom-entrypoint.sh
 RUN chmod +x ./bin/custom-entrypoint.sh
 

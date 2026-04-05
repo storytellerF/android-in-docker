@@ -24,7 +24,9 @@ usage() {
     echo "  -p, --password <password>    Specify the VNC password (default: $DEFAULT_VNC_PASSWORD)"
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
-    echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
+    echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)
+  --cn-env                     Enable Chinese environment (fcitx input method, CN npm mirror)
+  --no-cn-env                  Disable Chinese environment (default: auto-detect from timezone/locale)"
     echo "  --base-system <system>       Specify the base system (default: $DEFAULT_BASE_SYSTEM)"
     echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
@@ -54,6 +56,7 @@ DESKTOP_TYPE_INPUT=""
 BASE_SYSTEM_INPUT=""
 BASE_VERSION_INPUT=""
 TIMEZONE_INPUT=""
+USE_CN_ENV_INPUT=""
 TAG_LATEST=false
 TAG_SNAPSHOT=true
 
@@ -86,6 +89,12 @@ while [[ "$#" -gt 0 ]]; do
         -z|--timezone)
             TIMEZONE_INPUT="$2"
             shift
+            ;;
+        --cn-env)
+            USE_CN_ENV_INPUT=true
+            ;;
+        --no-cn-env)
+            USE_CN_ENV_INPUT=false
             ;;
         -c|--create-env)
             CREATE_ENV=true
@@ -168,6 +177,27 @@ else
     echo "System timezone detected from host: $SYSTEM_TIMEZONE"
 fi
 
+# Determine USE_CN_ENV: explicit flag takes precedence, otherwise auto-detect
+if [ -n "$USE_CN_ENV_INPUT" ]; then
+    USE_CN_ENV="$USE_CN_ENV_INPUT"
+    echo "USE_CN_ENV set from argument: $USE_CN_ENV"
+else
+    _is_cn_tz=false
+    _is_cn_locale=false
+    if echo "$SYSTEM_TIMEZONE" | grep -qE "^(Asia/(Shanghai|Chongqing|Chungking|Harbin|Urumqi)|PRC)$"; then
+        _is_cn_tz=true
+    fi
+    if echo "${LANG:-}${LC_ALL:-}${LC_CTYPE:-}" | grep -qi "zh"; then
+        _is_cn_locale=true
+    fi
+    if [ "$_is_cn_tz" = true ] || [ "$_is_cn_locale" = true ]; then
+        USE_CN_ENV=true
+    else
+        USE_CN_ENV=false
+    fi
+    echo "USE_CN_ENV auto-detected: $USE_CN_ENV (cn_tz=$_is_cn_tz, cn_locale=$_is_cn_locale)"
+fi
+
 # Calculate Tag Base (both full and omitted versions)
 calculate_tag_base() {
     # Full version always includes system, version and desktop type
@@ -201,6 +231,12 @@ calculate_tag_base() {
 }
 
 calculate_tag_base
+
+# Append -cn suffix to tags when Chinese environment is enabled
+if [ "$USE_CN_ENV" = "true" ]; then
+    TAG_BASE="${TAG_BASE:+${TAG_BASE}-}cn"
+    TAG_FULL="${TAG_FULL}-cn"
+fi
 
 TIME_FALLBACK="$(date +%Y%m%d%H%M%S)"
 
@@ -254,6 +290,10 @@ if [ "$CREATE_ENV" = true ]; then
 
     # Recalculate tag components and keep existing timestamp unless missing/invalid.
     calculate_tag_base
+    if [ "$USE_CN_ENV" = "true" ]; then
+        TAG_BASE="${TAG_BASE:+${TAG_BASE}-}cn"
+        TAG_FULL="${TAG_FULL}-cn"
+    fi
     if ! validate_tag_time "$IMAGE_TAG_TIME"; then
         IMAGE_TAG_TIME="$TIME_FALLBACK"
     fi
@@ -387,23 +427,29 @@ run_build() {
 
     # Execute the build
     if [ "$PUBLISH" = true ]; then
+        local cn_suffix_arg=""
+        [ "$USE_CN_ENV" = "true" ] && cn_suffix_arg="-cn"
         docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --build-arg BASE_SYSTEM="$BASE_SYSTEM" \
             --build-arg BASE_VERSION="$BASE_VERSION" \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
-            --build-arg TIMEZONE="$SYSTEM_TIMEZONE" \
+            --build-arg USE_CN_ENV="$USE_CN_ENV" \
+            --build-arg CN_SUFFIX="$cn_suffix_arg" \
             "${tags[@]}" \
             --push \
             -f "$df" .
     elif [ "$EXECUTE_BUILD" = true ]; then
+        local cn_suffix_arg=""
+        [ "$USE_CN_ENV" = "true" ] && cn_suffix_arg="-cn"
         docker build \
             --build-arg BASE_SYSTEM="$BASE_SYSTEM" \
             --build-arg BASE_VERSION="$BASE_VERSION" \
             --build-arg OPENJDK_VERSION="$OPENJDK_VERSION" \
             --build-arg DESKTOP_TYPE="$DESKTOP_TYPE" \
-            --build-arg TIMEZONE="$SYSTEM_TIMEZONE" \
+            --build-arg USE_CN_ENV="$USE_CN_ENV" \
+            --build-arg CN_SUFFIX="$cn_suffix_arg" \
             "${tags[@]}" \
             -f "$df" .
     fi
