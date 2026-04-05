@@ -26,14 +26,6 @@ RUN set -eux; \
 	add_group_for_gid 992 hostkvm1; \
 	add_group_for_gid 993 hostkvm2
 
-RUN if [ "$USE_CN_ENV" = "true" ]; then \
-	apt-get update && \
-	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests fcitx fcitx-googlepinyin && \
-	install -d -m 0755 /etc/docker && \
-	printf '{\n  "registry-mirrors": [\n    "https://docker.1ms.run",\n    "https://docker.1panel.live",\n    "https://docker.m.daocloud.io"\n  ]\n}\n' > /etc/docker/daemon.json && \
-	rm -rf /var/lib/apt/lists/*; \
-fi
-
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
@@ -44,35 +36,13 @@ WORKDIR /home/$USERNAME
 COPY --chown=${USER_UID}:${USER_GID} base-scripts ./bin
 RUN chmod +x ./bin/*.sh
 
-# Install Appium and Node.js
-RUN ./bin/install-appium.sh false
-
-COPY --chown=${USER_UID}:${USER_GID} fcitx ./fcitx-defaults
-RUN if [ "$USE_CN_ENV" = "true" ]; then \
-		mkdir -p .config/fcitx && \
-		install -m 644 fcitx-defaults/config .config/fcitx/config && \
-		install -m 644 fcitx-defaults/profile .config/fcitx/profile; \
-fi && \
-rm -rf fcitx-defaults
+# Install Appium
+RUN ./bin/install-appium.sh
 
 RUN mkdir -p log/supervisor run
 
 # Copy supervisor configuration
 COPY --chown=${USER_UID}:${USER_GID} android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf
-
-RUN if [ "$USE_CN_ENV" = "true" ]; then \
-		{ \
-			echo '[program:fcitx]'; \
-			echo 'command=/usr/bin/fcitx -D'; \
-			echo 'environment=USER=%(ENV_SUPERVISOR_USER)s,HOME=%(ENV_HOME)s,DISPLAY=:1'; \
-			echo 'stdout_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stdout.log'; \
-			echo 'stderr_logfile=%(ENV_HOME)s/log/supervisor/fcitx_stderr.log'; \
-			echo 'autorestart=false'; \
-			echo 'user=%(ENV_SUPERVISOR_USER)s'; \
-			echo 'stopasgroup=true'; \
-			echo 'killasgroup=true'; \
-		} > supervisor/conf.d/fcitx.supervisord.conf; \
-fi
 
 # Setup Android SDK Environment
 ENV ANDROID_HOME=/home/${USERNAME}/Android/Sdk

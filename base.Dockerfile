@@ -13,6 +13,5 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
     openjdk-${OPENJDK_VERSION}-jdk \
     qemu-kvm \
-    npm \
     jq \
     && rm -rf /var/lib/apt/lists/*

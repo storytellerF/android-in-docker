@@ -25,7 +25,7 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
     echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)
-    --cn-env                     Build the China image variant (Dockerfile based on nrm.Dockerfile)
+    --cn-env                     Build the China image variant (Dockerfile based on cn.Dockerfile)
     --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
     echo "  --base-system <system>       Specify the base system (default: $DEFAULT_BASE_SYSTEM)"
     echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
@@ -246,7 +246,8 @@ build_short_tag_prefix() {
 refresh_tag_context() {
     STANDARD_TAG_PREFIX=$(build_tag_prefix)
     BASE_TAG_PREFIX=$(build_tag_prefix "base")
-    NRM_TAG_PREFIX=$(build_tag_prefix "nrm")
+    STANDARD_LAYER_TAG_PREFIX=$(build_tag_prefix "standard")
+    BASE_CN_TAG_PREFIX=$(build_tag_prefix "basecn")
     CHINA_TAG_PREFIX=$(build_tag_prefix "cn")
     DEV_BASE_IMAGE_VARIANT_SUFFIX=""
 
@@ -430,19 +431,22 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
 
     if [ "$BUILD_DEV" = true ]; then
         if [ "$USE_CN_ENV" = "true" ]; then
-            run_build "nrm.Dockerfile" "${IMAGE_NAME}" "$NRM_TAG_PREFIX" "$(build_short_tag_prefix "nrm")" \
+            run_build "cn.Dockerfile" "${IMAGE_NAME}" "$BASE_CN_TAG_PREFIX" "$(build_short_tag_prefix "basecn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-base" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-nrm" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-basecn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
                 --build-arg USE_CN_ENV=true
             run_build "dev.Dockerfile" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-cn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         else
-            run_build "Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+            run_build "standard.Dockerfile" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-base" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+            run_build "Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
                 --build-arg USE_CN_ENV=false
             run_build "dev.Dockerfile" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
@@ -450,16 +454,19 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
         fi
     else
         if [ "$USE_CN_ENV" = "true" ]; then
-            run_build "nrm.Dockerfile" "${IMAGE_NAME}" "$NRM_TAG_PREFIX" "$(build_short_tag_prefix "nrm")" \
+            run_build "cn.Dockerfile" "${IMAGE_NAME}" "$BASE_CN_TAG_PREFIX" "$(build_short_tag_prefix "basecn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-base" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-nrm" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-basecn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
                 --build-arg USE_CN_ENV=true
         else
-            run_build "Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+            run_build "standard.Dockerfile" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-base" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+            run_build "Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
                 --build-arg USE_CN_ENV=false
         fi
