@@ -30,6 +30,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 touch "${DEVCONTAINER_DIR}/data/authorized_keys"
 chmod 600 "${DEVCONTAINER_DIR}/data/authorized_keys"
 
+# 0. 生成 .gitignore
+echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/.gitignore${NC}"
+cat > "${DEVCONTAINER_DIR}/.gitignore" <<'EOF'
+data
+tmp
+logs
+EOF
+
 # 1. 生成 .env
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/.env${NC}"
 cat > "${DEVCONTAINER_DIR}/.env" <<EOF
@@ -37,6 +45,7 @@ COMPOSE_PROJECT_NAME=${PROJECT_NAME}-dev-container
 CONTAINER_USERNAME=debian
 CONTAINER_HOME=/home/debian
 VNC_PASSWD=password
+USE_CN_MIRROR=true
 EOF
 
 # 1.1 生成切换 Docker 镜像源脚本
@@ -88,6 +97,7 @@ services:
       dockerfile: ./.devcontainer/dev.Dockerfile
       args:
         - USER_NAME=\${CONTAINER_USERNAME}
+        - USE_CN_MIRROR=\${USE_CN_MIRROR}
     ports:
       - "6080" # noVNC web interface
       - "5901" # VNC direct connection

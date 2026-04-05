@@ -161,6 +161,14 @@ COMPOSE_PROJECT_NAME=a-dev-container
 CONTAINER_USERNAME=debian
 CONTAINER_HOME=/home/debian
 VNC_PASSWD=password
+USE_CN_MIRROR=true
+```
+
+.devcontainer/.gitignore
+```
+data
+tmp
+logs
 ```
 
 .devcontainer/switch-docker-mirror.sh
@@ -218,9 +226,10 @@ services:
   main:
     build:
       context: ..
-      dockerfile: ./dev.Dockerfile
+      dockerfile: .devcontainer/dev.Dockerfile
       args:
         - USER_NAME=${CONTAINER_USERNAME}
+        - USE_CN_MIRROR=${USE_CN_MIRROR}
     ports:
       - "6080" # noVNC web interface
       - "5901" # VNC direct connection
