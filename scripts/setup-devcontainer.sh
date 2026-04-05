@@ -21,7 +21,7 @@ echo -e "${GREEN}开始在当前目录初始化 ${PROJECT_NAME} 的 devcontainer
 
 # 创建 .devcontainer 目录
 mkdir -p "$DEVCONTAINER_DIR"
-mkdir -p "$DEVCONTAINER_DIR/logs" "$DEVCONTAINER_DIR/data"
+mkdir -p "$DEVCONTAINER_DIR/logs" "$DEVCONTAINER_DIR/data" "$DEVCONTAINER_DIR/tmp"
 
 # 获取脚本所在目录的绝对路径
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,43 +46,23 @@ COMPOSE_PROJECT_NAME=${PROJECT_NAME}-dev-container
 CONTAINER_USERNAME=debian
 CONTAINER_HOME=/home/debian
 VNC_PASSWD=password
-USE_CN_MIRROR=true
 EOF
-
-# 1.1 生成切换 Docker 镜像源脚本
-echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/switch-docker-mirror.sh${NC}"
-cat > "${DEVCONTAINER_DIR}/switch-docker-mirror.sh" <<'EOF'
-#!/bin/bash
-use_cn_mirror=$1
-if [ "$use_cn_mirror" != "true" ]; then
-    echo "Using default Docker registry mirrors."
-    exit 0
-fi
-echo "Using China Docker registry mirrors."
-SOURCE_REGISTRY='"https://docker.1ms.run","https://docker.1panel.live","https://docker.m.daocloud.io"'
-
-mkdir -p /etc/docker
-[ -s "/etc/docker/daemon.json" ] || echo "{}" >/etc/docker/daemon.json
-jq '.["registry-mirrors"] = ['"${SOURCE_REGISTRY}"']' /etc/docker/daemon.json >/etc/docker/daemon.json.tmp \
-    && mv /etc/docker/daemon.json.tmp /etc/docker/daemon.json
-EOF
-chmod +x "${DEVCONTAINER_DIR}/switch-docker-mirror.sh"
 
 # 2. 生成 devcontainer.json
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/devcontainer.json${NC}"
 cat > "${DEVCONTAINER_DIR}/devcontainer.json" <<EOF
 {
-	"name": "${PROJECT_NAME} Dev Container",
-	"dockerComposeFile": [
-		"./docker-compose.yml"
-	],
-	"service": "main",
+  "name": "${PROJECT_NAME} Dev Container",
+  "dockerComposeFile": [
+    "./docker-compose.yml"
+  ],
+  "service": "main",
   "workspaceFolder": "/workspace/${PROJECT_NAME}",
-	"shutdownAction": "stopCompose",
+  "shutdownAction": "stopCompose",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": false
-		}
+    }
   },
   "remoteUser": "debian"
 }
@@ -98,7 +78,6 @@ services:
       dockerfile: ./.devcontainer/dev.Dockerfile
       args:
         - USER_NAME=\${CONTAINER_USERNAME}
-        - USE_CN_MIRROR=\${USE_CN_MIRROR}
     ports:
       - "6080" # noVNC web interface
       - "5901" # VNC direct connection
@@ -139,8 +118,6 @@ volumes:
     external: true
   bash_history:
   gradle_data:
-    name: gradle_data
-    external: true
   konan_data:
   m2_data:
   chrome_cache:
@@ -171,15 +148,9 @@ EOF
 # 5. 生成 dev.Dockerfile
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/dev.Dockerfile${NC}"
 cat > "${DEVCONTAINER_DIR}/dev.Dockerfile" <<EOF
-FROM storytellerf/android-in-docker:dev-latest
+FROM storytellerf/android-in-docker:debian-trixie-xfce-openjdk21-dev-latest
 
 ARG USER_NAME
-
-USER root
-
-COPY --chown=\$USER_NAME:\$USER_NAME .devcontainer/switch-docker-mirror.sh ./bin/switch-docker-mirror.sh
-RUN chmod +x ./bin/switch-docker-mirror.sh
-RUN ./bin/switch-docker-mirror.sh \$USE_CN_MIRROR
 
 USER \$USER_NAME
 WORKDIR /home/\$USER_NAME
@@ -194,5 +165,6 @@ echo -e "${GREEN}完成！${NC}"
 echo -e "接下来你可以："
 echo -e "1. 检查生成的 .devcontainer 目录下的文件是否符合需求"
 echo -e "2. 如果需要配置 SSH 免密登录，请运行: ${YELLOW}cd .devcontainer && ${SCRIPT_DIR}/add-ssh-key.sh${NC}"
-echo -e "3. 如果外部卷不存在，请先执行: ${YELLOW}docker volume create sdk_data && docker volume create gradle_data${NC}"
-echo -e "4. 使用 VS Code 打开当前目录，并在提示时选择 'Reopen in Container'"
+echo -e "3. 如果需要中国环境，请将 ${YELLOW}${DEVCONTAINER_DIR}/dev.Dockerfile${NC} 中的镜像 tag 改为 *-cn 或 *-cn-dev"
+echo -e "4. 如果外部卷不存在，请先执行: ${YELLOW}docker volume create sdk_data${NC}"
+echo -e "5. 使用 VS Code 打开当前目录，并在提示时选择 'Reopen in Container'"
