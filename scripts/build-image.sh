@@ -27,7 +27,7 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
     echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
-    echo "  --cn-env                     Build the China image variant (Dockerfile based on standard_cn.Dockerfile)"
+    echo "  --cn-env                     Build the China image variant (uses standard_cn.Dockerfile and temurin_cn.Dockerfile when applicable)"
     echo "  --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
     echo "  --base-system <system>       Specify the base system (default: $DEFAULT_BASE_SYSTEM)"
     echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
@@ -264,9 +264,21 @@ build_short_tag_prefix() {
     fi
 }
 
+is_temurin_cn_build() {
+    [ "$JDK_PROVIDER" = "temurin" ] && [ "$USE_CN_ENV" = "true" ]
+}
+
 refresh_tag_context() {
     STANDARD_TAG_PREFIX=$(build_tag_prefix)
-    JDK_TAG_PREFIX=$(build_tag_prefix "jdk")
+    if is_temurin_cn_build; then
+        JDK_TAG_PREFIX=$(build_tag_prefix "jdk" "cn")
+        JDK_SHORT_TAG_PREFIX=$(build_short_tag_prefix "jdk-cn")
+        JDK_BASE_IMAGE_VARIANT_SUFFIX="-jdk-cn"
+    else
+        JDK_TAG_PREFIX=$(build_tag_prefix "jdk")
+        JDK_SHORT_TAG_PREFIX=$(build_short_tag_prefix "jdk")
+        JDK_BASE_IMAGE_VARIANT_SUFFIX="-jdk"
+    fi
     STANDARD_LAYER_TAG_PREFIX=$(build_tag_prefix "standard")
     STANDARD_CN_TAG_PREFIX=$(build_tag_prefix "standard_cn")
     CHINA_TAG_PREFIX=$(build_tag_prefix "cn")
@@ -451,15 +463,19 @@ run_build() {
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     BASE_JDK_DOCKERFILE="openjdk.Dockerfile"
     if [ "$JDK_PROVIDER" = "temurin" ]; then
-        BASE_JDK_DOCKERFILE="temurin.Dockerfile"
+        if [ "$USE_CN_ENV" = "true" ]; then
+            BASE_JDK_DOCKERFILE="temurin_cn.Dockerfile"
+        else
+            BASE_JDK_DOCKERFILE="temurin.Dockerfile"
+        fi
     fi
 
-    run_build "$BASE_JDK_DOCKERFILE" "${IMAGE_NAME}" "$JDK_TAG_PREFIX" "$(build_short_tag_prefix "jdk")"
+    run_build "$BASE_JDK_DOCKERFILE" "${IMAGE_NAME}" "$JDK_TAG_PREFIX" "$JDK_SHORT_TAG_PREFIX"
 
     if [ "$BUILD_DEV" = true ]; then
         if [ "$USE_CN_ENV" = "true" ]; then
             run_build "standard_cn.Dockerfile" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \
@@ -482,7 +498,7 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     else
         if [ "$USE_CN_ENV" = "true" ]; then
             run_build "standard_cn.Dockerfile" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \

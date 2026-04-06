@@ -77,7 +77,8 @@
 
 - **构建相关**
   - `openjdk.Dockerfile`: JDK 基础镜像定义，只安装 OpenJDK。
-  - `temurin.Dockerfile`: JDK 基础镜像定义，只安装 Eclipse Temurin（Adoptium apt 仓库）。
+  - `temurin.Dockerfile`: JDK 基础镜像定义，只安装 Eclipse Temurin（Adoptium 官方 apt 仓库）。
+  - `temurin_cn.Dockerfile`: 中国环境下的 Temurin JDK 基础镜像定义，只安装 Eclipse Temurin，并切换到清华 Adoptium 镜像源。
   - `standard.Dockerfile`: 标准环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm。
   - `standard_cn.Dockerfile`: 中国环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm，并切换 npm mirror。
   - `Dockerfile`: 最终运行镜像定义；标准构建基于 `standard.Dockerfile`，中国环境构建基于 `standard_cn.Dockerfile`。
@@ -100,6 +101,7 @@
 镜像 Tag 由完整前缀和 `.env` 中的 `IMAGE_TAG_TIME` 组成，不再省略默认字段。默认 provider 为 `openjdk`，如果使用 `--jdk-provider temurin`，则 tag 中的 `openjdk版本` 会变成 `temurin版本`。
 
 - `openjdk.Dockerfile` 或 `temurin.Dockerfile`：`系统-版本-桌面-provider版本-jdk-时间/latest/snapshot`
+- `temurin_cn.Dockerfile`：`系统-版本-桌面-temurin版本-jdk-cn-时间/latest/snapshot`
 - `standard.Dockerfile`：`系统-版本-桌面-provider版本-standard-时间/latest/snapshot`
 - `standard_cn.Dockerfile`：`系统-版本-桌面-provider版本-standard_cn-时间/latest/snapshot`
 - 标准最终镜像：`系统-版本-桌面-provider版本-时间/latest/snapshot`
@@ -117,6 +119,7 @@
 - `debian-trixie-xfce-openjdk21-dev-latest`
 - `debian-trixie-xfce-openjdk21-cn-dev-202603281653`
 - `debian-trixie-xfce-temurin21-jdk-202603281653`
+- `debian-trixie-xfce-temurin21-jdk-cn-202603281653`
 - `debian-trixie-xfce-temurin21-dev-snapshot`
 
 默认构建会优先使用 `.env` 中已有的 `IMAGE_TAG_TIME`，因此多次构建不会因为当前时间变化而改变 tag。只有在 `IMAGE_TAG_TIME` 缺失或格式非法时，脚本才会回退到运行时时间。
@@ -207,7 +210,7 @@ logs
 .env
 ```
 
-如果需要中国环境，请直接基于 `*-cn` 或 `*-cn-dev` tag。标准环境会先经过 `standard.Dockerfile` 安装 Node.js/npm，中国环境会改走 `standard_cn.Dockerfile` 并在安装阶段切换到国内 npm registry；最终 `Dockerfile` 仍会额外注入 Docker registry mirror、输入法和相关配置，因此不需要再额外复制 `switch-docker-mirror.sh`。
+如果需要中国环境，请直接基于 `*-cn` 或 `*-cn-dev` tag。标准环境会先经过 `standard.Dockerfile` 安装 Node.js/npm，中国环境会改走 `standard_cn.Dockerfile` 并在安装阶段切换到国内 npm registry；如果同时指定 `--jdk-provider temurin`，基础 JDK 层会自动改用 `temurin_cn.Dockerfile`，从清华 Adoptium 镜像源安装 Temurin。最终 `Dockerfile` 仍会额外注入 Docker registry mirror、输入法和相关配置，因此不需要再额外复制 `switch-docker-mirror.sh`。
 
 .devcontainer/devcontainer.json
 
