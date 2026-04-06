@@ -9,8 +9,8 @@ services:
       - "4723" # Appium
       - "22" # SSH
     volumes:
-      - ./logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
-      - ./data/authorized_keys:${CONTAINER_HOME:-/home/debian}/.ssh/authorized_keys
+      - ../../logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
+      - ../../data/authorized_keys:${CONTAINER_HOME:-/home/debian}/.ssh/authorized_keys
       - gradle_data:${CONTAINER_HOME:-/home/debian}/.gradle
       - konan_data:${CONTAINER_HOME:-/home/debian}/.konan
       - m2_data:${CONTAINER_HOME:-/home/debian}/.m2

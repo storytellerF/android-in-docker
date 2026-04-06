@@ -50,7 +50,7 @@ RUN ./bin/install-appium.sh
 RUN mkdir -p log/supervisor run
 
 # Copy supervisor configuration
-COPY --chown=${USER_UID}:${USER_GID} android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf
+COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf
 
 # Setup Android SDK Environment
 ENV ANDROID_HOME=/home/${USERNAME}/Android/Sdk

@@ -51,4 +51,4 @@ RUN nrm use tencent
 
 COPY --chown=${USER_UID}:${USER_GID} fcitx/config .config/fcitx/config
 COPY --chown=${USER_UID}:${USER_GID} fcitx/profile .config/fcitx/profile
-COPY --chown=${USER_UID}:${USER_GID} fcitx.supervisord.conf ./supervisor/conf.d/fcitx.supervisord.conf
+COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/fcitx.supervisord.conf ./supervisor/conf.d/fcitx.supervisord.conf

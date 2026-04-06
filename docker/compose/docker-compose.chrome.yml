@@ -1,0 +1,4 @@
+services:
+  android:
+    security_opt:
+      - seccomp:../config/seccomp/chrome.json

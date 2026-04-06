@@ -4,6 +4,10 @@ set -e
 IMAGE_NAME="android-in-docker"
 # IMAGE_TAG="latest"
 ENV_FILE=".env"
+DOCKER_ROOT="docker"
+DOCKERFILE_DIR="${DOCKER_ROOT}/dockerfiles"
+COMPOSE_DIR="${DOCKER_ROOT}/compose"
+FINAL_DOCKERFILE="${DOCKERFILE_DIR}/Dockerfile"
 DEFAULT_JDK_PROVIDER="openjdk"
 DEFAULT_JDK_VERSION="21"
 DEFAULT_VNC_PASSWORD="password"
@@ -27,13 +31,13 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
     echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
-    echo "  --cn-env                     Build the China image variant (uses standard_cn.Dockerfile and temurin_cn.Dockerfile when applicable)"
+    echo "  --cn-env                     Build the China image variant (uses ${DOCKERFILE_DIR}/standard_cn.Dockerfile and ${DOCKERFILE_DIR}/temurin_cn.Dockerfile when applicable)"
     echo "  --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
     echo "  --base-system <system>       Specify the base system (default: $DEFAULT_BASE_SYSTEM)"
     echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
-    echo "  -D, --dev                    Build dev.Dockerfile instead of Dockerfile (includes SSH, Chrome, Android Studio)"
+    echo "  -D, --dev                    Build ${DOCKERFILE_DIR}/dev.Dockerfile instead of ${DOCKERFILE_DIR}/Dockerfile (includes SSH, Chrome, Android Studio)"
     echo "  -S, --start                  Start docker compose up --build after building the image"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
     echo "  -m, --multi-arch             Enable multi-arch mode (builds/pushes for amd64 and arm64)"
@@ -138,9 +142,9 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-if [ -f "Dockerfile" ]; then
-    # Extract USERNAME from Dockerfile (ARG USERNAME=...)
-    DF_USERNAME=$(grep "^ARG USERNAME=" Dockerfile | cut -d'=' -f2 | tr -d '\r' | tr -d ' ')
+if [ -f "$FINAL_DOCKERFILE" ]; then
+    # Extract USERNAME from the final runtime Dockerfile (ARG USERNAME=...)
+    DF_USERNAME=$(grep "^ARG USERNAME=" "$FINAL_DOCKERFILE" | cut -d'=' -f2 | tr -d '\r' | tr -d ' ')
     CONTAINER_USER="${DF_USERNAME:-debian}"
 else
     CONTAINER_USER="debian"
@@ -461,12 +465,12 @@ run_build() {
 }
 
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
-    BASE_JDK_DOCKERFILE="openjdk.Dockerfile"
+    BASE_JDK_DOCKERFILE="${DOCKERFILE_DIR}/openjdk.Dockerfile"
     if [ "$JDK_PROVIDER" = "temurin" ]; then
         if [ "$USE_CN_ENV" = "true" ]; then
-            BASE_JDK_DOCKERFILE="temurin_cn.Dockerfile"
+            BASE_JDK_DOCKERFILE="${DOCKERFILE_DIR}/temurin_cn.Dockerfile"
         else
-            BASE_JDK_DOCKERFILE="temurin.Dockerfile"
+            BASE_JDK_DOCKERFILE="${DOCKERFILE_DIR}/temurin.Dockerfile"
         fi
     fi
 
@@ -474,41 +478,41 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
 
     if [ "$BUILD_DEV" = true ]; then
         if [ "$USE_CN_ENV" = "true" ]; then
-            run_build "standard_cn.Dockerfile" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
+            run_build "${DOCKERFILE_DIR}/standard_cn.Dockerfile" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
+            run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
                 --build-arg USE_CN_ENV=true
-            run_build "dev.Dockerfile" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
+            run_build "${DOCKERFILE_DIR}/dev.Dockerfile" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-cn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         else
-            run_build "standard.Dockerfile" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
+            run_build "${DOCKERFILE_DIR}/standard.Dockerfile" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+            run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
                 --build-arg USE_CN_ENV=false
-            run_build "dev.Dockerfile" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
+            run_build "${DOCKERFILE_DIR}/dev.Dockerfile" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         fi
     else
         if [ "$USE_CN_ENV" = "true" ]; then
-            run_build "standard_cn.Dockerfile" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
+            run_build "${DOCKERFILE_DIR}/standard_cn.Dockerfile" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
+            run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
                 --build-arg USE_CN_ENV=true
         else
-            run_build "standard.Dockerfile" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
+            run_build "${DOCKERFILE_DIR}/standard.Dockerfile" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+            run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
                 --build-arg USE_CN_ENV=false
@@ -523,14 +527,14 @@ if [ "$START_CONTAINER" = true ]; then
     echo ""
     # Check if dev flag is set and use appropriate docker-compose file
     if [ "$BUILD_DEV" = true ]; then
-        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
+        COMPOSE_FILES="-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.dev.yml"
         # if grep -qi "microsoft" /proc/version 2>/dev/null || grep -qi "wsl" /proc/version 2>/dev/null; then
-        #     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.privileged.yml"
+        #     COMPOSE_FILES="$COMPOSE_FILES -f ${COMPOSE_DIR}/docker-compose.privileged.yml"
         #     echo "Windows/WSL environment detected, using privileged configuration."
         # else
         #     echo "Standard Linux environment detected, using KVM and chrome configuration."
         # fi
-        COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.kvm.yml"
+        COMPOSE_FILES="$COMPOSE_FILES -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
         echo "Starting docker compose with DEV configuration..."
         export IMAGE_TAG="$IMAGE_TAG"
         export CONTAINER_HOME="$CONTAINER_HOME"
@@ -554,7 +558,7 @@ if [ "$START_CONTAINER" = true ]; then
         fi
     else
         # 启动并检查是否成功，如果成功显示下面的log
-        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.kvm.yml"
+        COMPOSE_FILES="-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
         echo "Starting standard docker compose..."
         export IMAGE_TAG="$IMAGE_TAG"
         export CONTAINER_HOME="$CONTAINER_HOME"

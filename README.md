@@ -4,7 +4,7 @@
 
 ## 快速开始
 
-1. 如果还没有外部 SDK 卷（在 `docker-compose.yml` 中声明为 `sdk_data`），先创建它：
+1. 如果还没有外部 SDK 卷（在 `docker/compose/docker-compose.yml` 中声明为 `sdk_data`），先创建它：
 
     ```sh
     docker volume create sdk_data
@@ -19,8 +19,8 @@
     **常用选项**：
     - `--jdk-provider`: 指定 JDK 提供方，支持 `openjdk` 和 `temurin`，默认 `openjdk`。
     - `-b, --build`: 本地构建镜像。
-    - `-D, --dev`: 构建开发版镜像（基于 `dev.Dockerfile`，包含 SSH, Chrome 等）。
-    - `--cn-env`: 构建中国环境变体（最终 `Dockerfile` 会基于 `standard_cn.Dockerfile`；标准环境则基于 `standard.Dockerfile`）。
+    - `-D, --dev`: 构建开发版镜像（基于 `docker/dockerfiles/dev.Dockerfile`，包含 SSH, Chrome 等）。
+    - `--cn-env`: 构建中国环境变体（最终 `docker/dockerfiles/Dockerfile` 会基于 `docker/dockerfiles/standard_cn.Dockerfile`；标准环境则基于 `docker/dockerfiles/standard.Dockerfile`）。
     - `-j, --jdk-version`: 指定 JDK 主版本（默认 21）。
     - `-P, --publish`: 构建并发布多架构镜像到 Docker Hub。
     - `-S, --start`: 构建后自动启动 Docker Compose。
@@ -58,9 +58,9 @@
     ```
 
     脚本会根据环境自动选择配置：
-    - **WSL/Windows**: 使用 `docker-compose.privileged.yml`。
-    - **Native Linux**: 使用 `docker-compose.kvm.yml`。
-    - **开发模式 (-D)**: 额外加载 `docker-compose.dev.yml`。
+    - **WSL/Windows**: 使用 `docker/compose/docker-compose.privileged.yml`。
+    - **Native Linux**: 使用 `docker/compose/docker-compose.kvm.yml`。
+    - **开发模式 (-D)**: 额外加载 `docker/compose/docker-compose.dev.yml`。
 
 4. 连接与验证
 
@@ -76,13 +76,13 @@
 ## 主要文件与脚本
 
 - **构建相关**
-  - `openjdk.Dockerfile`: JDK 基础镜像定义，只安装 OpenJDK。
-  - `temurin.Dockerfile`: JDK 基础镜像定义，只安装 Eclipse Temurin（Adoptium 官方 apt 仓库）。
-  - `temurin_cn.Dockerfile`: 中国环境下的 Temurin JDK 基础镜像定义，只安装 Eclipse Temurin，并切换到清华 Adoptium 镜像源。
-  - `standard.Dockerfile`: 标准环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm。
-  - `standard_cn.Dockerfile`: 中国环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm，并切换 npm mirror。
-  - `Dockerfile`: 最终运行镜像定义；标准构建基于 `standard.Dockerfile`，中国环境构建基于 `standard_cn.Dockerfile`。
-  - `dev.Dockerfile`: 开发版镜像定义（包含 SSH, Chrome, Android Studio 等）。
+  - `docker/dockerfiles/openjdk.Dockerfile`: JDK 基础镜像定义，只安装 OpenJDK。
+  - `docker/dockerfiles/temurin.Dockerfile`: JDK 基础镜像定义，只安装 Eclipse Temurin（Adoptium 官方 apt 仓库）。
+  - `docker/dockerfiles/temurin_cn.Dockerfile`: 中国环境下的 Temurin JDK 基础镜像定义，只安装 Eclipse Temurin，并切换到清华 Adoptium 镜像源。
+  - `docker/dockerfiles/standard.Dockerfile`: 标准环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm。
+  - `docker/dockerfiles/standard_cn.Dockerfile`: 中国环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm，并切换 npm mirror。
+  - `docker/dockerfiles/Dockerfile`: 最终运行镜像定义；标准构建基于 `docker/dockerfiles/standard.Dockerfile`，中国环境构建基于 `docker/dockerfiles/standard_cn.Dockerfile`。
+  - `docker/dockerfiles/dev.Dockerfile`: 开发版镜像定义（包含 SSH, Chrome, Android Studio 等）。
   - `scripts/build-image.sh`: 统一构建与启动入口。
 
 - **核心脚本 (位于 `base-scripts/`)**
@@ -92,18 +92,20 @@
   - `entrypoint.sh`: 容器入口脚本。
 
 - **配置管理**
-  - `supervisord.conf`: 基础进程管理。
-  - `ssh.supervisord.conf`: SSH 服务进程配置。
+  - `docker/compose/`: 运行时 compose 配置。
+  - `docker/config/supervisor/`: supervisor 相关配置。
+  - `docker/config/seccomp/chrome.json`: Chrome seccomp 配置。
+  - `docker/config/appium/appium-capability.json`: Appium capability 示例配置。
   - `.env`: 环境变量配置（参考 `env-example`）。
 
 ## 镜像 Tag 策略
 
 镜像 Tag 由完整前缀和 `.env` 中的 `IMAGE_TAG_TIME` 组成，不再省略默认字段。默认 provider 为 `openjdk`，如果使用 `--jdk-provider temurin`，则 tag 中的 `openjdk版本` 会变成 `temurin版本`。
 
-- `openjdk.Dockerfile` 或 `temurin.Dockerfile`：`系统-版本-桌面-provider版本-jdk-时间/latest/snapshot`
-- `temurin_cn.Dockerfile`：`系统-版本-桌面-temurin版本-jdk-cn-时间/latest/snapshot`
-- `standard.Dockerfile`：`系统-版本-桌面-provider版本-standard-时间/latest/snapshot`
-- `standard_cn.Dockerfile`：`系统-版本-桌面-provider版本-standard_cn-时间/latest/snapshot`
+- `docker/dockerfiles/openjdk.Dockerfile` 或 `docker/dockerfiles/temurin.Dockerfile`：`系统-版本-桌面-provider版本-jdk-时间/latest/snapshot`
+- `docker/dockerfiles/temurin_cn.Dockerfile`：`系统-版本-桌面-temurin版本-jdk-cn-时间/latest/snapshot`
+- `docker/dockerfiles/standard.Dockerfile`：`系统-版本-桌面-provider版本-standard-时间/latest/snapshot`
+- `docker/dockerfiles/standard_cn.Dockerfile`：`系统-版本-桌面-provider版本-standard_cn-时间/latest/snapshot`
 - 标准最终镜像：`系统-版本-桌面-provider版本-时间/latest/snapshot`
 - 中国环境镜像：`系统-版本-桌面-provider版本-cn-时间/latest/snapshot`
 - 开发镜像（基于标准镜像）：`系统-版本-桌面-provider版本-dev-时间/latest/snapshot`
@@ -143,7 +145,7 @@ IMAGE_TAG_TIME="202603281653"
 
 ## 卷与持久化
 
-docker-compose 已配置以下卷（见 [`docker-compose.yml`](docker-compose.yml)）：
+docker-compose 已配置以下卷（见 [`docker/compose/docker-compose.yml`](docker/compose/docker-compose.yml)）：
 
 - `avd_data`: 保存虚拟设备数据（`/home/debian/.android/avd`）。
 - `sdk_data`: 持久化 Android SDK（外部卷，`/home/debian/Android/Sdk`）。
@@ -162,9 +164,9 @@ docker-compose 已配置以下卷（见 [`docker-compose.yml`](docker-compose.ym
 - 重建镜像并重启：
 
 ```sh
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
+docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml down
+docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml build --no-cache
+docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml up -d
 ```
 
 - **进入容器调试**:
@@ -210,7 +212,7 @@ logs
 .env
 ```
 
-如果需要中国环境，请直接基于 `*-cn` 或 `*-cn-dev` tag。标准环境会先经过 `standard.Dockerfile` 安装 Node.js/npm，中国环境会改走 `standard_cn.Dockerfile` 并在安装阶段切换到国内 npm registry；如果同时指定 `--jdk-provider temurin`，基础 JDK 层会自动改用 `temurin_cn.Dockerfile`，从清华 Adoptium 镜像源安装 Temurin。最终 `Dockerfile` 仍会额外注入 Docker registry mirror、输入法和相关配置，因此不需要再额外复制 `switch-docker-mirror.sh`。
+如果需要中国环境，请直接基于 `*-cn` 或 `*-cn-dev` tag。标准环境会先经过 `docker/dockerfiles/standard.Dockerfile` 安装 Node.js/npm，中国环境会改走 `docker/dockerfiles/standard_cn.Dockerfile` 并在安装阶段切换到国内 npm registry；如果同时指定 `--jdk-provider temurin`，基础 JDK 层会自动改用 `docker/dockerfiles/temurin_cn.Dockerfile`，从清华 Adoptium 镜像源安装 Temurin。最终 `docker/dockerfiles/Dockerfile` 仍会额外注入 Docker registry mirror、输入法和相关配置，因此不需要再额外复制 `switch-docker-mirror.sh`。
 
 .devcontainer/devcontainer.json
 

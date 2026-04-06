@@ -11,9 +11,9 @@ services:
       - VNC_GEOMETRY=1920x1080
       - VNC_DEPTH=24
     env_file:
-      - .env
+      - ../../.env
     volumes:
-      - ./logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
+      - ../../logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
       - avd_data:${CONTAINER_HOME:-/home/debian}/.android/avd
       - sdk_data:${CONTAINER_HOME:-/home/debian}/Android/Sdk
       - bash_history:${CONTAINER_HOME:-/home/debian}/.desktop-in-docker/.bash_history

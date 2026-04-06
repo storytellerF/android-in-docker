@@ -59,7 +59,7 @@ RUN mkdir -p /home/${USER_NAME}/Desktop && \
     printf "[Desktop Entry]\nVersion=1.0\nType=Application\nName=Android Studio\nExec=studio\nIcon=/home/${USER_NAME}/Applications/android-studio/bin/studio.svg\nTerminal=false\nCategories=Development;IDE;" > /home/${USER_NAME}/Desktop/android-studio.desktop && \
     chmod +x /home/${USER_NAME}/Desktop/android-studio.desktop
 
-COPY --chown=${USER_UID}:${USER_GID} ssh.supervisord.conf /home/${USER_NAME}/supervisor/conf.d/ssh.supervisord.conf
+COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/ssh.supervisord.conf /home/${USER_NAME}/supervisor/conf.d/ssh.supervisord.conf
 COPY --chown=${USER_UID}:${USER_GID} scripts/start-ssh.sh /home/${USER_NAME}/bin/start-ssh.sh
 RUN chmod +x /home/${USER_NAME}/bin/start-ssh.sh
 
