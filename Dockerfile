@@ -11,6 +11,13 @@ ARG USE_CN_ENV=false
 
 USER root
 
+# Install system packages shared by all Android images.
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --no-install-recommends --no-install-suggests \
+    qemu-kvm \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN set -eux; \
 	add_group_for_gid() { \
 		gid="$1"; \

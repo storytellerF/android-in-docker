@@ -19,7 +19,7 @@
     **常用选项**：
     - `-b, --build`: 本地构建镜像。
     - `-D, --dev`: 构建开发版镜像（基于 `dev.Dockerfile`，包含 SSH, Chrome 等）。
-    - `--cn-env`: 构建中国环境变体（最终 `Dockerfile` 会基于 `basecn.Dockerfile`；标准环境则基于 `standard.Dockerfile`）。
+    - `--cn-env`: 构建中国环境变体（最终 `Dockerfile` 会基于 `standard_cn.Dockerfile`；标准环境则基于 `standard.Dockerfile`）。
     - `-j, --jdk-version`: 指定 OpenJDK 版本（默认 21）。
     - `-P, --publish`: 构建并发布多架构镜像到 Docker Hub。
     - `-S, --start`: 构建后自动启动 Docker Compose。
@@ -72,10 +72,10 @@
 ## 主要文件与脚本
 
 - **构建相关**
-  - `base.Dockerfile`: 基础镜像定义，只安装系统级 apt 依赖。
+  - `openjdk.Dockerfile`: JDK 基础镜像定义，只安装 OpenJDK。
   - `standard.Dockerfile`: 标准环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm。
-  - `basecn.Dockerfile`: 中国环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm，并切换 npm mirror。
-  - `Dockerfile`: 最终运行镜像定义；标准构建基于 `standard.Dockerfile`，中国环境构建基于 `basecn.Dockerfile`。
+  - `standard_cn.Dockerfile`: 中国环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm，并切换 npm mirror。
+  - `Dockerfile`: 最终运行镜像定义；标准构建基于 `standard.Dockerfile`，中国环境构建基于 `standard_cn.Dockerfile`。
   - `dev.Dockerfile`: 开发版镜像定义（包含 SSH, Chrome, Android Studio 等）。
   - `scripts/build-image.sh`: 统一构建与启动入口。
 
@@ -94,9 +94,9 @@
 
 镜像 Tag 由完整前缀和 `.env` 中的 `IMAGE_TAG_TIME` 组成，不再省略默认字段。
 
-- `base.Dockerfile`：`系统-版本-桌面-openjdk版本-base-时间/latest/snapshot`
+- `openjdk.Dockerfile`：`系统-版本-桌面-openjdk版本-jdk-时间/latest/snapshot`
 - `standard.Dockerfile`：`系统-版本-桌面-openjdk版本-standard-时间/latest/snapshot`
-- `basecn.Dockerfile`：`系统-版本-桌面-openjdk版本-basecn-时间/latest/snapshot`
+- `standard_cn.Dockerfile`：`系统-版本-桌面-openjdk版本-standard_cn-时间/latest/snapshot`
 - 标准最终镜像：`系统-版本-桌面-openjdk版本-时间/latest/snapshot`
 - 中国环境镜像：`系统-版本-桌面-openjdk版本-cn-时间/latest/snapshot`
 - 开发镜像（基于标准镜像）：`系统-版本-桌面-openjdk版本-dev-时间/latest/snapshot`
@@ -104,9 +104,9 @@
 
 例如：
 
-- `debian-trixie-xfce-openjdk21-base-202603281653`
+- `debian-trixie-xfce-openjdk21-jdk-202603281653`
 - `debian-trixie-xfce-openjdk21-standard-latest`
-- `debian-trixie-xfce-openjdk21-basecn-latest`
+- `debian-trixie-xfce-openjdk21-standard_cn-latest`
 - `debian-trixie-xfce-openjdk21-202603281653`
 - `debian-trixie-xfce-openjdk21-cn-snapshot`
 - `debian-trixie-xfce-openjdk21-dev-latest`
@@ -199,7 +199,7 @@ logs
 .env
 ```
 
-如果需要中国环境，请直接基于 `*-cn` 或 `*-cn-dev` tag。标准环境会先经过 `standard.Dockerfile` 安装 Node.js/npm，中国环境会改走 `basecn.Dockerfile` 并在安装阶段切换到国内 npm registry；最终 `Dockerfile` 仍会额外注入 Docker registry mirror、输入法和相关配置，因此不需要再额外复制 `switch-docker-mirror.sh`。
+如果需要中国环境，请直接基于 `*-cn` 或 `*-cn-dev` tag。标准环境会先经过 `standard.Dockerfile` 安装 Node.js/npm，中国环境会改走 `standard_cn.Dockerfile` 并在安装阶段切换到国内 npm registry；最终 `Dockerfile` 仍会额外注入 Docker registry mirror、输入法和相关配置，因此不需要再额外复制 `switch-docker-mirror.sh`。
 
 .devcontainer/devcontainer.json
 
