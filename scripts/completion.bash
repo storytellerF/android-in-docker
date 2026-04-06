@@ -5,9 +5,13 @@ _build_image_completion() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="-j --jdk-version -c --create-env -p --password -h --help -b --build -D --dev -S --start -P --publish -m --multi-arch -s --system-image --latest --no-snapshot"
+    opts="--jdk-provider -j --jdk-version -c --create-env -p --password -h --help -b --build -D --dev -S --start -P --publish -m --multi-arch -s --system-image --latest --no-snapshot"
 
     case "${prev}" in
+        --jdk-provider)
+            COMPREPLY=( $(compgen -W "openjdk temurin" -- ${cur}) )
+            return 0
+            ;;
         -j|--jdk-version)
             # Suggest common LTS versions
             COMPREPLY=( $(compgen -W "8 11 17 21 25" -- ${cur}) )

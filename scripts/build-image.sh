@@ -4,6 +4,7 @@ set -e
 IMAGE_NAME="android-in-docker"
 # IMAGE_TAG="latest"
 ENV_FILE=".env"
+DEFAULT_JDK_PROVIDER="openjdk"
 DEFAULT_JDK_VERSION="21"
 DEFAULT_VNC_PASSWORD="password"
 DEFAULT_SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
@@ -20,13 +21,14 @@ validate_tag_time() {
 usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "Options:"
-    echo "  -j, --jdk-version <version>  Specify the OpenJDK version (default: $DEFAULT_JDK_VERSION)"
+    echo "  --jdk-provider <provider>    Specify the JDK provider (openjdk, temurin) (default: $DEFAULT_JDK_PROVIDER)"
+    echo "  -j, --jdk-version <version>  Specify the JDK version (default: $DEFAULT_JDK_VERSION)"
     echo "  -p, --password <password>    Specify the VNC password (default: $DEFAULT_VNC_PASSWORD)"
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
-    echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)
-    --cn-env                     Build the China image variant (Dockerfile based on standard_cn.Dockerfile)
-    --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
+    echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
+    echo "  --cn-env                     Build the China image variant (Dockerfile based on standard_cn.Dockerfile)"
+    echo "  --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
     echo "  --base-system <system>       Specify the base system (default: $DEFAULT_BASE_SYSTEM)"
     echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
@@ -49,6 +51,7 @@ START_CONTAINER=false
 PUBLISH=false
 MULTI_ARCH=false
 DOCKER_USERNAME=""
+JDK_PROVIDER_INPUT=""
 JDK_VERSION=""
 VNC_PASSWORD=""
 SYS_IMG_PKG=""
@@ -62,6 +65,10 @@ TAG_SNAPSHOT=true
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
+        --jdk-provider)
+            JDK_PROVIDER_INPUT="$2"
+            shift
+            ;;
         -j|--jdk-version)
             JDK_VERSION="$2"
             shift
@@ -152,6 +159,7 @@ fi
 
 # Re-apply command line arguments if valid (overriding .env)
 [ -n "$DOCKER_USERNAME" ] && DOCKER_USERNAME="$DOCKER_USERNAME"
+[ -n "$JDK_PROVIDER_INPUT" ] && JDK_PROVIDER="$JDK_PROVIDER_INPUT"
 [ -n "$JDK_VERSION" ] && OPENJDK_VERSION="$JDK_VERSION"
 [ -n "$VNC_PASSWORD" ] && VNC_PASSWD="$VNC_PASSWORD"
 # SYS_IMG_PKG from args overrides the default legacy entry in .env
@@ -161,12 +169,23 @@ fi
 [ -n "$BASE_VERSION_INPUT" ] && BASE_VERSION="$BASE_VERSION_INPUT"
 
 # Set defaults if still empty
+JDK_PROVIDER="${JDK_PROVIDER:-$DEFAULT_JDK_PROVIDER}"
 OPENJDK_VERSION="${OPENJDK_VERSION:-$DEFAULT_JDK_VERSION}"
 VNC_PASSWD="${VNC_PASSWD:-$DEFAULT_VNC_PASSWORD}"
 SYS_IMG_PKG="${SYS_IMG_PKG:-$DEFAULT_SYS_IMG_PKG}"
 DESKTOP_TYPE="${DESKTOP_TYPE:-$DEFAULT_DESKTOP_TYPE}"
 BASE_SYSTEM="${BASE_SYSTEM:-$DEFAULT_BASE_SYSTEM}"
 BASE_VERSION="${BASE_VERSION:-$DEFAULT_BASE_VERSION}"
+
+case "$JDK_PROVIDER" in
+    openjdk|temurin)
+        ;;
+    *)
+        echo "Unsupported JDK provider: $JDK_PROVIDER"
+        echo "Supported values: openjdk, temurin"
+        exit 1
+        ;;
+esac
 
 # Timezone: use CLI argument if provided, otherwise detect from host
 if [ -n "$TIMEZONE_INPUT" ]; then
@@ -200,7 +219,7 @@ fi
 
 # Build fully-qualified tag prefixes.
 build_tag_prefix() {
-    local prefix="${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-openjdk${OPENJDK_VERSION}"
+    local prefix="${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-${JDK_PROVIDER}${OPENJDK_VERSION}"
     if [ -n "$1" ]; then
         prefix="${prefix}-$1"
     fi
@@ -218,11 +237,13 @@ build_image_tag() {
 
 build_short_core_prefix() {
     local parts=()
+    local provider_segment="${JDK_PROVIDER}${OPENJDK_VERSION}"
+    local default_provider_segment="${DEFAULT_JDK_PROVIDER}${DEFAULT_JDK_VERSION}"
 
     [ "$BASE_SYSTEM" != "$DEFAULT_BASE_SYSTEM" ] && parts+=("$BASE_SYSTEM")
     [ "$BASE_VERSION" != "$DEFAULT_BASE_VERSION" ] && parts+=("$BASE_VERSION")
     [ "$DESKTOP_TYPE" != "$DEFAULT_DESKTOP_TYPE" ] && parts+=("$DESKTOP_TYPE")
-    [ "$OPENJDK_VERSION" != "$DEFAULT_JDK_VERSION" ] && parts+=("openjdk${OPENJDK_VERSION}")
+    [ "$provider_segment" != "$default_provider_segment" ] && parts+=("$provider_segment")
 
     if [ ${#parts[@]} -gt 0 ]; then
         printf '%s' "$(IFS=-; echo "${parts[*]}")"
@@ -277,7 +298,7 @@ refresh_tag_context
 
 # If creating env, handle interactive mode
 if [ "$CREATE_ENV" = true ]; then
-    read -p "Enter OpenJDK version (default: $OPENJDK_VERSION): " INPUT_VERSION
+    read -p "Enter JDK version (default: $OPENJDK_VERSION): " INPUT_VERSION
     OPENJDK_VERSION="${INPUT_VERSION:-$OPENJDK_VERSION}"
     
     read -p "Enter VNC password (default: $VNC_PASSWD, enter 'r' for random): " INPUT_PASSWORD
@@ -401,6 +422,7 @@ run_build() {
     local build_args=(
         --build-arg BASE_SYSTEM="$BASE_SYSTEM"
         --build-arg BASE_VERSION="$BASE_VERSION"
+        --build-arg JDK_PROVIDER="$JDK_PROVIDER"
         --build-arg OPENJDK_VERSION="$OPENJDK_VERSION"
         --build-arg DESKTOP_TYPE="$DESKTOP_TYPE"
     )
@@ -427,7 +449,12 @@ run_build() {
 }
 
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
-    run_build "openjdk.Dockerfile" "${IMAGE_NAME}" "$JDK_TAG_PREFIX" "$(build_short_tag_prefix "jdk")"
+    BASE_JDK_DOCKERFILE="openjdk.Dockerfile"
+    if [ "$JDK_PROVIDER" = "temurin" ]; then
+        BASE_JDK_DOCKERFILE="temurin.Dockerfile"
+    fi
+
+    run_build "$BASE_JDK_DOCKERFILE" "${IMAGE_NAME}" "$JDK_TAG_PREFIX" "$(build_short_tag_prefix "jdk")"
 
     if [ "$BUILD_DEV" = true ]; then
         if [ "$USE_CN_ENV" = "true" ]; then

@@ -1,5 +1,6 @@
 services:
   android:
+    # Override IMAGE_TAG for non-default JDK providers, for example: debian-trixie-xfce-temurin21-snapshot.
     image: storytellerf/android-in-docker:${IMAGE_TAG:-debian-trixie-xfce-openjdk21-snapshot}
     ports:
       - "6080" # noVNC web interface

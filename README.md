@@ -17,10 +17,11 @@
     ```
 
     **常用选项**：
+    - `--jdk-provider`: 指定 JDK 提供方，支持 `openjdk` 和 `temurin`，默认 `openjdk`。
     - `-b, --build`: 本地构建镜像。
     - `-D, --dev`: 构建开发版镜像（基于 `dev.Dockerfile`，包含 SSH, Chrome 等）。
     - `--cn-env`: 构建中国环境变体（最终 `Dockerfile` 会基于 `standard_cn.Dockerfile`；标准环境则基于 `standard.Dockerfile`）。
-    - `-j, --jdk-version`: 指定 OpenJDK 版本（默认 21）。
+    - `-j, --jdk-version`: 指定 JDK 主版本（默认 21）。
     - `-P, --publish`: 构建并发布多架构镜像到 Docker Hub。
     - `-S, --start`: 构建后自动启动 Docker Compose。
 
@@ -35,7 +36,10 @@
     # 3. 构建中国环境镜像
     ./scripts/build-image.sh -b --cn-env
 
-    # 4. 构建并启动开发版（包含 SSH 和 Chrome）
+    # 4. 使用 Temurin 构建标准版镜像
+    ./scripts/build-image.sh -b --jdk-provider temurin
+
+    # 5. 构建并启动开发版（包含 SSH 和 Chrome）
     ./scripts/build-image.sh -D -S
     ```
 
@@ -73,6 +77,7 @@
 
 - **构建相关**
   - `openjdk.Dockerfile`: JDK 基础镜像定义，只安装 OpenJDK。
+  - `temurin.Dockerfile`: JDK 基础镜像定义，只安装 Eclipse Temurin（Adoptium apt 仓库）。
   - `standard.Dockerfile`: 标准环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm。
   - `standard_cn.Dockerfile`: 中国环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm，并切换 npm mirror。
   - `Dockerfile`: 最终运行镜像定义；标准构建基于 `standard.Dockerfile`，中国环境构建基于 `standard_cn.Dockerfile`。
@@ -92,15 +97,15 @@
 
 ## 镜像 Tag 策略
 
-镜像 Tag 由完整前缀和 `.env` 中的 `IMAGE_TAG_TIME` 组成，不再省略默认字段。
+镜像 Tag 由完整前缀和 `.env` 中的 `IMAGE_TAG_TIME` 组成，不再省略默认字段。默认 provider 为 `openjdk`，如果使用 `--jdk-provider temurin`，则 tag 中的 `openjdk版本` 会变成 `temurin版本`。
 
-- `openjdk.Dockerfile`：`系统-版本-桌面-openjdk版本-jdk-时间/latest/snapshot`
-- `standard.Dockerfile`：`系统-版本-桌面-openjdk版本-standard-时间/latest/snapshot`
-- `standard_cn.Dockerfile`：`系统-版本-桌面-openjdk版本-standard_cn-时间/latest/snapshot`
-- 标准最终镜像：`系统-版本-桌面-openjdk版本-时间/latest/snapshot`
-- 中国环境镜像：`系统-版本-桌面-openjdk版本-cn-时间/latest/snapshot`
-- 开发镜像（基于标准镜像）：`系统-版本-桌面-openjdk版本-dev-时间/latest/snapshot`
-- 开发镜像（基于中国环境镜像）：`系统-版本-桌面-openjdk版本-cn-dev-时间/latest/snapshot`
+- `openjdk.Dockerfile` 或 `temurin.Dockerfile`：`系统-版本-桌面-provider版本-jdk-时间/latest/snapshot`
+- `standard.Dockerfile`：`系统-版本-桌面-provider版本-standard-时间/latest/snapshot`
+- `standard_cn.Dockerfile`：`系统-版本-桌面-provider版本-standard_cn-时间/latest/snapshot`
+- 标准最终镜像：`系统-版本-桌面-provider版本-时间/latest/snapshot`
+- 中国环境镜像：`系统-版本-桌面-provider版本-cn-时间/latest/snapshot`
+- 开发镜像（基于标准镜像）：`系统-版本-桌面-provider版本-dev-时间/latest/snapshot`
+- 开发镜像（基于中国环境镜像）：`系统-版本-桌面-provider版本-cn-dev-时间/latest/snapshot`
 
 例如：
 
@@ -111,10 +116,12 @@
 - `debian-trixie-xfce-openjdk21-cn-snapshot`
 - `debian-trixie-xfce-openjdk21-dev-latest`
 - `debian-trixie-xfce-openjdk21-cn-dev-202603281653`
+- `debian-trixie-xfce-temurin21-jdk-202603281653`
+- `debian-trixie-xfce-temurin21-dev-snapshot`
 
 默认构建会优先使用 `.env` 中已有的 `IMAGE_TAG_TIME`，因此多次构建不会因为当前时间变化而改变 tag。只有在 `IMAGE_TAG_TIME` 缺失或格式非法时，脚本才会回退到运行时时间。
 
-还会额外提供“省略默认字段”的短标签别名：系统是 `debian` 就省略系统段，版本是 `trixie` 就省略版本段，桌面是 `xfce` 就省略桌面段，JDK 是 `openjdk21` 就省略 JDK 段。
+还会额外提供“省略默认字段”的短标签别名：系统是 `debian` 就省略系统段，版本是 `trixie` 就省略版本段，桌面是 `xfce` 就省略桌面段，JDK 默认是 `openjdk21` 时就省略 JDK 段；如果使用 `temurin21`，短标签会保留 `temurin21` 段。
 
 例如：
 
@@ -123,6 +130,7 @@
 - `ubuntu-trixie-xfce-openjdk17` 会额外提供 `ubuntu-openjdk17-时间/latest/snapshot`
 - `debian-trixie-xfce-openjdk21-cn` 会额外提供 `cn-时间/latest/snapshot`
 - `debian-bookworm-xfce-openjdk21-dev` 会额外提供 `bookworm-dev-时间/latest/snapshot`
+- `debian-trixie-xfce-temurin21` 会额外提供 `temurin21-时间/latest/snapshot`
 
 推荐在 `.env` 中仅维护时间字段：
 
