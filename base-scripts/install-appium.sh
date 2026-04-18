@@ -60,8 +60,8 @@ NPM_BIN_DIR=$(dirname "$NPM_BIN")
 export PATH="$NPM_BIN_DIR:$PATH"
 
 # Setup Appium，全局安装会安装到/usr/local/lib/node_modules，需要sudo权限
-echo "Installing Appium..."
-sudo "$NPM_BIN" install -g appium
+echo "Installing Appium 3.3.0..."
+sudo "$NPM_BIN" install -g appium@3.3.0
 
 APPIUM_BIN=$(find_appium_bin "$NPM_BIN_DIR") || {
 	echo "appium binary not found after installation." >&2

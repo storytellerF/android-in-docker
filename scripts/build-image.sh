@@ -14,7 +14,77 @@ DEFAULT_VNC_PASSWORD="password"
 DEFAULT_SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
 DEFAULT_DESKTOP_TYPE="xfce"
 DEFAULT_BASE_SYSTEM="debian"
-DEFAULT_BASE_VERSION="trixie"
+DEFAULT_DEBIAN_VERSION="trixie"
+DEFAULT_UBUNTU_VERSION="noble"
+
+default_base_version_for_system() {
+    case "$1" in
+        debian)
+            echo "$DEFAULT_DEBIAN_VERSION"
+            ;;
+        ubuntu)
+            echo "$DEFAULT_UBUNTU_VERSION"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+default_username_for_system() {
+    case "$1" in
+        debian)
+            echo "debian"
+            ;;
+        ubuntu)
+            echo "ubuntu"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+supported_base_versions_for_system() {
+    case "$1" in
+        debian)
+            echo "bookworm $DEFAULT_DEBIAN_VERSION"
+            ;;
+        ubuntu)
+            echo "jammy $DEFAULT_UBUNTU_VERSION"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+is_supported_base_system() {
+    case "$1" in
+        debian|ubuntu)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+is_supported_base_version_for_system() {
+    local system=$1
+    local version=$2
+    local supported_versions
+
+    supported_versions=$(supported_base_versions_for_system "$system") || return 1
+
+    for supported_version in $supported_versions; do
+        if [ "$supported_version" = "$version" ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
 
 validate_tag_time() {
     local value=$1
@@ -33,8 +103,8 @@ usage() {
     echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
     echo "  --cn-env                     Build the China image variant (uses ${DOCKERFILE_DIR}/standard_cn.Dockerfile and ${DOCKERFILE_DIR}/temurin_cn.Dockerfile when applicable)"
     echo "  --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
-    echo "  --base-system <system>       Specify the base system (default: $DEFAULT_BASE_SYSTEM)"
-    echo "  --base-version <version>     Specify the base version (default: $DEFAULT_BASE_VERSION)"
+    echo "  --base-system <system>       Specify the base system (debian, ubuntu) (default: $DEFAULT_BASE_SYSTEM)"
+    echo "  --base-version <version>     Specify the base version (debian: bookworm/$DEFAULT_DEBIAN_VERSION, ubuntu: jammy/$DEFAULT_UBUNTU_VERSION; default depends on --base-system)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
     echo "  -D, --dev                    Build ${DOCKERFILE_DIR}/dev.Dockerfile instead of ${DOCKERFILE_DIR}/Dockerfile (includes SSH, Chrome, Android Studio)"
@@ -142,15 +212,6 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-if [ -f "$FINAL_DOCKERFILE" ]; then
-    # Extract USERNAME from the final runtime Dockerfile (ARG USERNAME=...)
-    DF_USERNAME=$(grep "^ARG USERNAME=" "$FINAL_DOCKERFILE" | cut -d'=' -f2 | tr -d '\r' | tr -d ' ')
-    CONTAINER_USER="${DF_USERNAME:-debian}"
-else
-    CONTAINER_USER="debian"
-fi
-CONTAINER_HOME="/home/${CONTAINER_USER}"
-
 # Load existing .env if present
 if [ -f "$ENV_FILE" ]; then
     echo "Loading configuration from $ENV_FILE..."
@@ -179,7 +240,24 @@ VNC_PASSWD="${VNC_PASSWD:-$DEFAULT_VNC_PASSWORD}"
 SYS_IMG_PKG="${SYS_IMG_PKG:-$DEFAULT_SYS_IMG_PKG}"
 DESKTOP_TYPE="${DESKTOP_TYPE:-$DEFAULT_DESKTOP_TYPE}"
 BASE_SYSTEM="${BASE_SYSTEM:-$DEFAULT_BASE_SYSTEM}"
-BASE_VERSION="${BASE_VERSION:-$DEFAULT_BASE_VERSION}"
+if [ -z "$BASE_VERSION" ]; then
+    BASE_VERSION=$(default_base_version_for_system "$BASE_SYSTEM")
+fi
+
+CONTAINER_USER=$(default_username_for_system "$BASE_SYSTEM")
+CONTAINER_HOME="/home/${CONTAINER_USER}"
+
+if ! is_supported_base_system "$BASE_SYSTEM"; then
+    echo "Unsupported base system: $BASE_SYSTEM"
+    echo "Supported values: debian, ubuntu"
+    exit 1
+fi
+
+if ! is_supported_base_version_for_system "$BASE_SYSTEM" "$BASE_VERSION"; then
+    echo "Unsupported base version '$BASE_VERSION' for base system '$BASE_SYSTEM'"
+    echo "Supported versions for $BASE_SYSTEM: $(supported_base_versions_for_system "$BASE_SYSTEM")"
+    exit 1
+fi
 
 case "$JDK_PROVIDER" in
     openjdk|temurin)
@@ -245,7 +323,7 @@ build_short_core_prefix() {
     local default_provider_segment="${DEFAULT_JDK_PROVIDER}${DEFAULT_JDK_VERSION}"
 
     [ "$BASE_SYSTEM" != "$DEFAULT_BASE_SYSTEM" ] && parts+=("$BASE_SYSTEM")
-    [ "$BASE_VERSION" != "$DEFAULT_BASE_VERSION" ] && parts+=("$BASE_VERSION")
+    [ "$BASE_VERSION" != "$(default_base_version_for_system "$BASE_SYSTEM")" ] && parts+=("$BASE_VERSION")
     [ "$DESKTOP_TYPE" != "$DEFAULT_DESKTOP_TYPE" ] && parts+=("$DESKTOP_TYPE")
     [ "$provider_segment" != "$default_provider_segment" ] && parts+=("$provider_segment")
 
@@ -438,6 +516,7 @@ run_build() {
     local build_args=(
         --build-arg BASE_SYSTEM="$BASE_SYSTEM"
         --build-arg BASE_VERSION="$BASE_VERSION"
+        --build-arg USERNAME="$CONTAINER_USER"
         --build-arg JDK_PROVIDER="$JDK_PROVIDER"
         --build-arg OPENJDK_VERSION="$OPENJDK_VERSION"
         --build-arg DESKTOP_TYPE="$DESKTOP_TYPE"

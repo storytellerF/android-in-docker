@@ -22,6 +22,8 @@
     - `-D, --dev`: 构建开发版镜像（基于 `docker/dockerfiles/dev.Dockerfile`，包含 SSH, Chrome 等）。
     - `--cn-env`: 构建中国环境变体（最终 `docker/dockerfiles/Dockerfile` 会基于 `docker/dockerfiles/standard_cn.Dockerfile`；标准环境则基于 `docker/dockerfiles/standard.Dockerfile`）。
     - `-j, --jdk-version`: 指定 JDK 主版本（默认 21）。
+    - `--base-system`: 指定基础系统，支持 `debian` 和 `ubuntu`，默认 `debian`。
+    - `--base-version`: 指定基础系统版本；`debian` 默认 `trixie`，`ubuntu` 默认 `noble`。
     - `-P, --publish`: 构建并发布多架构镜像到 Docker Hub。
     - `-S, --start`: 构建后自动启动 Docker Compose。
 
@@ -39,7 +41,10 @@
     # 4. 使用 Temurin 构建标准版镜像
     ./scripts/build-image.sh -b --jdk-provider temurin
 
-    # 5. 构建并启动开发版（包含 SSH 和 Chrome）
+    # 5. 使用 Ubuntu Noble 构建标准版镜像
+    ./scripts/build-image.sh -b --base-system ubuntu
+
+    # 6. 构建并启动开发版（包含 SSH 和 Chrome）
     ./scripts/build-image.sh -D -S
     ```
 
@@ -126,13 +131,13 @@
 
 默认构建会优先使用 `.env` 中已有的 `IMAGE_TAG_TIME`，因此多次构建不会因为当前时间变化而改变 tag。只有在 `IMAGE_TAG_TIME` 缺失或格式非法时，脚本才会回退到运行时时间。
 
-还会额外提供“省略默认字段”的短标签别名：系统是 `debian` 就省略系统段，版本是 `trixie` 就省略版本段，桌面是 `xfce` 就省略桌面段，JDK 默认是 `openjdk21` 时就省略 JDK 段；如果使用 `temurin21`，短标签会保留 `temurin21` 段。
+还会额外提供“省略默认字段”的短标签别名：系统默认是 `debian` 时省略系统段；版本会按系统判断默认值，`debian` 默认省略 `trixie`，`ubuntu` 默认省略 `noble`；桌面是 `xfce` 就省略桌面段，JDK 默认是 `openjdk21` 时就省略 JDK 段；如果使用 `temurin21`，短标签会保留 `temurin21` 段。
 
 例如：
 
 - `debian-trixie-xfce-openjdk21` 会额外提供 `时间/latest/snapshot`
 - `debian-trixie-mate-openjdk21` 会额外提供 `mate-时间/latest/snapshot`
-- `ubuntu-trixie-xfce-openjdk17` 会额外提供 `ubuntu-openjdk17-时间/latest/snapshot`
+- `ubuntu-noble-xfce-openjdk17` 会额外提供 `ubuntu-openjdk17-时间/latest/snapshot`
 - `debian-trixie-xfce-openjdk21-cn` 会额外提供 `cn-时间/latest/snapshot`
 - `debian-bookworm-xfce-openjdk21-dev` 会额外提供 `bookworm-dev-时间/latest/snapshot`
 - `debian-trixie-xfce-temurin21` 会额外提供 `temurin21-时间/latest/snapshot`

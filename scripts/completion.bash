@@ -5,11 +5,23 @@ _build_image_completion() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="--jdk-provider -j --jdk-version -c --create-env -p --password -h --help -b --build -D --dev -S --start -P --publish -m --multi-arch -s --system-image --latest --no-snapshot"
+    opts="--jdk-provider -j --jdk-version -c --create-env -p --password -h --help -b --build -D --dev -S --start -P --publish -m --multi-arch -s --system-image --latest --no-snapshot --base-system --base-version --cn-env --no-cn-env -t --desktop-type -z --timezone"
 
     case "${prev}" in
         --jdk-provider)
             COMPREPLY=( $(compgen -W "openjdk temurin" -- ${cur}) )
+            return 0
+            ;;
+        --base-system)
+            COMPREPLY=( $(compgen -W "debian ubuntu" -- ${cur}) )
+            return 0
+            ;;
+        --base-version)
+            COMPREPLY=( $(compgen -W "trixie bookworm noble jammy" -- ${cur}) )
+            return 0
+            ;;
+        -t|--desktop-type)
+            COMPREPLY=( $(compgen -W "xfce lxqt mate" -- ${cur}) )
             return 0
             ;;
         -j|--jdk-version)
