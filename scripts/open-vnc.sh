@@ -1,5 +1,14 @@
 #!/bin/bash
 
+launch_quietly() {
+    if command -v setsid &> /dev/null; then
+        setsid "$@" >/dev/null 2>&1 </dev/null &
+    else
+        "$@" >/dev/null 2>&1 </dev/null &
+        disown
+    fi
+}
+
 # Try to find the docker-compose file
 COMPOSE_FILE=""
 if [ -f ".devcontainer/docker-compose.yml" ]; then
@@ -86,9 +95,8 @@ fi
 # Check if remmina exists (preferred)
 if command -v remmina &> /dev/null; then
     echo "Launching remmina vnc://localhost:$VNC_PORT ..."
-    # Note: remmina -c vnc://... works. We attempt to pass the password if available.
-    # If the password includes special characters, this might need encoding, but we'll try simple injection.
-    remmina -c "vnc://localhost:$VNC_PORT?name=Android-In-Docker&password=$VNC_PASSWD" &
+    # Remmina does not support passing the VNC password via the URI.
+    launch_quietly remmina -c "vnc://localhost:$VNC_PORT"
     exit 0
 fi
 
@@ -111,4 +119,3 @@ else
     # Fallback to general execution
     vncviewer "localhost:$VNC_PORT"
 fi
-

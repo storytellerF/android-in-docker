@@ -46,6 +46,9 @@
 
     # 6. 构建并启动开发版（包含 SSH 和 Chrome）
     ./scripts/build-image.sh -D -S
+
+    # 7. 停止当前 compose 服务
+    ./scripts/build-image.sh -K
     ```
 
     **启用 Bash 补全**：
@@ -172,6 +175,18 @@ docker-compose 已配置以下卷（见 [`docker/compose/docker-compose.yml`](do
 docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml down
 docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml build --no-cache
 docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml up -d
+```
+
+- 停止服务：
+
+```sh
+./scripts/build-image.sh -K
+```
+
+- 停止开发版服务：
+
+```sh
+./scripts/build-image.sh -D -K
 ```
 
 - **进入容器调试**:

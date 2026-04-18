@@ -109,6 +109,7 @@ usage() {
     echo "  -b, --build                  Execute the docker build process"
     echo "  -D, --dev                    Build ${DOCKERFILE_DIR}/dev.Dockerfile instead of ${DOCKERFILE_DIR}/Dockerfile (includes SSH, Chrome, Android Studio)"
     echo "  -S, --start                  Start docker compose up --build after building the image"
+    echo "  -K, --stop                   Stop docker compose and remove the project containers"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
     echo "  -m, --multi-arch             Enable multi-arch mode (builds/pushes for amd64 and arm64)"
     echo "  --latest                     Tag the image as 'latest'"
@@ -122,6 +123,7 @@ CREATE_ENV=false
 EXECUTE_BUILD=false
 BUILD_DEV=false
 START_CONTAINER=false
+STOP_CONTAINER=false
 PUBLISH=false
 MULTI_ARCH=false
 DOCKER_USERNAME=""
@@ -188,6 +190,9 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -S|--start)
             START_CONTAINER=true
+            ;;
+        -K|--stop)
+            STOP_CONTAINER=true
             ;;
         -P|--publish)
             PUBLISH=true
@@ -388,6 +393,30 @@ if ! validate_tag_time "$IMAGE_TAG_TIME"; then
 fi
 
 refresh_tag_context
+
+build_compose_files() {
+    if [ "$BUILD_DEV" = true ]; then
+        echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.dev.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
+    else
+        echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
+    fi
+}
+
+stop_compose_stack() {
+    local compose_files
+
+    compose_files=$(build_compose_files)
+
+    if [ "$BUILD_DEV" = true ]; then
+        echo "Stopping docker compose with DEV configuration..."
+    else
+        echo "Stopping standard docker compose..."
+    fi
+
+    export IMAGE_TAG="$IMAGE_TAG"
+    export CONTAINER_HOME="$CONTAINER_HOME"
+    docker compose $compose_files down
+}
 
 
 # If creating env, handle interactive mode
@@ -604,16 +633,9 @@ fi
 # Start container if requested
 if [ "$START_CONTAINER" = true ]; then
     echo ""
-    # Check if dev flag is set and use appropriate docker-compose file
+    COMPOSE_FILES=$(build_compose_files)
+
     if [ "$BUILD_DEV" = true ]; then
-        COMPOSE_FILES="-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.dev.yml"
-        # if grep -qi "microsoft" /proc/version 2>/dev/null || grep -qi "wsl" /proc/version 2>/dev/null; then
-        #     COMPOSE_FILES="$COMPOSE_FILES -f ${COMPOSE_DIR}/docker-compose.privileged.yml"
-        #     echo "Windows/WSL environment detected, using privileged configuration."
-        # else
-        #     echo "Standard Linux environment detected, using KVM and chrome configuration."
-        # fi
-        COMPOSE_FILES="$COMPOSE_FILES -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
         echo "Starting docker compose with DEV configuration..."
         export IMAGE_TAG="$IMAGE_TAG"
         export CONTAINER_HOME="$CONTAINER_HOME"
@@ -636,8 +658,6 @@ if [ "$START_CONTAINER" = true ]; then
             echo "Failed to start docker compose with DEV configuration."
         fi
     else
-        # 启动并检查是否成功，如果成功显示下面的log
-        COMPOSE_FILES="-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
         echo "Starting standard docker compose..."
         export IMAGE_TAG="$IMAGE_TAG"
         export CONTAINER_HOME="$CONTAINER_HOME"
@@ -658,6 +678,11 @@ if [ "$START_CONTAINER" = true ]; then
             echo "Failed to start docker compose."
         fi
     fi
+fi
+
+if [ "$STOP_CONTAINER" = true ]; then
+    echo ""
+    stop_compose_stack
 fi
 
 # Print summary of all built tags grouped by Dockerfile at the very end
