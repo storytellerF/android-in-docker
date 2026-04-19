@@ -17,6 +17,7 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
     apt-get install -y --no-install-recommends --no-install-suggests \
     qemu-kvm \
+	android-sdk-platform-tools-common \
     && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
@@ -32,7 +33,8 @@ RUN set -eux; \
 		usermod -aG "$group_name" "$USERNAME"; \
 	}; \
 	add_group_for_gid 992 hostkvm1; \
-	add_group_for_gid 993 hostkvm2
+	add_group_for_gid 993 hostkvm2; \
+	add_group_for_gid 46 hostplugdev
 
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
