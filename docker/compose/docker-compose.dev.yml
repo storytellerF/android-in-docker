@@ -16,8 +16,8 @@ services:
       - m2_data:${CONTAINER_HOME:-/home/debian}/.m2
       - avd_data:${CONTAINER_HOME:-/home/debian}/.android/avd
       - sdk_data:${CONTAINER_HOME:-/home/debian}/Android/Sdk
-      - chrome_cache:${CONTAINER_HOME:-/home/debian}/.cache/google-chrome
-      - chrome_config:${CONTAINER_HOME:-/home/debian}/.config/google-chrome
+      - firefox_cache:${CONTAINER_HOME}/.cache/mozilla/firefox
+      - firefox_config:${CONTAINER_HOME}/.mozilla/firefox
       - google_cache:${CONTAINER_HOME:-/home/debian}/.cache/Google
       - google_config:${CONTAINER_HOME:-/home/debian}/.config/Google
       - google_local:${CONTAINER_HOME:-/home/debian}/.local/share/Google
@@ -31,8 +31,8 @@ volumes:
     external: true
   konan_data:
   m2_data:
-  chrome_cache:
-  chrome_config:
+  firefox_cache:
+  firefox_config:
   google_cache:
   google_config:
   google_local:
