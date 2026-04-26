@@ -289,19 +289,15 @@ if [ -n "$USE_CN_ENV_INPUT" ]; then
     echo "USE_CN_ENV set from argument: $USE_CN_ENV"
 else
     _is_cn_tz=false
-    _is_cn_locale=false
     if echo "$SYSTEM_TIMEZONE" | grep -qE "^(Asia/(Shanghai|Chongqing|Chungking|Harbin|Urumqi)|PRC)$"; then
         _is_cn_tz=true
     fi
-    if echo "${LANG:-}${LC_ALL:-}${LC_CTYPE:-}" | grep -qi "zh"; then
-        _is_cn_locale=true
-    fi
-    if [ "$_is_cn_tz" = true ] || [ "$_is_cn_locale" = true ]; then
+    if [ "$_is_cn_tz" = true ]; then
         USE_CN_ENV=true
     else
         USE_CN_ENV=false
     fi
-    echo "USE_CN_ENV auto-detected: $USE_CN_ENV (cn_tz=$_is_cn_tz, cn_locale=$_is_cn_locale)"
+    echo "USE_CN_ENV auto-detected: $USE_CN_ENV (cn_tz=$_is_cn_tz)"
 fi
 
 # Build fully-qualified tag prefixes.
