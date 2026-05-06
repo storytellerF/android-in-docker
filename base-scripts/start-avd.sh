@@ -4,8 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOME_DIR="${HOME:-/home/$(id -un)}"
 PROFILE_DIR="${ANDROID_PROFILE_DIR:-${HOME_DIR}/android-profiles}"
-EMULATOR_START_PROFILE="${EMULATOR_START_PROFILE:-${PROFILE_DIR}/emulator-start.profile}"
-AVD_NAME="${1:-}"
+PROFILE_ARG="${1:-}"
+if [ -n "$PROFILE_ARG" ]; then
+    ANDROID_PROFILE="$PROFILE_ARG"
+else
+    ANDROID_PROFILE="${ANDROID_PROFILE:-${PROFILE_DIR}/android.profile}"
+fi
+LOADED_PROFILE="$ANDROID_PROFILE"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/profile-utils.sh"
@@ -14,41 +19,7 @@ build_emulator_args() {
     local -n args_ref="$1"
 
     args_ref=(-avd "$AVD_NAME")
-
-    append_flag_arg args_ref "${EMULATOR_ACCEL_OFF:-false}" -accel-off
-    append_flag_arg args_ref "${EMULATOR_DELAY_ADB:-false}" -delay-adb
-    append_flag_arg args_ref "${EMULATOR_NO_AUDIO:-false}" -no-audio
-    append_flag_arg args_ref "${EMULATOR_NO_BOOT_ANIM:-false}" -no-boot-anim
-    append_flag_arg args_ref "${EMULATOR_NO_JNI:-false}" -nojni
-    append_flag_arg args_ref "${EMULATOR_NO_SNAPSHOT:-false}" -no-snapshot
-    append_flag_arg args_ref "${EMULATOR_NO_SNAPSHOT_LOAD:-false}" -no-snapshot-load
-    append_flag_arg args_ref "${EMULATOR_NO_SNAPSHOT_SAVE:-false}" -no-snapshot-save
-    append_flag_arg args_ref "${EMULATOR_NO_WINDOW:-false}" -no-window
-    append_flag_arg args_ref "${EMULATOR_NETFAST:-false}" -netfast
-    append_flag_arg args_ref "${EMULATOR_READ_ONLY:-false}" -read-only
-    append_flag_arg args_ref "${EMULATOR_SHOW_KERNEL:-false}" -show-kernel
-    append_flag_arg args_ref "${EMULATOR_VERBOSE:-false}" -verbose
-    append_flag_arg args_ref "${EMULATOR_WIPE_DATA:-false}" -wipe-data
-
-    append_value_arg args_ref "${EMULATOR_ACCEL:-}" -accel
-    append_value_arg args_ref "${EMULATOR_CAMERA_BACK:-}" -camera-back
-    append_value_arg args_ref "${EMULATOR_CAMERA_FRONT:-}" -camera-front
-    append_value_arg args_ref "${EMULATOR_CORES:-}" -cores
-    append_value_arg args_ref "${EMULATOR_DATA:-}" -data
-    append_value_arg args_ref "${EMULATOR_DNS_SERVER:-}" -dns-server
-    append_value_arg args_ref "${EMULATOR_GPU:-}" -gpu
-    append_value_arg args_ref "${EMULATOR_GRPC:-}" -grpc
-    append_value_arg args_ref "${EMULATOR_HTTP_PROXY:-}" -http-proxy
-    append_value_arg args_ref "${EMULATOR_MEMORY:-}" -memory
-    append_value_arg args_ref "${EMULATOR_NETDELAY:-}" -netdelay
-    append_value_arg args_ref "${EMULATOR_NETSPEED:-}" -netspeed
-    append_value_arg args_ref "${EMULATOR_PORT:-}" -port
-    append_value_arg args_ref "${EMULATOR_PORTS:-}" -ports
-    append_value_arg args_ref "${EMULATOR_PROP:-}" -prop
-    append_value_arg args_ref "${EMULATOR_REPORT_CONSOLE:-}" -report-console
-    append_value_arg args_ref "${EMULATOR_SHELL_SERIAL:-}" -shell-serial
-    append_value_arg args_ref "${EMULATOR_SKIN:-}" -skin
-    append_value_arg args_ref "${EMULATOR_TIMEZONE:-}" -timezone
+    append_args_from_env args_ref EMULATOR -
 }
 
 # Graceful shutdown
@@ -64,13 +35,10 @@ shutdown() {
     exit 0
 }
 
-load_profile "$EMULATOR_START_PROFILE"
-assert_profile_keys_absent "$EMULATOR_START_PROFILE" ARCH ABI AVD_ARCH AVD_ABI AVDMANAGER_ABI AVDMANAGER_ARCH EMULATOR_ABI EMULATOR_ARCH
+load_profile "$ANDROID_PROFILE"
 
-if [ -z "$AVD_NAME" ]; then
-    echo "Error: missing AVD name." >&2
-    exit 1
-fi
+assert_profile_keys_absent "$LOADED_PROFILE" ARCH ABI AVD_ARCH AVD_ABI AVDMANAGER_ABI AVDMANAGER_ARCH EMULATOR_ABI EMULATOR_ARCH
+require_profile_value AVD_NAME
 
 echo "Starting emulator..."
 

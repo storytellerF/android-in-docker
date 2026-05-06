@@ -80,24 +80,67 @@ is_true() {
     esac
 }
 
-append_flag_arg() {
-    local -n target_ref="$1"
-    local value="$2"
-    local flag="$3"
+has_any_var_with_prefix() {
+    local var_prefix="$1"
+    local -a vars
 
-    if is_true "$value"; then
-        target_ref+=("$flag")
-    fi
+    mapfile -t vars < <(compgen -A variable "$var_prefix")
+    [ "${#vars[@]}" -gt 0 ]
 }
 
-append_value_arg() {
+append_args_from_env() {
     local -n target_ref="$1"
-    local value="$2"
-    local flag="$3"
+    local prefix="$2"
+    local dash="$3"
+    shift 3
+    local -a excludes=("$@")
 
-    if [ -n "$value" ]; then
-        target_ref+=("$flag" "$value")
-    fi
+    local -a flag_vars value_vars
+    local var name_raw name value should_skip
+
+    mapfile -t flag_vars < <(compgen -A variable "${prefix}_FLAG_")
+    for var in "${flag_vars[@]}"; do
+        name_raw="${var#${prefix}_FLAG_}"
+        should_skip=false
+        for name in "${excludes[@]}"; do
+            if [ "$name_raw" = "$name" ]; then
+                should_skip=true
+                break
+            fi
+        done
+        if [ "$should_skip" = true ]; then
+            continue
+        fi
+
+        value="${!var-}"
+        if is_true "$value"; then
+            name="${name_raw,,}"
+            name="${name//_/-}"
+            target_ref+=("${dash}${name}")
+        fi
+    done
+
+    mapfile -t value_vars < <(compgen -A variable "${prefix}_VALUE_")
+    for var in "${value_vars[@]}"; do
+        name_raw="${var#${prefix}_VALUE_}"
+        should_skip=false
+        for name in "${excludes[@]}"; do
+            if [ "$name_raw" = "$name" ]; then
+                should_skip=true
+                break
+            fi
+        done
+        if [ "$should_skip" = true ]; then
+            continue
+        fi
+
+        value="${!var-}"
+        if [ -n "$value" ]; then
+            name="${name_raw,,}"
+            name="${name//_/-}"
+            target_ref+=("${dash}${name}" "$value")
+        fi
+    done
 }
 
 assert_profile_keys_absent() {
