@@ -587,8 +587,7 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
-                --build-arg USE_CN_ENV=true
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "${DOCKERFILE_DIR}/dev.Dockerfile" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-cn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
@@ -598,8 +597,7 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
-                --build-arg USE_CN_ENV=false
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "${DOCKERFILE_DIR}/dev.Dockerfile" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         fi
@@ -610,16 +608,14 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
-                --build-arg USE_CN_ENV=true
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         else
             run_build "${DOCKERFILE_DIR}/standard.Dockerfile" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME" \
-                --build-arg USE_CN_ENV=false
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         fi
     fi
     echo "Cleaning up dangling images..."
