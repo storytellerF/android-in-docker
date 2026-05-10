@@ -17,10 +17,6 @@ ENV PATH=${NVM_DIR}/current/bin:${PATH}
 
 USER root
 
-RUN apt-get update && \
-	DEBIAN_FRONTEND=noninteractive apt-get install -y fcitx fcitx-googlepinyin && \
-	rm -rf /var/lib/apt/lists/*;
-
 RUN set -eux; \
 	mkdir -p "$NVM_DIR"; \
 	curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" -o /tmp/install-nvm.sh; \
@@ -48,7 +44,3 @@ ARG USER_GID=$USER_UID
 USER $USERNAME
 WORKDIR /home/$USERNAME
 RUN nrm use tencent
-
-COPY --chown=${USER_UID}:${USER_GID} fcitx/config .config/fcitx/config
-COPY --chown=${USER_UID}:${USER_GID} fcitx/profile .config/fcitx/profile
-COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/fcitx.supervisord.conf ./supervisor/conf.d/fcitx.supervisord.conf

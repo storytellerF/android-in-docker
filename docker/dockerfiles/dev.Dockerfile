@@ -10,18 +10,6 @@ FROM storytellerf/android-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYP
 USER root
 RUN apt update && DEBIAN_FRONTEND=noninteractive \
     apt install -y --no-install-recommends --no-install-suggests curl openssh-server extrepo gnupg2 git && \
-    apt install -y fonts-noto && \
-    rm -rf /var/lib/apt/lists/*
-
-# install firefox
-RUN install -d -m 0755 /etc/apt/keyrings && \
-    wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null && \
-    printf 'Types: deb\nURIs: https://packages.mozilla.org/apt\nSuites: mozilla\nComponents: main\nSigned-By: /etc/apt/keyrings/packages.mozilla.org.asc\n' \
-        > /etc/apt/sources.list.d/mozilla.sources && \
-    printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
-        > /etc/apt/preferences.d/mozilla && \
-    apt update && DEBIAN_FRONTEND=noninteractive \
-    apt install -y firefox && \
     rm -rf /var/lib/apt/lists/*
 
 # install VS Code

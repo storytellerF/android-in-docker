@@ -49,8 +49,6 @@ RUN chmod +x ./bin/*.sh
 # Install Appium
 RUN ./bin/install-appium.sh
 
-RUN mkdir -p log/supervisor run
-
 # Copy supervisor configuration
 COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf
 
