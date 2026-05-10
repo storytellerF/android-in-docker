@@ -628,6 +628,61 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     fi
     echo "Cleaning up dangling images..."
     docker image prune -f
+
+    if [ ${#ALL_BUILT_TAGS[@]} -gt 0 ]; then
+        echo ""
+        echo "========================================================"
+        echo "Final Summary of All Built Tags:"
+        echo "========================================================"
+
+        # Collect unique Dockerfiles in order
+        declare -a unique_dfs=()
+        for entry in "${ALL_BUILT_TAGS[@]}"; do
+            df_name="${entry%%|*}"
+            found=false
+            for u in "${unique_dfs[@]}"; do
+                [[ "$u" == "$df_name" ]] && found=true && break
+            done
+            if [ "$found" = false ]; then
+                unique_dfs+=("$df_name")
+            fi
+        done
+
+        # Print a table per Dockerfile
+        for current_df in "${unique_dfs[@]}"; do
+            # Calculate column widths for this group
+            max_tag=3
+            max_reason=6
+            for entry in "${ALL_BUILT_TAGS[@]}"; do
+                df_name="${entry%%|*}"
+                [[ "$df_name" != "$current_df" ]] && continue
+                tag_info="${entry#*|}"
+                tag_name="${tag_info%%|*}"
+                tag_reason="${tag_info#*|}"
+                (( ${#tag_name} > max_tag )) && max_tag=${#tag_name}
+                (( ${#tag_reason} > max_reason )) && max_reason=${#tag_reason}
+            done
+
+            echo ""
+            echo "  [$current_df]"
+            printf "  %-${max_tag}s | %-${max_reason}s\n" "Tag" "Reason"
+            printf "  %-${max_tag}s-+-%-${max_reason}s\n" \
+                "$(printf '%*s' "$max_tag" '' | tr ' ' '-')" \
+                "$(printf '%*s' "$max_reason" '' | tr ' ' '-')"
+
+            for entry in "${ALL_BUILT_TAGS[@]}"; do
+                df_name="${entry%%|*}"
+                [[ "$df_name" != "$current_df" ]] && continue
+                tag_info="${entry#*|}"
+                tag_name="${tag_info%%|*}"
+                tag_reason="${tag_info#*|}"
+                printf "  %-${max_tag}s | %-${max_reason}s\n" "$tag_name" "$tag_reason"
+            done
+        done
+
+        echo ""
+        echo "========================================================"
+    fi
 fi
 
 # Start container if requested
@@ -683,60 +738,4 @@ fi
 if [ "$STOP_CONTAINER" = true ]; then
     echo ""
     stop_compose_stack
-fi
-
-# Print summary of all built tags grouped by Dockerfile at the very end
-if [ ${#ALL_BUILT_TAGS[@]} -gt 0 ]; then
-    echo ""
-    echo "========================================================"
-    echo "Final Summary of All Built Tags:"
-    echo "========================================================"
-
-    # Collect unique Dockerfiles in order
-    declare -a unique_dfs=()
-    for entry in "${ALL_BUILT_TAGS[@]}"; do
-        df_name="${entry%%|*}"
-        found=false
-        for u in "${unique_dfs[@]}"; do
-            [[ "$u" == "$df_name" ]] && found=true && break
-        done
-        if [ "$found" = false ]; then
-            unique_dfs+=("$df_name")
-        fi
-    done
-
-    # Print a table per Dockerfile
-    for current_df in "${unique_dfs[@]}"; do
-        # Calculate column widths for this group
-        max_tag=3
-        max_reason=6
-        for entry in "${ALL_BUILT_TAGS[@]}"; do
-            df_name="${entry%%|*}"
-            [[ "$df_name" != "$current_df" ]] && continue
-            tag_info="${entry#*|}"
-            tag_name="${tag_info%%|*}"
-            tag_reason="${tag_info#*|}"
-            (( ${#tag_name} > max_tag )) && max_tag=${#tag_name}
-            (( ${#tag_reason} > max_reason )) && max_reason=${#tag_reason}
-        done
-
-        echo ""
-        echo "  [$current_df]"
-        printf "  %-${max_tag}s | %-${max_reason}s\n" "Tag" "Reason"
-        printf "  %-${max_tag}s-+-%-${max_reason}s\n" \
-            "$(printf '%*s' "$max_tag" '' | tr ' ' '-')" \
-            "$(printf '%*s' "$max_reason" '' | tr ' ' '-')"
-
-        for entry in "${ALL_BUILT_TAGS[@]}"; do
-            df_name="${entry%%|*}"
-            [[ "$df_name" != "$current_df" ]] && continue
-            tag_info="${entry#*|}"
-            tag_name="${tag_info%%|*}"
-            tag_reason="${tag_info#*|}"
-            printf "  %-${max_tag}s | %-${max_reason}s\n" "$tag_name" "$tag_reason"
-        done
-    done
-
-    echo ""
-    echo "========================================================"
 fi
