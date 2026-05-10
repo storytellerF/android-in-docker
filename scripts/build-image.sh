@@ -300,6 +300,12 @@ else
     echo "USE_CN_ENV auto-detected: $USE_CN_ENV (cn_tz=$_is_cn_tz)"
 fi
 
+DESKTOP_IMAGE_REGION_SUFFIX=""
+if [ "$USE_CN_ENV" = "true" ]; then
+    DESKTOP_IMAGE_REGION_SUFFIX="-cn"
+fi
+DESKTOP_IMAGE_LABEL="${DESKTOP_IMAGE_LABEL:-latest}"
+
 # Build fully-qualified tag prefixes.
 build_tag_prefix() {
     local prefix="${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-${JDK_PROVIDER}${OPENJDK_VERSION}"
@@ -578,7 +584,9 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
         fi
     fi
 
-    run_build "$BASE_JDK_DOCKERFILE" "${IMAGE_NAME}" "$JDK_TAG_PREFIX" "$JDK_SHORT_TAG_PREFIX"
+    run_build "$BASE_JDK_DOCKERFILE" "${IMAGE_NAME}" "$JDK_TAG_PREFIX" "$JDK_SHORT_TAG_PREFIX" \
+        --build-arg DESKTOP_IMAGE_REGION_SUFFIX="$DESKTOP_IMAGE_REGION_SUFFIX" \
+        --build-arg DESKTOP_IMAGE_LABEL="$DESKTOP_IMAGE_LABEL"
 
     if [ "$BUILD_DEV" = true ]; then
         if [ "$USE_CN_ENV" = "true" ]; then
