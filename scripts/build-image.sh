@@ -438,10 +438,6 @@ if [ "$CREATE_ENV" = true ]; then
     read -p "Enter Docker Hub Username (default: $DOCKER_USERNAME, optional, required for publish): " INPUT_DOCKER_USERNAME
     DOCKER_USERNAME="${INPUT_DOCKER_USERNAME:-$DOCKER_USERNAME}"
 
-    echo "--- System Image Configuration ---"
-    read -p "Enter System Image Package (default: $SYS_IMG_PKG): " INPUT_SysImg
-    SYS_IMG_PKG="${INPUT_SysImg:-$SYS_IMG_PKG}"
-
     # Helper to write or update var in file
     update_env_var() {
         local key=$1
@@ -454,12 +450,16 @@ if [ "$CREATE_ENV" = true ]; then
         fi
     }
 
+    remove_env_var() {
+        local key=$1
+        local file=$2
+        sed -i "/^${key}=/d" "$file"
+    }
+
     # Initialize file if not exists
     touch "$ENV_FILE"
 
-    if ! validate_tag_time "$IMAGE_TAG_TIME"; then
-        IMAGE_TAG_TIME="$TIME_FALLBACK"
-    fi
+    IMAGE_TAG_TIME="$TIME_FALLBACK"
     refresh_tag_context
 
     echo "Updating $ENV_FILE..."
@@ -467,10 +467,10 @@ if [ "$CREATE_ENV" = true ]; then
     update_env_var "DOCKER_USERNAME" "$DOCKER_USERNAME" "$ENV_FILE"
     update_env_var "OPENJDK_VERSION" "$OPENJDK_VERSION" "$ENV_FILE"
     update_env_var "VNC_PASSWD" "$VNC_PASSWD" "$ENV_FILE"
-    update_env_var "SYS_IMG_PKG" "$SYS_IMG_PKG" "$ENV_FILE"
-    update_env_var "BASE_SYSTEM" "$BASE_SYSTEM" "$ENV_FILE"
-    update_env_var "BASE_VERSION" "$BASE_VERSION" "$ENV_FILE"
     update_env_var "IMAGE_TAG_TIME" "$IMAGE_TAG_TIME" "$ENV_FILE"
+    remove_env_var "SYS_IMG_PKG" "$ENV_FILE"
+    remove_env_var "BASE_SYSTEM" "$ENV_FILE"
+    remove_env_var "BASE_VERSION" "$ENV_FILE"
     
     echo ".env file updated."
 else
