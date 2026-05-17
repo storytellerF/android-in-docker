@@ -13,11 +13,11 @@ _build_image_completion() {
             return 0
             ;;
         --base-system)
-            COMPREPLY=( $(compgen -W "debian ubuntu" -- ${cur}) )
+            COMPREPLY=( $(compgen -W "debian ubuntu fedora arch alpine" -- ${cur}) )
             return 0
             ;;
         --base-version)
-            COMPREPLY=( $(compgen -W "trixie bookworm noble jammy" -- ${cur}) )
+            COMPREPLY=( $(compgen -W "trixie bookworm noble jammy resolute 41 42 43 44 latest 3.21 3.22" -- ${cur}) )
             return 0
             ;;
         -t|--desktop-type)

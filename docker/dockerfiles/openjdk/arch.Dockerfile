@@ -1,0 +1,14 @@
+ARG BASE_SYSTEM=arch
+ARG BASE_VERSION=latest
+ARG DESKTOP_TYPE=xfce
+ARG DESKTOP_IMAGE_REGION_SUFFIX=
+ARG DESKTOP_IMAGE_LABEL=latest
+FROM storytellerf/desktop-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}${DESKTOP_IMAGE_REGION_SUFFIX}-${DESKTOP_IMAGE_LABEL}
+
+ARG OPENJDK_VERSION=21
+
+USER root
+
+RUN pacman -Sy --noconfirm --needed \
+    jdk${OPENJDK_VERSION}-openjdk \
+    && pacman -Scc --noconfirm

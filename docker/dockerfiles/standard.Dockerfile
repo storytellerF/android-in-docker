@@ -15,6 +15,16 @@ ENV PATH=${NVM_DIR}/current/bin:${PATH}
 USER root
 
 RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
+        bash \
+        ca-certificates \
+        curl \
+        tar \
+        xz-utils; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
     mkdir -p "$NVM_DIR"; \
     curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" -o /tmp/install-nvm.sh; \
     PROFILE=/dev/null NVM_DIR="$NVM_DIR" bash /tmp/install-nvm.sh; \

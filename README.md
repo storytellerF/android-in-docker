@@ -22,8 +22,8 @@
     - `-D, --dev`: 构建开发版镜像（基于 `docker/dockerfiles/dev.Dockerfile`，包含 SSH, Chrome 等）。
     - `--cn-env`: 构建中国环境变体（最终 `docker/dockerfiles/Dockerfile` 会基于 `docker/dockerfiles/standard_cn.Dockerfile`；标准环境则基于 `docker/dockerfiles/standard.Dockerfile`）。
     - `-j, --jdk-version`: 指定 JDK 主版本（默认 21）。
-    - `--base-system`: 指定基础系统，支持 `debian` 和 `ubuntu`，默认 `debian`。
-    - `--base-version`: 指定基础系统版本；`debian` 默认 `trixie`，`ubuntu` 默认 `noble`。
+    - `--base-system`: 指定基础系统，支持 `debian`、`ubuntu`、`fedora`、`arch`、`alpine`，默认 `debian`。
+    - `--base-version`: 指定基础系统版本；`debian` 默认 `trixie`，`ubuntu` 默认 `noble`，`fedora` 默认 `44`，`arch`/`alpine` 默认 `latest`。
     - `-P, --publish`: 构建并发布多架构镜像到 Docker Hub。
     - `-S, --start`: 构建后自动启动 Docker Compose。
 
@@ -43,6 +43,9 @@
 
     # 5. 使用 Ubuntu Noble 构建标准版镜像
     ./scripts/build-image.sh -b --base-system ubuntu
+
+    # 5.1 使用 Fedora 44 构建标准版镜像
+    ./scripts/build-image.sh -b --base-system fedora
 
     # 6. 构建并启动开发版（包含 SSH 和 Chrome）
     ./scripts/build-image.sh -D -S
@@ -84,13 +87,12 @@
 ## 主要文件与脚本
 
 - **构建相关**
-  - `docker/dockerfiles/openjdk.Dockerfile`: JDK 基础镜像定义，只安装 OpenJDK。
-  - `docker/dockerfiles/temurin.Dockerfile`: JDK 基础镜像定义，只安装 Eclipse Temurin（Adoptium 官方 apt 仓库）。
-  - `docker/dockerfiles/temurin_cn.Dockerfile`: 中国环境下的 Temurin JDK 基础镜像定义，只安装 Eclipse Temurin，并切换到清华 Adoptium 镜像源。
-  - `docker/dockerfiles/standard.Dockerfile`: 标准环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm。
-  - `docker/dockerfiles/standard_cn.Dockerfile`: 中国环境 Node.js 层，使用 `nvm` 安装最新 Node.js/npm，并切换 npm mirror。
-  - `docker/dockerfiles/Dockerfile`: 最终运行镜像定义；标准构建基于 `docker/dockerfiles/standard.Dockerfile`，中国环境构建基于 `docker/dockerfiles/standard_cn.Dockerfile`。
-  - `docker/dockerfiles/dev.Dockerfile`: 开发版镜像定义（包含 SSH, Chrome, Android Studio 等）。
+  - `docker/dockerfiles/openjdk.Dockerfile` 与 `docker/dockerfiles/openjdk/`: JDK 基础镜像定义，只安装 OpenJDK；非 Debian 系统使用子目录中的系统专属 Dockerfile。
+  - `docker/dockerfiles/temurin.Dockerfile`、`docker/dockerfiles/temurin/`、`docker/dockerfiles/temurin_cn/`: Eclipse Temurin JDK 基础镜像定义；Debian/Ubuntu 使用 apt 仓库，Fedora 使用 rpm 仓库，Arch 使用 Adoptium API tarball，Alpine 使用 apk 仓库。
+  - `docker/dockerfiles/standard.Dockerfile`、`docker/dockerfiles/standard/`: 标准环境 Node.js 层；Fedora/Arch 使用 `nvm`，Alpine 使用发行版 `nodejs/npm` 以避免 glibc 二进制兼容问题。
+  - `docker/dockerfiles/standard_cn.Dockerfile`、`docker/dockerfiles/standard_cn/`: 中国环境 Node.js 层，并切换 npm mirror。
+  - `docker/dockerfiles/Dockerfile`、`docker/dockerfiles/android/`: 最终运行镜像定义；按系统安装 Android tools / QEMU / KVM 相关包。
+  - `docker/dockerfiles/dev.Dockerfile`、`docker/dockerfiles/dev/`: 开发版镜像定义（包含 SSH, Android Studio 等）；Fedora 安装 VS Code，Arch/Alpine 不额外安装 VS Code。
   - `scripts/build-image.sh`: 统一构建与启动入口。
 
 - **核心脚本 (位于 `base-scripts/`)**
@@ -212,6 +214,7 @@ adb devices
 - **首次启动**: 会自动下载 Android SDK 及其组件，耗时较长，请确保网络畅通。
 - **权限**: 在 Linux 宿主机上运行通常需要 `SYS_ADMIN` 能力和 `/dev/kvm` 访问权限。
 - **自定义配置**: 建议通过修改 `.env` 文件或 `build-image.sh -c` 来快速调整参数。
+- **Alpine 支持**: Alpine 镜像可用于构建验证，但 Android Studio/Emulator 官方 Linux 要求 glibc 2.31+，因此 Alpine 运行 Emulator/Android Studio 属于实验性场景。
 
 # 在Dev Container 中使用
 

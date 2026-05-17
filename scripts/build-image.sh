@@ -16,6 +16,9 @@ DEFAULT_DESKTOP_TYPE="xfce"
 DEFAULT_BASE_SYSTEM="debian"
 DEFAULT_DEBIAN_VERSION="trixie"
 DEFAULT_UBUNTU_VERSION="noble"
+DEFAULT_FEDORA_VERSION="44"
+DEFAULT_ARCH_VERSION="latest"
+DEFAULT_ALPINE_VERSION="latest"
 
 default_base_version_for_system() {
     case "$1" in
@@ -24,6 +27,15 @@ default_base_version_for_system() {
             ;;
         ubuntu)
             echo "$DEFAULT_UBUNTU_VERSION"
+            ;;
+        fedora)
+            echo "$DEFAULT_FEDORA_VERSION"
+            ;;
+        arch)
+            echo "$DEFAULT_ARCH_VERSION"
+            ;;
+        alpine)
+            echo "$DEFAULT_ALPINE_VERSION"
             ;;
         *)
             return 1
@@ -39,6 +51,15 @@ default_username_for_system() {
         ubuntu)
             echo "ubuntu"
             ;;
+        fedora)
+            echo "user"
+            ;;
+        arch)
+            echo "arch"
+            ;;
+        alpine)
+            echo "alpine"
+            ;;
         *)
             return 1
             ;;
@@ -51,7 +72,16 @@ supported_base_versions_for_system() {
             echo "bookworm $DEFAULT_DEBIAN_VERSION"
             ;;
         ubuntu)
-            echo "jammy $DEFAULT_UBUNTU_VERSION"
+            echo "jammy $DEFAULT_UBUNTU_VERSION resolute"
+            ;;
+        fedora)
+            echo "41 42 43 $DEFAULT_FEDORA_VERSION"
+            ;;
+        arch)
+            echo "$DEFAULT_ARCH_VERSION"
+            ;;
+        alpine)
+            echo "3.21 3.22 $DEFAULT_ALPINE_VERSION"
             ;;
         *)
             return 1
@@ -61,7 +91,7 @@ supported_base_versions_for_system() {
 
 is_supported_base_system() {
     case "$1" in
-        debian|ubuntu)
+        debian|ubuntu|fedora|arch|alpine)
             return 0
             ;;
         *)
@@ -91,6 +121,14 @@ validate_tag_time() {
     [[ "$value" =~ ^[0-9]{12,14}$ ]]
 }
 
+supported_base_systems() {
+    echo "debian, ubuntu, fedora, arch, alpine"
+}
+
+supported_base_versions_summary() {
+    echo "debian: bookworm/$DEFAULT_DEBIAN_VERSION, ubuntu: jammy/$DEFAULT_UBUNTU_VERSION/resolute, fedora: 41/42/43/$DEFAULT_FEDORA_VERSION, arch: latest, alpine: 3.21/3.22/latest"
+}
+
 # Function to display usage
 usage() {
     echo "Usage: $0 [OPTIONS]"
@@ -103,8 +141,8 @@ usage() {
     echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
     echo "  --cn-env                     Build the China image variant (uses ${DOCKERFILE_DIR}/standard_cn.Dockerfile and ${DOCKERFILE_DIR}/temurin_cn.Dockerfile when applicable)"
     echo "  --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
-    echo "  --base-system <system>       Specify the base system (debian, ubuntu) (default: $DEFAULT_BASE_SYSTEM)"
-    echo "  --base-version <version>     Specify the base version (debian: bookworm/$DEFAULT_DEBIAN_VERSION, ubuntu: jammy/$DEFAULT_UBUNTU_VERSION; default depends on --base-system)"
+    echo "  --base-system <system>       Specify the base system ($(supported_base_systems)) (default: $DEFAULT_BASE_SYSTEM)"
+    echo "  --base-version <version>     Specify the base version ($(supported_base_versions_summary); default depends on --base-system)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
     echo "  -D, --dev                    Build ${DOCKERFILE_DIR}/dev.Dockerfile instead of ${DOCKERFILE_DIR}/Dockerfile (includes SSH, Chrome, Android Studio)"
@@ -254,7 +292,7 @@ CONTAINER_HOME="/home/${CONTAINER_USER}"
 
 if ! is_supported_base_system "$BASE_SYSTEM"; then
     echo "Unsupported base system: $BASE_SYSTEM"
-    echo "Supported values: debian, ubuntu"
+    echo "Supported values: $(supported_base_systems)"
     exit 1
 fi
 
@@ -262,6 +300,10 @@ if ! is_supported_base_version_for_system "$BASE_SYSTEM" "$BASE_VERSION"; then
     echo "Unsupported base version '$BASE_VERSION' for base system '$BASE_SYSTEM'"
     echo "Supported versions for $BASE_SYSTEM: $(supported_base_versions_for_system "$BASE_SYSTEM")"
     exit 1
+fi
+
+if [ "$BASE_SYSTEM" = "alpine" ]; then
+    echo "Warning: Alpine support is experimental. Android Studio/Emulator upstream Linux requirements include glibc 2.31+."
 fi
 
 case "$JDK_PROVIDER" in
@@ -401,6 +443,17 @@ build_compose_files() {
         echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.dev.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
     else
         echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
+    fi
+}
+
+resolve_system_dockerfile() {
+    local default_dockerfile=$1
+    local system_dockerfile=$2
+
+    if [ -f "$system_dockerfile" ]; then
+        echo "$system_dockerfile"
+    else
+        echo "$default_dockerfile"
     fi
 }
 
@@ -548,6 +601,7 @@ run_build() {
         --build-arg BASE_SYSTEM="$BASE_SYSTEM"
         --build-arg BASE_VERSION="$BASE_VERSION"
         --build-arg USERNAME="$CONTAINER_USER"
+        --build-arg USER_NAME="$CONTAINER_USER"
         --build-arg JDK_PROVIDER="$JDK_PROVIDER"
         --build-arg OPENJDK_VERSION="$OPENJDK_VERSION"
         --build-arg DESKTOP_TYPE="$DESKTOP_TYPE"
@@ -583,6 +637,14 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
             BASE_JDK_DOCKERFILE="${DOCKERFILE_DIR}/temurin.Dockerfile"
         fi
     fi
+    BASE_JDK_DOCKERFILE=$(resolve_system_dockerfile "$BASE_JDK_DOCKERFILE" "${DOCKERFILE_DIR}/${JDK_PROVIDER}/${BASE_SYSTEM}.Dockerfile")
+    if [ "$JDK_PROVIDER" = "temurin" ] && [ "$USE_CN_ENV" = "true" ]; then
+        BASE_JDK_DOCKERFILE=$(resolve_system_dockerfile "$BASE_JDK_DOCKERFILE" "${DOCKERFILE_DIR}/temurin_cn/${BASE_SYSTEM}.Dockerfile")
+    fi
+    STANDARD_DOCKERFILE=$(resolve_system_dockerfile "${DOCKERFILE_DIR}/standard.Dockerfile" "${DOCKERFILE_DIR}/standard/${BASE_SYSTEM}.Dockerfile")
+    STANDARD_CN_DOCKERFILE=$(resolve_system_dockerfile "${DOCKERFILE_DIR}/standard_cn.Dockerfile" "${DOCKERFILE_DIR}/standard_cn/${BASE_SYSTEM}.Dockerfile")
+    FINAL_DOCKERFILE=$(resolve_system_dockerfile "${DOCKERFILE_DIR}/Dockerfile" "${DOCKERFILE_DIR}/android/${BASE_SYSTEM}.Dockerfile")
+    DEV_DOCKERFILE=$(resolve_system_dockerfile "${DOCKERFILE_DIR}/dev.Dockerfile" "${DOCKERFILE_DIR}/dev/${BASE_SYSTEM}.Dockerfile")
 
     run_build "$BASE_JDK_DOCKERFILE" "${IMAGE_NAME}" "$JDK_TAG_PREFIX" "$JDK_SHORT_TAG_PREFIX" \
         --build-arg DESKTOP_IMAGE_REGION_SUFFIX="$DESKTOP_IMAGE_REGION_SUFFIX" \
@@ -590,38 +652,38 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
 
     if [ "$BUILD_DEV" = true ]; then
         if [ "$USE_CN_ENV" = "true" ]; then
-            run_build "${DOCKERFILE_DIR}/standard_cn.Dockerfile" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
+            run_build "$STANDARD_CN_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
+            run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "${DOCKERFILE_DIR}/dev.Dockerfile" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
+            run_build "$DEV_DOCKERFILE" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-cn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         else
-            run_build "${DOCKERFILE_DIR}/standard.Dockerfile" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
+            run_build "$STANDARD_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+            run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "${DOCKERFILE_DIR}/dev.Dockerfile" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
+            run_build "$DEV_DOCKERFILE" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         fi
     else
         if [ "$USE_CN_ENV" = "true" ]; then
-            run_build "${DOCKERFILE_DIR}/standard_cn.Dockerfile" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
+            run_build "$STANDARD_CN_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
+            run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         else
-            run_build "${DOCKERFILE_DIR}/standard.Dockerfile" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
+            run_build "$STANDARD_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "${DOCKERFILE_DIR}/Dockerfile" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
+            run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         fi
@@ -707,7 +769,7 @@ if [ "$START_CONTAINER" = true ]; then
             [ -n "$NOVNC_PORT" ] && echo "  - Web VNC: http://localhost:${NOVNC_PORT}/vnc.html"
             [ -n "$VNC_PORT" ] && echo "  - VNC direct: localhost:${VNC_PORT}"
             [ -n "$APPIUM_PORT" ] && echo "  - Appium: http://localhost:${APPIUM_PORT}/inspector"
-            [ -n "$SSH_PORT" ] && echo "  - SSH: ssh -p ${SSH_PORT} debian@localhost"
+            [ -n "$SSH_PORT" ] && echo "  - SSH: ssh -p ${SSH_PORT} ${CONTAINER_USER}@localhost"
             [ -n "$ADB_PORT" ] && echo "  - ADB: adb connect localhost:${ADB_PORT}"
         else
             echo "Failed to start docker compose with DEV configuration."

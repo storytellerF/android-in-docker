@@ -18,6 +18,9 @@ RUN set -eux; \
     ca-certificates \
     gpg \
     wget; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
     wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
         | gpg --dearmor \
         | tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null; \

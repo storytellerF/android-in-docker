@@ -13,14 +13,18 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive \
     rm -rf /var/lib/apt/lists/*
 
 # install VS Code
-RUN apt-get install -y wget gpg apt-transport-https && \
-    wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --no-install-recommends --no-install-suggests wget gpg apt-transport-https && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
     install -D -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/microsoft.gpg && \
     rm -f microsoft.gpg && \
     printf 'Types: deb\nURIs: https://packages.microsoft.com/repos/code\nSuites: stable\nComponents: main\nArchitectures: amd64,arm64,armhf\nSigned-By: /usr/share/keyrings/microsoft.gpg\n' \
-        > /etc/apt/sources.list.d/vscode.sources && \
-    apt update && DEBIAN_FRONTEND=noninteractive \
-    apt install -y code && \
+        > /etc/apt/sources.list.d/vscode.sources
+
+RUN apt update && DEBIAN_FRONTEND=noninteractive \
+    apt install -y --no-install-recommends --no-install-suggests code && \
     rm -rf /var/lib/apt/lists/*
 
 # 开启公钥认证，禁用密码登录（可选但推荐）

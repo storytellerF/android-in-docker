@@ -1,5 +1,5 @@
-ARG BASE_SYSTEM=debian
-ARG BASE_VERSION=trixie
+ARG BASE_SYSTEM=alpine
+ARG BASE_VERSION=latest
 ARG DESKTOP_TYPE=xfce
 ARG JDK_PROVIDER=openjdk
 ARG OPENJDK_VERSION=21
@@ -7,17 +7,14 @@ ARG BASE_IMAGE_VARIANT_SUFFIX=
 ARG BASE_IMAGE_SOURCE_LABEL=latest
 FROM storytellerf/android-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-${JDK_PROVIDER}${OPENJDK_VERSION}${BASE_IMAGE_VARIANT_SUFFIX}-${BASE_IMAGE_SOURCE_LABEL}
 
-ARG USERNAME=debian
+ARG USERNAME=alpine
 
 USER root
 
-# Install system packages shared by all Android images.
-RUN set -eux; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
-        qemu-kvm \
-        android-sdk-platform-tools-common; \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+    android-tools \
+    qemu-img \
+    qemu-system-x86_64
 
 RUN set -eux; \
 	add_group_for_gid() { \
@@ -41,22 +38,15 @@ ARG USER_GID=$USER_UID
 USER $USERNAME
 WORKDIR /home/$USERNAME
 
-# Copy Scripts
 COPY --chown=${USER_UID}:${USER_GID} base-scripts ./bin
 COPY --chown=${USER_UID}:${USER_GID} base-profiles ./android-profiles
 RUN chmod +x ./bin/*.sh
 
-# Install Appium
 RUN ./bin/install-appium.sh
 
-# Copy supervisor configuration
 COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf
 
-# Setup Android SDK Environment
 ENV ANDROID_HOME=/home/${USERNAME}/Android/Sdk
 ENV PATH=$PATH:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
 
-# Expose Ports:
-# 5555: ADB port
-# 4723: Appium port
 EXPOSE 5555 4723

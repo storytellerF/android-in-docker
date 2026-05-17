@@ -17,6 +17,9 @@ RUN set -eux; \
     apt-transport-https \
     ca-certificates \
     wget; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
     install -d -m 0755 /etc/apt/keyrings; \
     wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public \
         | tee /etc/apt/keyrings/adoptium.asc > /dev/null; \
