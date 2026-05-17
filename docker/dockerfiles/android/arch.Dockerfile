@@ -39,7 +39,8 @@ USER $USERNAME
 WORKDIR /home/$USERNAME
 
 COPY --chown=${USER_UID}:${USER_GID} base-scripts ./bin
-COPY --chown=${USER_UID}:${USER_GID} base-profiles ./android-profiles
+COPY --chown=${USER_UID}:${USER_GID} external/android-profile/scripts ./bin
+COPY --chown=${USER_UID}:${USER_GID} external/android-profile/profiles ./android-profiles
 RUN chmod +x ./bin/*.sh
 
 RUN ./bin/install-appium.sh

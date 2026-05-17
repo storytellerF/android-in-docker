@@ -97,10 +97,11 @@
   - `scripts/build-image.sh`: 统一构建与启动入口。
 
 - **核心脚本 (位于 `base-scripts/`)**
-  - `start-android.sh`: 启动 Android Emulator（自动调用 `install-sdk.sh`）。
+  - `start-android.sh`: 启动 Android Emulator（自动调用来自 `external/android-profile` 的 `install-sdk.sh`、`create-avd.sh` 和 `start-avd.sh`）。
   - `start-vnc.sh`: 启动 VNC 服务。
   - `start-appium.sh`: 启动 Appium Server.
   - `entrypoint.sh`: 容器入口脚本。
+  - `external/android-profile`: Git submodule，提供 Android SDK 安装、AVD 创建/启动脚本和默认 `android.profile`。克隆本仓库后执行 `git submodule update --init --recursive` 初始化；更新脚本来源时升级 submodule 指针。
 
 - **配置管理**
   - `docker/compose/`: 运行时 compose 配置。
