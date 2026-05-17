@@ -7,7 +7,6 @@ ENV_FILE=".env"
 DOCKER_ROOT="docker"
 DOCKERFILE_DIR="${DOCKER_ROOT}/dockerfiles"
 COMPOSE_DIR="${DOCKER_ROOT}/compose"
-FINAL_DOCKERFILE="${DOCKERFILE_DIR}/Dockerfile"
 DEFAULT_JDK_PROVIDER="openjdk"
 DEFAULT_JDK_VERSION="21"
 DEFAULT_VNC_PASSWORD="password"
@@ -139,13 +138,13 @@ usage() {
     echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
     echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
-    echo "  --cn-env                     Build the China image variant (uses ${DOCKERFILE_DIR}/standard_cn.Dockerfile and ${DOCKERFILE_DIR}/temurin_cn.Dockerfile when applicable)"
+    echo "  --cn-env                     Build the China image variant (uses ${DOCKERFILE_DIR}/standard_cn/<system>.Dockerfile and ${DOCKERFILE_DIR}/temurin_cn/<system>.Dockerfile when applicable)"
     echo "  --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
     echo "  --base-system <system>       Specify the base system ($(supported_base_systems)) (default: $DEFAULT_BASE_SYSTEM)"
     echo "  --base-version <version>     Specify the base version ($(supported_base_versions_summary); default depends on --base-system)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
-    echo "  -D, --dev                    Build ${DOCKERFILE_DIR}/dev.Dockerfile instead of ${DOCKERFILE_DIR}/Dockerfile (includes SSH, Chrome, Android Studio)"
+    echo "  -D, --dev                    Build ${DOCKERFILE_DIR}/dev/<system>.Dockerfile after ${DOCKERFILE_DIR}/android/<system>.Dockerfile (includes SSH, Chrome, Android Studio)"
     echo "  -S, --start                  Start docker compose up --build after building the image"
     echo "  -K, --stop                   Stop docker compose and remove the project containers"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
@@ -446,15 +445,27 @@ build_compose_files() {
     fi
 }
 
-resolve_system_dockerfile() {
-    local default_dockerfile=$1
-    local system_dockerfile=$2
+resolve_component_dockerfile() {
+    local component=$1
+    local system=$2
+    local system_dockerfile="${DOCKERFILE_DIR}/${component}/${system}.Dockerfile"
+    local debian_dockerfile="${DOCKERFILE_DIR}/${component}/debian.Dockerfile"
 
     if [ -f "$system_dockerfile" ]; then
         echo "$system_dockerfile"
-    else
-        echo "$default_dockerfile"
+        return 0
     fi
+
+    if [ "$system" = "ubuntu" ] && [ -f "$debian_dockerfile" ]; then
+        echo "$debian_dockerfile"
+        return 0
+    fi
+
+    echo "Error: missing Dockerfile for component '$component' and base system '$system': expected $system_dockerfile" >&2
+    if [ "$system" = "ubuntu" ]; then
+        echo "       Ubuntu may share Debian Dockerfile, but $debian_dockerfile was not found." >&2
+    fi
+    return 1
 }
 
 stop_compose_stack() {
@@ -629,22 +640,16 @@ run_build() {
 }
 
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
-    BASE_JDK_DOCKERFILE="${DOCKERFILE_DIR}/openjdk.Dockerfile"
-    if [ "$JDK_PROVIDER" = "temurin" ]; then
-        if [ "$USE_CN_ENV" = "true" ]; then
-            BASE_JDK_DOCKERFILE="${DOCKERFILE_DIR}/temurin_cn.Dockerfile"
-        else
-            BASE_JDK_DOCKERFILE="${DOCKERFILE_DIR}/temurin.Dockerfile"
-        fi
-    fi
-    BASE_JDK_DOCKERFILE=$(resolve_system_dockerfile "$BASE_JDK_DOCKERFILE" "${DOCKERFILE_DIR}/${JDK_PROVIDER}/${BASE_SYSTEM}.Dockerfile")
+    JDK_COMPONENT="$JDK_PROVIDER"
     if [ "$JDK_PROVIDER" = "temurin" ] && [ "$USE_CN_ENV" = "true" ]; then
-        BASE_JDK_DOCKERFILE=$(resolve_system_dockerfile "$BASE_JDK_DOCKERFILE" "${DOCKERFILE_DIR}/temurin_cn/${BASE_SYSTEM}.Dockerfile")
+        JDK_COMPONENT="temurin_cn"
     fi
-    STANDARD_DOCKERFILE=$(resolve_system_dockerfile "${DOCKERFILE_DIR}/standard.Dockerfile" "${DOCKERFILE_DIR}/standard/${BASE_SYSTEM}.Dockerfile")
-    STANDARD_CN_DOCKERFILE=$(resolve_system_dockerfile "${DOCKERFILE_DIR}/standard_cn.Dockerfile" "${DOCKERFILE_DIR}/standard_cn/${BASE_SYSTEM}.Dockerfile")
-    FINAL_DOCKERFILE=$(resolve_system_dockerfile "${DOCKERFILE_DIR}/Dockerfile" "${DOCKERFILE_DIR}/android/${BASE_SYSTEM}.Dockerfile")
-    DEV_DOCKERFILE=$(resolve_system_dockerfile "${DOCKERFILE_DIR}/dev.Dockerfile" "${DOCKERFILE_DIR}/dev/${BASE_SYSTEM}.Dockerfile")
+
+    BASE_JDK_DOCKERFILE=$(resolve_component_dockerfile "$JDK_COMPONENT" "$BASE_SYSTEM")
+    STANDARD_DOCKERFILE=$(resolve_component_dockerfile "standard" "$BASE_SYSTEM")
+    STANDARD_CN_DOCKERFILE=$(resolve_component_dockerfile "standard_cn" "$BASE_SYSTEM")
+    FINAL_DOCKERFILE=$(resolve_component_dockerfile "android" "$BASE_SYSTEM")
+    DEV_DOCKERFILE=$(resolve_component_dockerfile "dev" "$BASE_SYSTEM")
 
     run_build "$BASE_JDK_DOCKERFILE" "${IMAGE_NAME}" "$JDK_TAG_PREFIX" "$JDK_SHORT_TAG_PREFIX" \
         --build-arg DESKTOP_IMAGE_REGION_SUFFIX="$DESKTOP_IMAGE_REGION_SUFFIX" \
