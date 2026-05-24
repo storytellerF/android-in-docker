@@ -1,0 +1,185 @@
+ARG BASE_SYSTEM=alpine
+ARG BASE_VERSION=latest
+ARG DESKTOP_TYPE=xfce
+ARG JDK_PROVIDER=openjdk
+ARG OPENJDK_VERSION=21
+ARG BASE_IMAGE_VARIANT_SUFFIX=-standard
+ARG DIND_BASE_IMAGE_VARIANT_SUFFIX=-standard
+ARG BASE_IMAGE_SOURCE_LABEL=latest
+FROM storytellerf/android-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-${JDK_PROVIDER}${OPENJDK_VERSION}${DIND_BASE_IMAGE_VARIANT_SUFFIX}-${BASE_IMAGE_SOURCE_LABEL}
+
+ARG USERNAME=alpine
+ARG DIND_COMMIT=8d9e3502aba39127e4d12196dae16d306f76993d
+ARG DOCKER_VERSION=29.5.2
+ARG DOCKER_BUILDX_VERSION=0.34.1
+ARG DOCKER_COMPOSE_VERSION=5.1.4
+
+USER root
+
+# Install Docker runtime dependencies
+RUN apk add --no-cache \
+    btrfs-progs \
+    e2fsprogs \
+    e2fsprogs-extra \
+    git \
+    ip6tables \
+    iptables \
+    iptables-legacy \
+    openssl \
+    pigz \
+    xfsprogs \
+    xz \
+    zfs
+
+# Configure iptables-legacy fallback for kernels without nf_tables
+RUN set -eux; \
+    apk add --no-cache iptables-legacy; \
+    mkdir -p /usr/local/sbin/.iptables-legacy; \
+    for f in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do \
+        b="$(command -v "${f/tables/tables-legacy}")"; \
+        "$b" --version; \
+        ln -svT "$b" "/usr/local/sbin/.iptables-legacy/$f"; \
+    done; \
+    export PATH="/usr/local/sbin/.iptables-legacy:$PATH"; \
+    iptables --version | grep legacy
+
+# Set up subuid/subgid for dockremap
+RUN set -eux; \
+    addgroup -S dockremap; \
+    adduser -S -G dockremap dockremap; \
+    echo 'dockremap:165536:65536' >> /etc/subuid; \
+    echo 'dockremap:165536:65536' >> /etc/subgid
+
+# Pre-create docker group for socket usage (GID 2375)
+RUN set -eux; \
+    addgroup -g 2375 -S docker
+
+# Install Docker CLI, buildx, and compose from docker.com static binaries
+RUN set -eux; \
+    \
+    apkArch="$(apk --print-arch)"; \
+    case "$apkArch" in \
+        'x86_64') \
+            url='https://download.docker.com/linux/static/stable/x86_64/docker-'"$DOCKER_VERSION"'.tgz'; \
+            ;; \
+        'aarch64') \
+            url='https://download.docker.com/linux/static/stable/aarch64/docker-'"$DOCKER_VERSION"'.tgz'; \
+            ;; \
+        *) echo >&2 "error: unsupported 'docker.tgz' architecture ($apkArch)"; exit 1 ;; \
+    esac; \
+    \
+    wget -O 'docker.tgz' "$url"; \
+    \
+    tar --extract \
+        --file docker.tgz \
+        --strip-components 1 \
+        --directory /usr/local/bin/ \
+        --no-same-owner \
+        'docker/docker' \
+    ; \
+    rm docker.tgz; \
+    \
+    docker --version
+
+# Install buildx plugin
+RUN set -eux; \
+    \
+    apkArch="$(apk --print-arch)"; \
+    case "$apkArch" in \
+        'x86_64') \
+            url='https://github.com/docker/buildx/releases/download/v'"$DOCKER_BUILDX_VERSION"'/buildx-v'"$DOCKER_BUILDX_VERSION"'.linux-amd64'; \
+            ;; \
+        'aarch64') \
+            url='https://github.com/docker/buildx/releases/download/v'"$DOCKER_BUILDX_VERSION"'/buildx-v'"$DOCKER_BUILDX_VERSION"'.linux-arm64'; \
+            ;; \
+        *) echo >&2 "warning: unsupported 'docker-buildx' architecture ($apkArch); exit 1" ;; \
+    esac; \
+    \
+    wget -O 'docker-buildx' "$url"; \
+    \
+    plugin='/usr/local/libexec/docker/cli-plugins/docker-buildx'; \
+    mkdir -p "$(dirname "$plugin")"; \
+    mv -vT 'docker-buildx' "$plugin"; \
+    chmod +x "$plugin"; \
+    \
+    docker buildx version
+
+# Install compose plugin
+RUN set -eux; \
+    \
+    apkArch="$(apk --print-arch)"; \
+    case "$apkArch" in \
+        'x86_64') \
+            url='https://github.com/docker/compose/releases/download/v'"$DOCKER_COMPOSE_VERSION"'/docker-compose-linux-x86_64'; \
+            ;; \
+        'aarch64') \
+            url='https://github.com/docker/compose/releases/download/v'"$DOCKER_COMPOSE_VERSION"'/docker-compose-linux-aarch64'; \
+            ;; \
+        *) echo >&2 "warning: unsupported 'docker-compose' architecture ($apkArch); exit 1" ;; \
+    esac; \
+    \
+    wget -O 'docker-compose' "$url"; \
+    \
+    plugin='/usr/local/libexec/docker/cli-plugins/docker-compose'; \
+    mkdir -p "$(dirname "$plugin")"; \
+    mv -vT 'docker-compose' "$plugin"; \
+    chmod +x "$plugin"; \
+    \
+    ln -sv "$plugin" /usr/local/bin/; \
+    docker-compose --version; \
+    docker compose version
+
+# Install Docker daemon binaries from docker.com static binaries
+RUN set -eux; \
+    \
+    apkArch="$(apk --print-arch)"; \
+    case "$apkArch" in \
+        'x86_64') \
+            url='https://download.docker.com/linux/static/stable/x86_64/docker-'"$DOCKER_VERSION"'.tgz'; \
+            ;; \
+        'aarch64') \
+            url='https://download.docker.com/linux/static/stable/aarch64/docker-'"$DOCKER_VERSION"'.tgz'; \
+            ;; \
+        *) echo >&2 "error: unsupported 'docker.tgz' architecture ($apkArch)"; exit 1 ;; \
+    esac; \
+    \
+    wget -O 'docker.tgz' "$url"; \
+    \
+    tar --extract \
+        --file docker.tgz \
+        --strip-components 1 \
+        --directory /usr/local/bin/ \
+        --no-same-owner \
+        --exclude 'docker/docker' \
+    ; \
+    rm docker.tgz; \
+    \
+    dockerd --version; \
+    containerd --version; \
+    ctr --version; \
+    runc --version
+
+# Create /certs directory with wide permissions for rootless mode
+RUN mkdir -p /certs /certs/client && chmod 1777 /certs /certs/client
+
+# Download dind wrapper script
+RUN set -eux; \
+    wget -O /usr/local/bin/dind "https://raw.githubusercontent.com/docker/docker/${DIND_COMMIT}/hack/dind"; \
+    chmod +x /usr/local/bin/dind
+
+# Copy entrypoint scripts
+COPY --chown=0:0 base-scripts/dockerd-entrypoint.sh /usr/local/bin/
+COPY --chown=0:0 base-scripts/modprobe.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/dockerd-entrypoint.sh /usr/local/bin/modprobe.sh
+
+# Copy dockerd supervisor configuration
+COPY --chown=${USERNAME}:${USERNAME} docker/config/supervisor/dockerd.supervisord.conf /home/${USERNAME}/supervisor/conf.d/dockerd.supervisord.conf
+
+# Docker-in-Docker configuration
+ENV DOCKER_TLS_CERTDIR=/certs
+VOLUME /var/lib/docker
+
+# Expose ports:
+# 2375: Docker daemon (unencrypted)
+# 2376: Docker daemon (TLS encrypted)
+EXPOSE 2375 2376

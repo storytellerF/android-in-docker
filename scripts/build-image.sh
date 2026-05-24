@@ -410,6 +410,8 @@ refresh_tag_context() {
         JDK_BASE_IMAGE_VARIANT_SUFFIX="-jdk"
     fi
     STANDARD_LAYER_TAG_PREFIX=$(build_tag_prefix "standard")
+    DIND_LAYER_TAG_PREFIX=$(build_tag_prefix "dind")
+    DIND_SHORT_TAG_PREFIX=$(build_short_tag_prefix "dind")
     STANDARD_CN_TAG_PREFIX=$(build_tag_prefix "standard_cn")
     CHINA_TAG_PREFIX=$(build_tag_prefix "cn")
     DEV_BASE_IMAGE_VARIANT_SUFFIX=""
@@ -417,8 +419,13 @@ refresh_tag_context() {
     if [ "$USE_CN_ENV" = "true" ]; then
         TARGET_TAG_PREFIX="$CHINA_TAG_PREFIX"
         DEV_BASE_IMAGE_VARIANT_SUFFIX="-cn"
+        DIND_VARIANT_SUFFIX="-standard_cn"
+        ANDROID_BASE_IMAGE_VARIANT_SUFFIX="-dind"
     else
         TARGET_TAG_PREFIX="$STANDARD_TAG_PREFIX"
+        DEV_BASE_IMAGE_VARIANT_SUFFIX=""
+        DIND_VARIANT_SUFFIX="-standard"
+        ANDROID_BASE_IMAGE_VARIANT_SUFFIX="-dind"
     fi
 
     if [ "$BUILD_DEV" = "true" ]; then
@@ -439,9 +446,9 @@ refresh_tag_context
 
 build_compose_files() {
     if [ "$BUILD_DEV" = true ]; then
-        echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.dev.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
+        echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.dev.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml -f ${COMPOSE_DIR}/docker-compose.privileged.yml"
     else
-        echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
+        echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml -f ${COMPOSE_DIR}/docker-compose.privileged.yml"
     fi
 }
 
@@ -648,6 +655,7 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     BASE_JDK_DOCKERFILE=$(resolve_component_dockerfile "$JDK_COMPONENT" "$BASE_SYSTEM")
     STANDARD_DOCKERFILE=$(resolve_component_dockerfile "standard" "$BASE_SYSTEM")
     STANDARD_CN_DOCKERFILE=$(resolve_component_dockerfile "standard_cn" "$BASE_SYSTEM")
+    DIND_DOCKERFILE=$(resolve_component_dockerfile "dind" "$BASE_SYSTEM")
     FINAL_DOCKERFILE=$(resolve_component_dockerfile "android" "$BASE_SYSTEM")
     DEV_DOCKERFILE=$(resolve_component_dockerfile "dev" "$BASE_SYSTEM")
 
@@ -660,8 +668,11 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
             run_build "$STANDARD_CN_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+            run_build "$DIND_DOCKERFILE" "${IMAGE_NAME}" "$DIND_LAYER_TAG_PREFIX" "$DIND_SHORT_TAG_PREFIX" \
+                --build-arg DIND_BASE_IMAGE_VARIANT_SUFFIX="$DIND_VARIANT_SUFFIX" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$ANDROID_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "$DEV_DOCKERFILE" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-cn" \
@@ -670,8 +681,11 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
             run_build "$STANDARD_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+            run_build "$DIND_DOCKERFILE" "${IMAGE_NAME}" "$DIND_LAYER_TAG_PREFIX" "$DIND_SHORT_TAG_PREFIX" \
+                --build-arg DIND_BASE_IMAGE_VARIANT_SUFFIX="$DIND_VARIANT_SUFFIX" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$ANDROID_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "$DEV_DOCKERFILE" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
@@ -681,15 +695,21 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
             run_build "$STANDARD_CN_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+            run_build "$DIND_DOCKERFILE" "${IMAGE_NAME}" "$DIND_LAYER_TAG_PREFIX" "$DIND_SHORT_TAG_PREFIX" \
+                --build-arg DIND_BASE_IMAGE_VARIANT_SUFFIX="$DIND_VARIANT_SUFFIX" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard_cn" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$ANDROID_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         else
             run_build "$STANDARD_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
+            run_build "$DIND_DOCKERFILE" "${IMAGE_NAME}" "$DIND_LAYER_TAG_PREFIX" "$DIND_SHORT_TAG_PREFIX" \
+                --build-arg DIND_BASE_IMAGE_VARIANT_SUFFIX="$DIND_VARIANT_SUFFIX" \
+                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-standard" \
+                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$ANDROID_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         fi
     fi

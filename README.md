@@ -13,7 +13,7 @@
 2. 使用脚本构建镜像：
 
     ```sh
-  ./scripts/build-image.sh [OPTIONS]
+    ./scripts/build-image.sh [OPTIONS]
     ```
 
     **常用选项**：
