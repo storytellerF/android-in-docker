@@ -31,9 +31,6 @@ RUN NPM_CONFIG_REGISTRY="$NPM_CONFIG_REGISTRY" npm install -g nrm \
     && node --version \
     && npm --version
 
-RUN install -d -m 0755 /etc/docker \
-    && printf '{\n  "registry-mirrors": [\n    "https://docker.1ms.run",\n    "https://docker.1panel.live",\n    "https://docker.m.daocloud.io"\n  ]\n}\n' > /etc/docker/daemon.json
-
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
