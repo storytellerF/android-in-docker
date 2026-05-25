@@ -5,22 +5,22 @@ _build_image_completion() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="--jdk-provider -j --jdk-version -c --create-env -p --password -h --help -b --build -D --dev -S --start -P --publish -m --multi-arch -s --system-image --latest --no-snapshot --base-system --base-version --cn-env --no-cn-env -t --desktop-type -z --timezone"
+    opts="--jdk-provider -j --jdk-version -c --create-env -p --password -h --help -b --build -D --dev -S --start -P --publish -m --multi-arch -i --system-image --latest --no-snapshot -s --system -v --version --cn-mirror --no-cn-mirror -d --desktop -z --timezone -T --stop"
 
     case "${prev}" in
         --jdk-provider)
             COMPREPLY=( $(compgen -W "openjdk temurin" -- ${cur}) )
             return 0
             ;;
-        --base-system)
+        -s|--system)
             COMPREPLY=( $(compgen -W "debian ubuntu fedora arch alpine" -- ${cur}) )
             return 0
             ;;
-        --base-version)
+        --version|-v)
             COMPREPLY=( $(compgen -W "trixie bookworm noble jammy resolute 41 42 43 44 latest 3.21 3.22" -- ${cur}) )
             return 0
             ;;
-        -t|--desktop-type)
+        -d|--desktop)
             COMPREPLY=( $(compgen -W "xfce lxqt mate" -- ${cur}) )
             return 0
             ;;
@@ -45,3 +45,4 @@ _build_image_completion() {
 }
 
 complete -F _build_image_completion ./build-image.sh
+complete -F _build_image_completion ./scripts/build-image.sh

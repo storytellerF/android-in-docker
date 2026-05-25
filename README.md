@@ -20,10 +20,10 @@
     - `--jdk-provider`: 指定 JDK 提供方，支持 `openjdk` 和 `temurin`，默认 `openjdk`。
     - `-b, --build`: 本地构建镜像。
     - `-D, --dev`: 构建开发版镜像（基于 `docker/dockerfiles/dev/<system>.Dockerfile`，包含 SSH, Chrome 等）。
-    - `--cn-env`: 构建中国环境变体（最终 `docker/dockerfiles/android/<system>.Dockerfile` 会基于 `standard_cn` 层；标准环境则基于 `standard` 层）。
+    - `--cn-mirror`: 构建中国环境变体（最终 `docker/dockerfiles/android/<system>.Dockerfile` 会基于 `standard_cn` 层；标准环境则基于 `standard` 层）。
     - `-j, --jdk-version`: 指定 JDK 主版本（默认 21）。
-    - `--base-system`: 指定基础系统，支持 `debian`、`ubuntu`、`fedora`、`arch`、`alpine`，默认 `debian`。
-    - `--base-version`: 指定基础系统版本；`debian` 默认 `trixie`，`ubuntu` 默认 `noble`，`fedora` 默认 `44`，`arch`/`alpine` 默认 `latest`。
+    - `-s, --system`: 指定基础系统，支持 `debian`、`ubuntu`、`fedora`、`arch`、`alpine`，默认 `debian`。
+    - `-v, --version`: 指定基础系统版本；`debian` 默认 `trixie`，`ubuntu` 默认 `noble`，`fedora` 默认 `44`，`arch`/`alpine` 默认 `latest`。
     - `-P, --publish`: 构建并发布多架构镜像到 Docker Hub。
     - `-S, --start`: 构建后自动启动 Docker Compose。
 
@@ -36,22 +36,22 @@
     ./scripts/build-image.sh -b
 
     # 3. 构建中国环境镜像
-    ./scripts/build-image.sh -b --cn-env
+    ./scripts/build-image.sh -b --cn-mirror
 
     # 4. 使用 Temurin 构建标准版镜像
     ./scripts/build-image.sh -b --jdk-provider temurin
 
     # 5. 使用 Ubuntu Noble 构建标准版镜像
-    ./scripts/build-image.sh -b --base-system ubuntu
+    ./scripts/build-image.sh -b -s ubuntu
 
     # 5.1 使用 Fedora 44 构建标准版镜像
-    ./scripts/build-image.sh -b --base-system fedora
+    ./scripts/build-image.sh -b -s fedora
 
     # 6. 构建并启动开发版（包含 SSH 和 Chrome）
     ./scripts/build-image.sh -D -S
 
     # 7. 停止当前 compose 服务
-    ./scripts/build-image.sh -K
+    ./scripts/build-image.sh -T
     ```
 
     **启用 Bash 补全**：
@@ -93,7 +93,7 @@
   - `docker/dockerfiles/standard_cn/`: 中国环境 Node.js 层，并切换 npm mirror。
   - `docker/dockerfiles/android/`: 最终运行镜像定义；按系统安装 Android tools / QEMU / KVM 相关包。
   - `docker/dockerfiles/dev/`: 开发版镜像定义（包含 SSH, Android Studio 等）；Fedora 安装 VS Code，Arch/Alpine 不额外安装 VS Code。
-  - Debian/Ubuntu 的 apt-based Dockerfile 位于各组件目录的 `debian.Dockerfile`；当 `--base-system ubuntu` 没有专属 `ubuntu.Dockerfile` 时，构建脚本会复用对应的 `debian.Dockerfile`。
+  - Debian/Ubuntu 的 apt-based Dockerfile 位于各组件目录的 `debian.Dockerfile`；当 `-s ubuntu` 没有专属 `ubuntu.Dockerfile` 时，构建脚本会复用对应的 `debian.Dockerfile`。
   - `scripts/build-image.sh`: 统一构建与启动入口。
 
 - **核心脚本 (位于 `base-scripts/`)**
@@ -184,13 +184,13 @@ docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-com
 - 停止服务：
 
 ```sh
-./scripts/build-image.sh -K
+./scripts/build-image.sh -T
 ```
 
 - 停止开发版服务：
 
 ```sh
-./scripts/build-image.sh -D -K
+./scripts/build-image.sh -D -T
 ```
 
 - **进入容器调试**:

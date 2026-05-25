@@ -135,18 +135,18 @@ usage() {
     echo "  --jdk-provider <provider>    Specify the JDK provider (openjdk, temurin) (default: $DEFAULT_JDK_PROVIDER)"
     echo "  -j, --jdk-version <version>  Specify the JDK version (default: $DEFAULT_JDK_VERSION)"
     echo "  -p, --password <password>    Specify the VNC password (default: $DEFAULT_VNC_PASSWORD)"
-    echo "  -s, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
-    echo "  -t, --desktop-type <type>    Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
+    echo "  -i, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
+    echo "  -d, --desktop <type>         Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
     echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
-    echo "  --cn-env                     Build the China image variant (uses ${DOCKERFILE_DIR}/standard_cn/<system>.Dockerfile and ${DOCKERFILE_DIR}/temurin_cn/<system>.Dockerfile when applicable)"
-    echo "  --no-cn-env                  Build the standard image variant (default: auto-detect from timezone/locale)"
-    echo "  --base-system <system>       Specify the base system ($(supported_base_systems)) (default: $DEFAULT_BASE_SYSTEM)"
-    echo "  --base-version <version>     Specify the base version ($(supported_base_versions_summary); default depends on --base-system)"
+    echo "  --cn-mirror                  Force China variant (CN tags + build-time mirrors)"
+    echo "  --no-cn-mirror               Disable China variant (default: auto-detect from timezone/locale)"
+    echo "  -s, --system <system>        Specify the base system ($(supported_base_systems)) (default: $DEFAULT_BASE_SYSTEM)"
+    echo "  -v, --version <version>      Specify the base version ($(supported_base_versions_summary); default depends on --system)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
     echo "  -D, --dev                    Build ${DOCKERFILE_DIR}/dev/<system>.Dockerfile after ${DOCKERFILE_DIR}/android/<system>.Dockerfile (includes SSH, Chrome, Android Studio)"
     echo "  -S, --start                  Start docker compose up --build after building the image"
-    echo "  -K, --stop                   Stop docker compose and remove the project containers"
+    echo "  -T, --stop                   Stop docker compose and remove the project containers"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
     echo "  -m, --multi-arch             Enable multi-arch mode (builds/pushes for amd64 and arm64)"
     echo "  --latest                     Tag the image as 'latest'"
@@ -190,19 +190,19 @@ while [[ "$#" -gt 0 ]]; do
             VNC_PASSWORD="$2"
             shift
             ;;
-        -s|--system-image)
+        -i|--system-image)
             SYS_IMG_PKG="$2"
             shift
             ;;
-        -t|--desktop-type)
+        -d|--desktop)
             DESKTOP_TYPE_INPUT="$2"
             shift
             ;;
-        --base-system)
+        -s|--system)
             BASE_SYSTEM_INPUT="$2"
             shift
             ;;
-        --base-version)
+        -v|--version)
             BASE_VERSION_INPUT="$2"
             shift
             ;;
@@ -210,10 +210,10 @@ while [[ "$#" -gt 0 ]]; do
             TIMEZONE_INPUT="$2"
             shift
             ;;
-        --cn-env)
+        --cn-mirror)
             USE_CN_ENV_INPUT=true
             ;;
-        --no-cn-env)
+        --no-cn-mirror)
             USE_CN_ENV_INPUT=false
             ;;
         -c|--create-env)
@@ -228,7 +228,7 @@ while [[ "$#" -gt 0 ]]; do
         -S|--start)
             START_CONTAINER=true
             ;;
-        -K|--stop)
+        -T|--stop)
             STOP_CONTAINER=true
             ;;
         -P|--publish)
