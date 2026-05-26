@@ -148,7 +148,7 @@ RUN set -eux; \
     chmod +x /usr/local/bin/dind
 
 # Copy entrypoint scripts
-COPY --chown=0:0 base-scripts/dockerd-entrypoint.sh /usr/local/bin/
+COPY --chown=0:0 external/docker/dockerd-entrypoint.sh /usr/local/bin/
 COPY --chown=0:0 base-scripts/modprobe.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/dockerd-entrypoint.sh /usr/local/bin/modprobe.sh
 

@@ -103,6 +103,7 @@
   - `start-appium.sh`: 启动 Appium Server.
   - `entrypoint.sh`: 容器入口脚本。
   - `external/android-profile`: Git submodule，提供 Android SDK 安装、AVD 创建/启动脚本和默认 `android.profile`。克隆本仓库后执行 `git submodule update --init --recursive` 初始化；更新脚本来源时升级 submodule 指针。
+  - `external/docker`: Git submodule，提供 Docker 官方 `dockerd-entrypoint.sh`。克隆本仓库后执行 `git submodule update --init --recursive` 初始化；更新脚本来源时升级 submodule 指针。
 
 - **配置管理**
   - `docker/compose/`: 运行时 compose 配置。
