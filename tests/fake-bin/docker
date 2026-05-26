@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log_file=${FAKE_DOCKER_LOG:-/tmp/android-in-docker-fake-docker.log}
+mkdir -p "$(dirname "$log_file")"
+
+log_command() {
+    printf "docker" >> "$log_file"
+    local arg
+    for arg in "$@"; do
+        printf " %q" "$arg" >> "$log_file"
+    done
+    printf "\n" >> "$log_file"
+}
+
+fail() {
+    echo "fake docker: $*" >&2
+    exit 1
+}
+
+require_file_arg() {
+    local file=$1
+    [ -f "$file" ] || fail "expected file to exist: $file"
+}
+
+parse_build_file() {
+    local dockerfile=""
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -f|--file)
+                [ "$#" -ge 2 ] || fail "$1 requires a value"
+                dockerfile=$2
+                shift 2
+                ;;
+            --file=*)
+                dockerfile=${1#--file=}
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    [ -n "$dockerfile" ] || fail "docker build command did not include -f/--file"
+    require_file_arg "$dockerfile"
+    echo "$dockerfile"
+}
+
+handle_compose() {
+    local compose_files=()
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -f|--file)
+                [ "$#" -ge 2 ] || fail "$1 requires a value"
+                require_file_arg "$2"
+                compose_files+=("$2")
+                shift 2
+                ;;
+            --file=*)
+                require_file_arg "${1#--file=}"
+                compose_files+=("${1#--file=}")
+                shift
+                ;;
+            --project-name|-p)
+                [ "$#" -ge 2 ] || fail "$1 requires a value"
+                shift 2
+                ;;
+            --project-directory)
+                [ "$#" -ge 2 ] || fail "$1 requires a value"
+                shift 2
+                ;;
+            --compatibility)
+                shift
+                ;;
+            --ansi|--env-file|--profile)
+                if [[ "$1" == *=* ]]; then
+                    shift
+                else
+                    [ "$#" -ge 2 ] || fail "$1 requires a value"
+                    shift 2
+                fi
+                ;;
+            --*)
+                shift
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+
+    local command=${1:-}
+    [ -n "$command" ] || fail "docker compose command is missing"
+    shift || true
+
+    case "$command" in
+        up)
+            [ "${#compose_files[@]}" -gt 0 ] || fail "docker compose up did not include compose files"
+            echo "fake docker compose up"
+            ;;
+        down)
+            [ "${#compose_files[@]}" -gt 0 ] || fail "docker compose down did not include compose files"
+            echo "fake docker compose down"
+            ;;
+        port)
+            local service=${1:-}
+            local port=${2:-}
+            [ -n "$service" ] || fail "docker compose port requires a service"
+            [ -n "$port" ] || fail "docker compose port requires a port"
+            case "$port" in
+                22) echo "0.0.0.0:10022" ;;
+                4723) echo "0.0.0.0:14723" ;;
+                5555) echo "0.0.0.0:15555" ;;
+                5901) echo "0.0.0.0:15901" ;;
+                6080) echo "0.0.0.0:16080" ;;
+                *) echo "0.0.0.0:1${port}" ;;
+            esac
+            ;;
+        ps)
+            echo "NAME                SERVICE             STATUS"
+            echo "android-in-docker   android             running"
+            ;;
+        version)
+            echo "Docker Compose version v2.99.0-fake"
+            ;;
+        *)
+            fail "unsupported docker compose command: $command"
+            ;;
+    esac
+}
+
+log_command "$@"
+
+case "${1:-}" in
+    --version|version)
+        echo "Docker version 99.0.0-fake, build fake"
+        ;;
+    build)
+        shift
+        dockerfile=$(parse_build_file "$@")
+        echo "fake docker build: $dockerfile"
+        ;;
+    buildx)
+        shift
+        case "${1:-}" in
+            build)
+                shift
+                dockerfile=$(parse_build_file "$@")
+                echo "fake docker buildx build: $dockerfile"
+                ;;
+            version)
+                echo "github.com/docker/buildx v0.99.0-fake"
+                ;;
+            *)
+                fail "unsupported docker buildx command: ${1:-}"
+                ;;
+        esac
+        ;;
+    image)
+        shift
+        case "${1:-}" in
+            prune)
+                echo "fake docker image prune"
+                ;;
+            *)
+                fail "unsupported docker image command: ${1:-}"
+                ;;
+        esac
+        ;;
+    compose)
+        shift
+        handle_compose "$@"
+        ;;
+    volume)
+        shift
+        case "${1:-}" in
+            create)
+                [ -n "${2:-}" ] || fail "docker volume create requires a name"
+                echo "$2"
+                ;;
+            *)
+                fail "unsupported docker volume command: ${1:-}"
+                ;;
+        esac
+        ;;
+    *)
+        fail "unsupported docker command: ${1:-}"
+        ;;
+esac
