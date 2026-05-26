@@ -394,38 +394,14 @@ build_short_tag_prefix() {
     fi
 }
 
-is_temurin_cn_build() {
-    [ "$JDK_PROVIDER" = "temurin" ] && [ "$USE_CN_ENV" = "true" ]
-}
-
 refresh_tag_context() {
     STANDARD_TAG_PREFIX=$(build_tag_prefix)
-    if is_temurin_cn_build; then
-        JDK_TAG_PREFIX=$(build_tag_prefix "jdk" "cn")
-        JDK_SHORT_TAG_PREFIX=$(build_short_tag_prefix "jdk-cn")
-        JDK_BASE_IMAGE_VARIANT_SUFFIX="-jdk-cn"
-    else
-        JDK_TAG_PREFIX=$(build_tag_prefix "jdk")
-        JDK_SHORT_TAG_PREFIX=$(build_short_tag_prefix "jdk")
-        JDK_BASE_IMAGE_VARIANT_SUFFIX="-jdk"
-    fi
-    STANDARD_LAYER_TAG_PREFIX=$(build_tag_prefix "standard")
-    DIND_LAYER_TAG_PREFIX=$(build_tag_prefix "dind")
-    DIND_SHORT_TAG_PREFIX=$(build_short_tag_prefix "dind")
-    STANDARD_CN_TAG_PREFIX=$(build_tag_prefix "standard_cn")
     CHINA_TAG_PREFIX=$(build_tag_prefix "cn")
-    DEV_BASE_IMAGE_VARIANT_SUFFIX=""
 
     if [ "$USE_CN_ENV" = "true" ]; then
         TARGET_TAG_PREFIX="$CHINA_TAG_PREFIX"
-        DEV_BASE_IMAGE_VARIANT_SUFFIX="-cn"
-        DIND_VARIANT_SUFFIX="-standard_cn"
-        ANDROID_BASE_IMAGE_VARIANT_SUFFIX="-dind"
     else
         TARGET_TAG_PREFIX="$STANDARD_TAG_PREFIX"
-        DEV_BASE_IMAGE_VARIANT_SUFFIX=""
-        DIND_VARIANT_SUFFIX="-standard"
-        ANDROID_BASE_IMAGE_VARIANT_SUFFIX="-dind"
     fi
 
     if [ "$BUILD_DEV" = "true" ]; then
@@ -473,6 +449,59 @@ resolve_component_dockerfile() {
         echo "       Ubuntu may share Debian Dockerfile, but $debian_dockerfile was not found." >&2
     fi
     return 1
+}
+
+resolve_component_fragment() {
+    local component=$1
+    local system=$2
+    local system_fragment="${DOCKERFILE_DIR}/${component}/fragments/${system}.dockerfrag"
+    local debian_fragment="${DOCKERFILE_DIR}/${component}/fragments/debian.dockerfrag"
+
+    if [ -f "$system_fragment" ]; then
+        echo "$system_fragment"
+        return 0
+    fi
+
+    if [ "$system" = "ubuntu" ] && [ -f "$debian_fragment" ]; then
+        echo "$debian_fragment"
+        return 0
+    fi
+
+    echo "Error: missing dockerfrag for component '$component' and base system '$system': expected $system_fragment" >&2
+    if [ "$system" = "ubuntu" ]; then
+        echo "       Ubuntu may share Debian dockerfrag, but $debian_fragment was not found." >&2
+    fi
+    return 1
+}
+
+merge_android_dockerfile() {
+    local android_dockerfile=$1
+    local output_file=$2
+    shift 2
+    local fragment_files=("$@")
+    local inject_marker="__INJECT_ANDROID_BASE_FRAGS__"
+    local injected=false
+
+    mkdir -p "$(dirname "$output_file")"
+    : > "$output_file"
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        echo "$line" >> "$output_file"
+        if [[ "$line" == *"$inject_marker"* ]]; then
+            injected=true
+            for fragment_file in "${fragment_files[@]}"; do
+                echo "" >> "$output_file"
+                echo "# Injected configuration - $(date)" >> "$output_file"
+                echo "# Source: $fragment_file" >> "$output_file"
+                cat "$fragment_file" >> "$output_file"
+            done
+        fi
+    done < "$android_dockerfile"
+
+    if [ "$injected" != true ]; then
+        echo "Error: injection marker '$inject_marker' not found in $android_dockerfile" >&2
+        return 1
+    fi
 }
 
 stop_compose_stack() {
@@ -652,64 +681,39 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
         JDK_COMPONENT="temurin_cn"
     fi
 
-    BASE_JDK_DOCKERFILE=$(resolve_component_dockerfile "$JDK_COMPONENT" "$BASE_SYSTEM")
-    STANDARD_DOCKERFILE=$(resolve_component_dockerfile "standard" "$BASE_SYSTEM")
-    STANDARD_CN_DOCKERFILE=$(resolve_component_dockerfile "standard_cn" "$BASE_SYSTEM")
-    DIND_DOCKERFILE=$(resolve_component_dockerfile "dind" "$BASE_SYSTEM")
-    FINAL_DOCKERFILE=$(resolve_component_dockerfile "android" "$BASE_SYSTEM")
+    BASE_JDK_FRAGMENT=$(resolve_component_fragment "$JDK_COMPONENT" "$BASE_SYSTEM")
+    if [ "$USE_CN_ENV" = "true" ]; then
+        STANDARD_FRAGMENT=$(resolve_component_fragment "standard_cn" "$BASE_SYSTEM")
+        ANDROID_TAG_PREFIX="$CHINA_TAG_PREFIX"
+        ANDROID_SHORT_TAG_PREFIX=$(build_short_tag_prefix "cn")
+        GENERATED_ANDROID_DOCKERFILE="build/android/${BASE_SYSTEM}_cn.Dockerfile"
+    else
+        STANDARD_FRAGMENT=$(resolve_component_fragment "standard" "$BASE_SYSTEM")
+        ANDROID_TAG_PREFIX="$STANDARD_TAG_PREFIX"
+        ANDROID_SHORT_TAG_PREFIX=$(build_short_tag_prefix "")
+        GENERATED_ANDROID_DOCKERFILE="build/android/${BASE_SYSTEM}.Dockerfile"
+    fi
+    DIND_FRAGMENT=$(resolve_component_fragment "dind" "$BASE_SYSTEM")
+    ANDROID_SOURCE_DOCKERFILE=$(resolve_component_dockerfile "android" "$BASE_SYSTEM")
     DEV_DOCKERFILE=$(resolve_component_dockerfile "dev" "$BASE_SYSTEM")
 
-    run_build "$BASE_JDK_DOCKERFILE" "${IMAGE_NAME}" "$JDK_TAG_PREFIX" "$JDK_SHORT_TAG_PREFIX" \
+    echo "Merging Android Dockerfile into $GENERATED_ANDROID_DOCKERFILE..."
+    merge_android_dockerfile "$ANDROID_SOURCE_DOCKERFILE" "$GENERATED_ANDROID_DOCKERFILE" \
+        "$BASE_JDK_FRAGMENT" \
+        "$STANDARD_FRAGMENT" \
+        "$DIND_FRAGMENT"
+
+    run_build "$GENERATED_ANDROID_DOCKERFILE" "${IMAGE_NAME}" "$ANDROID_TAG_PREFIX" "$ANDROID_SHORT_TAG_PREFIX" \
         --build-arg DESKTOP_IMAGE_REGION_SUFFIX="$DESKTOP_IMAGE_REGION_SUFFIX" \
         --build-arg DESKTOP_IMAGE_LABEL="$DESKTOP_IMAGE_LABEL"
 
     if [ "$BUILD_DEV" = true ]; then
         if [ "$USE_CN_ENV" = "true" ]; then
-            run_build "$STANDARD_CN_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "$DIND_DOCKERFILE" "${IMAGE_NAME}" "$DIND_LAYER_TAG_PREFIX" "$DIND_SHORT_TAG_PREFIX" \
-                --build-arg DIND_BASE_IMAGE_VARIANT_SUFFIX="$DIND_VARIANT_SUFFIX" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$ANDROID_BASE_IMAGE_VARIANT_SUFFIX" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "$DEV_DOCKERFILE" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
                 --build-arg BASE_IMAGE_VARIANT_SUFFIX="-cn" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         else
-            run_build "$STANDARD_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "$DIND_DOCKERFILE" "${IMAGE_NAME}" "$DIND_LAYER_TAG_PREFIX" "$DIND_SHORT_TAG_PREFIX" \
-                --build-arg DIND_BASE_IMAGE_VARIANT_SUFFIX="$DIND_VARIANT_SUFFIX" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$ANDROID_BASE_IMAGE_VARIANT_SUFFIX" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
             run_build "$DEV_DOCKERFILE" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-        fi
-    else
-        if [ "$USE_CN_ENV" = "true" ]; then
-            run_build "$STANDARD_CN_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_CN_TAG_PREFIX" "$(build_short_tag_prefix "standard_cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$JDK_BASE_IMAGE_VARIANT_SUFFIX" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "$DIND_DOCKERFILE" "${IMAGE_NAME}" "$DIND_LAYER_TAG_PREFIX" "$DIND_SHORT_TAG_PREFIX" \
-                --build-arg DIND_BASE_IMAGE_VARIANT_SUFFIX="$DIND_VARIANT_SUFFIX" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$CHINA_TAG_PREFIX" "$(build_short_tag_prefix "cn")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$ANDROID_BASE_IMAGE_VARIANT_SUFFIX" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-        else
-            run_build "$STANDARD_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_LAYER_TAG_PREFIX" "$(build_short_tag_prefix "standard")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-jdk" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "$DIND_DOCKERFILE" "${IMAGE_NAME}" "$DIND_LAYER_TAG_PREFIX" "$DIND_SHORT_TAG_PREFIX" \
-                --build-arg DIND_BASE_IMAGE_VARIANT_SUFFIX="$DIND_VARIANT_SUFFIX" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-            run_build "$FINAL_DOCKERFILE" "${IMAGE_NAME}" "$STANDARD_TAG_PREFIX" "$(build_short_tag_prefix "")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="$ANDROID_BASE_IMAGE_VARIANT_SUFFIX" \
                 --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
         fi
     fi

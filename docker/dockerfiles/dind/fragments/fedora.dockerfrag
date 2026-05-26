@@ -1,14 +1,5 @@
-ARG BASE_SYSTEM=ubuntu
-ARG BASE_VERSION=noble
-ARG DESKTOP_TYPE=xfce
-ARG JDK_PROVIDER=openjdk
-ARG OPENJDK_VERSION=21
-ARG BASE_IMAGE_VARIANT_SUFFIX=-standard
-ARG DIND_BASE_IMAGE_VARIANT_SUFFIX=-standard
-ARG BASE_IMAGE_SOURCE_LABEL=latest
-FROM storytellerf/android-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}-${JDK_PROVIDER}${OPENJDK_VERSION}${DIND_BASE_IMAGE_VARIANT_SUFFIX}-${BASE_IMAGE_SOURCE_LABEL}
 
-ARG USERNAME=ubuntu
+ARG USERNAME=user
 ARG DIND_COMMIT=8d9e3502aba39127e4d12196dae16d306f76993d
 ARG DOCKER_VERSION=29.5.2
 ARG DOCKER_BUILDX_VERSION=0.34.1
@@ -16,55 +7,23 @@ ARG DOCKER_COMPOSE_VERSION=5.1.4
 
 USER root
 
-# Install Docker runtime dependencies (Ubuntu)
-RUN set -eux; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        btrfs-progs \
-        ca-certificates \
-        curl \
-        e2fsprogs \
-        git \
-        iptables \
-        openssl \
-        pigz \
-        xfsprogs \
-        xz-utils \
-        zfsutils-linux; \
-    rm -rf /var/lib/apt/lists/*
-
-# Ubuntu-specific packages (nftables is default in Ubuntu, these packages may not exist in newer versions)
-RUN set -eux; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
-        iptables-legacy \
-    || true; \
-    rm -rf /var/lib/apt/lists/*
-
-# Configure iptables-legacy fallback for kernels without nf_tables
-RUN set -eux; \
-    mkdir -p /usr/local/sbin/.iptables-legacy; \
-    if command -v iptables-legacy > /dev/null 2>&1; then \
-        for f in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do \
-            case "$f" in \
-                iptables) b="$(command -v iptables-legacy)" ;; \
-                iptables-save) b="$(command -v iptables-legacy-save)" ;; \
-                iptables-restore) b="$(command -v iptables-legacy-restore)" ;; \
-                ip6tables) b="$(command -v ip6tables-legacy)" ;; \
-                ip6tables-save) b="$(command -v ip6tables-legacy-save)" ;; \
-                ip6tables-restore) b="$(command -v ip6tables-legacy-restore)" ;; \
-                *) b="" ;; \
-            esac; \
-            if [ -n "$b" ]; then \
-                ln -svT "$b" "/usr/local/sbin/.iptables-legacy/$f"; \
-            fi; \
-        done; \
-    fi
+# Install Docker runtime dependencies
+RUN dnf install -y --setopt=install_weak_deps=False \
+    btrfs-progs \
+    e2fsprogs \
+    git \
+    iptables-legacy \
+    openssl \
+    pigz \
+    xfsprogs \
+    xz \
+    zfs; \
+    dnf clean all
 
 # Set up subuid/subgid for dockremap
 RUN set -eux; \
-    groupadd -r dockremap; \
-    useradd -r -g dockremap -s /sbin/nologin dockremap; \
+    groupadd -S dockremap; \
+    useradd -S -G dockremap dockremap; \
     echo 'dockremap:165536:65536' >> /etc/subuid; \
     echo 'dockremap:165536:65536' >> /etc/subgid
 
@@ -76,15 +35,15 @@ RUN set -eux; \
 # Install Docker CLI, buildx, and compose from docker.com static binaries
 RUN set -eux; \
     \
-    debArch="$(dpkg --print-architecture)"; \
-    case "$debArch" in \
-        'amd64') \
+    fedoraArch="$(uname -m)"; \
+    case "$fedoraArch" in \
+        'x86_64') \
             url='https://download.docker.com/linux/static/stable/x86_64/docker-'"$DOCKER_VERSION"'.tgz'; \
             ;; \
-        'arm64') \
+        'aarch64') \
             url='https://download.docker.com/linux/static/stable/aarch64/docker-'"$DOCKER_VERSION"'.tgz'; \
             ;; \
-        *) echo >&2 "error: unsupported 'docker.tgz' architecture ($debArch)"; exit 1 ;; \
+        *) echo >&2 "error: unsupported 'docker.tgz' architecture ($fedoraArch)"; exit 1 ;; \
     esac; \
     \
     curl -fsSL -o 'docker.tgz' "$url"; \
@@ -103,15 +62,15 @@ RUN set -eux; \
 # Install buildx plugin
 RUN set -eux; \
     \
-    debArch="$(dpkg --print-architecture)"; \
-    case "$debArch" in \
-        'amd64') \
+    fedoraArch="$(uname -m)"; \
+    case "$fedoraArch" in \
+        'x86_64') \
             url='https://github.com/docker/buildx/releases/download/v'"$DOCKER_BUILDX_VERSION"'/buildx-v'"$DOCKER_BUILDX_VERSION"'.linux-amd64'; \
             ;; \
-        'arm64') \
+        'aarch64') \
             url='https://github.com/docker/buildx/releases/download/v'"$DOCKER_BUILDX_VERSION"'/buildx-v'"$DOCKER_BUILDX_VERSION"'.linux-arm64'; \
             ;; \
-        *) echo >&2 "warning: unsupported 'docker-buildx' architecture ($debArch); exit 1" ;; \
+        *) echo >&2 "warning: unsupported 'docker-buildx' architecture ($fedoraArch); exit 1" ;; \
     esac; \
     \
     curl -fsSL -o 'docker-buildx' "$url"; \
@@ -126,15 +85,15 @@ RUN set -eux; \
 # Install compose plugin
 RUN set -eux; \
     \
-    debArch="$(dpkg --print-architecture)"; \
-    case "$debArch" in \
-        'amd64') \
+    fedoraArch="$(uname -m)"; \
+    case "$fedoraArch" in \
+        'x86_64') \
             url='https://github.com/docker/compose/releases/download/v'"$DOCKER_COMPOSE_VERSION"'/docker-compose-linux-x86_64'; \
             ;; \
-        'arm64') \
+        'aarch64') \
             url='https://github.com/docker/compose/releases/download/v'"$DOCKER_COMPOSE_VERSION"'/docker-compose-linux-aarch64'; \
             ;; \
-        *) echo >&2 "warning: unsupported 'docker-compose' architecture ($debArch); exit 1" ;; \
+        *) echo >&2 "warning: unsupported 'docker-compose' architecture ($fedoraArch); exit 1" ;; \
     esac; \
     \
     curl -fsSL -o 'docker-compose' "$url"; \
@@ -151,15 +110,15 @@ RUN set -eux; \
 # Install Docker daemon binaries from docker.com static binaries
 RUN set -eux; \
     \
-    debArch="$(dpkg --print-architecture)"; \
-    case "$debArch" in \
-        'amd64') \
+    fedoraArch="$(uname -m)"; \
+    case "$fedoraArch" in \
+        'x86_64') \
             url='https://download.docker.com/linux/static/stable/x86_64/docker-'"$DOCKER_VERSION"'.tgz'; \
             ;; \
-        'arm64') \
+        'aarch64') \
             url='https://download.docker.com/linux/static/stable/aarch64/docker-'"$DOCKER_VERSION"'.tgz'; \
             ;; \
-        *) echo >&2 "error: unsupported 'docker.tgz' architecture ($debArch)"; exit 1 ;; \
+        *) echo >&2 "error: unsupported 'docker.tgz' architecture ($fedoraArch)"; exit 1 ;; \
     esac; \
     \
     curl -fsSL -o 'docker.tgz' "$url"; \
@@ -202,4 +161,3 @@ VOLUME /var/lib/docker
 # 2375: Docker daemon (unencrypted)
 # 2376: Docker daemon (TLS encrypted)
 EXPOSE 2375 2376
-

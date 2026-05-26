@@ -20,7 +20,7 @@
     - `--jdk-provider`: 指定 JDK 提供方，支持 `openjdk` 和 `temurin`，默认 `openjdk`。
     - `-b, --build`: 本地构建镜像。
     - `-D, --dev`: 构建开发版镜像（基于 `docker/dockerfiles/dev/<system>.Dockerfile`，包含 SSH, Chrome 等）。
-    - `--cn-mirror`: 构建中国环境变体（最终 `docker/dockerfiles/android/<system>.Dockerfile` 会基于 `standard_cn` 层；标准环境则基于 `standard` 层）。
+    - `--cn-mirror`: 构建中国环境变体（最终 Android Dockerfile 会注入 `standard_cn` 片段；标准环境则注入 `standard` 片段）。
     - `-j, --jdk-version`: 指定 JDK 主版本（默认 21）。
     - `-s, --system`: 指定基础系统，支持 `debian`、`ubuntu`、`fedora`、`arch`、`alpine`，默认 `debian`。
     - `-v, --version`: 指定基础系统版本；`debian` 默认 `trixie`，`ubuntu` 默认 `noble`，`fedora` 默认 `44`，`arch`/`alpine` 默认 `latest`。
@@ -87,13 +87,14 @@
 ## 主要文件与脚本
 
 - **构建相关**
-  - `docker/dockerfiles/openjdk/`: JDK 基础镜像定义，只安装 OpenJDK。
-  - `docker/dockerfiles/temurin/`、`docker/dockerfiles/temurin_cn/`: Eclipse Temurin JDK 基础镜像定义；Debian/Ubuntu 使用 apt 仓库，Fedora 使用 rpm 仓库，Arch 使用 Adoptium API tarball，Alpine 使用 apk 仓库。
-  - `docker/dockerfiles/standard/`: 标准环境 Node.js 层；Fedora/Arch 使用 `nvm`，Alpine 使用发行版 `nodejs/npm` 以避免 glibc 二进制兼容问题。
-  - `docker/dockerfiles/standard_cn/`: 中国环境 Node.js 层，并切换 npm mirror。
-  - `docker/dockerfiles/android/`: 最终运行镜像定义；按系统安装 Android tools / QEMU / KVM 相关包。
+  - `docker/dockerfiles/openjdk/fragments/`: OpenJDK 注入片段。
+  - `docker/dockerfiles/temurin/fragments/`、`docker/dockerfiles/temurin_cn/fragments/`: Eclipse Temurin JDK 注入片段；Debian/Ubuntu 使用 apt 仓库，Fedora 使用 rpm 仓库，Arch 使用 Adoptium API tarball，Alpine 使用 apk 仓库。
+  - `docker/dockerfiles/standard/fragments/`: 标准环境 Node.js 注入片段；Fedora/Arch 使用 `nvm`，Alpine 使用发行版 `nodejs/npm` 以避免 glibc 二进制兼容问题。
+  - `docker/dockerfiles/standard_cn/fragments/`: 中国环境 Node.js 注入片段，并切换 npm mirror。
+  - `docker/dockerfiles/dind/fragments/`: Docker-in-Docker 注入片段。
+  - `docker/dockerfiles/android/`: 最终运行镜像主体 Dockerfile；构建时会注入 JDK、Node 和 Dind 片段后再安装 Android tools / QEMU / KVM 相关包。
   - `docker/dockerfiles/dev/`: 开发版镜像定义（包含 SSH, Android Studio 等）；Fedora 安装 VS Code，Arch/Alpine 不额外安装 VS Code。
-  - Debian/Ubuntu 的 apt-based Dockerfile 位于各组件目录的 `debian.Dockerfile`；当 `-s ubuntu` 没有专属 `ubuntu.Dockerfile` 时，构建脚本会复用对应的 `debian.Dockerfile`。
+  - 构建时会生成临时 Dockerfile 到 `build/android/`；当 `-s ubuntu` 没有专属 Dockerfile/dockerfrag 时，构建脚本会复用对应的 Debian 文件。
   - `scripts/build-image.sh`: 统一构建与启动入口。
 
 - **核心脚本 (位于 `base-scripts/`)**
@@ -112,12 +113,8 @@
 
 ## 镜像 Tag 策略
 
-镜像 Tag 由完整前缀和 `.env` 中的 `IMAGE_TAG_TIME` 组成，不再省略默认字段。默认 provider 为 `openjdk`，如果使用 `--jdk-provider temurin`，则 tag 中的 `openjdk版本` 会变成 `temurin版本`。
+镜像 Tag 由完整前缀和 `.env` 中的 `IMAGE_TAG_TIME` 组成，不再省略默认字段。默认 provider 为 `openjdk`，如果使用 `--jdk-provider temurin`，则 tag 中的 `openjdk版本` 会变成 `temurin版本`。JDK、Node 标准层和 Docker-in-Docker 现在通过 dockerfrag 合并进最终 Android Dockerfile，不再构建或发布中间层 tag。
 
-- `docker/dockerfiles/openjdk/<system>.Dockerfile` 或 `docker/dockerfiles/temurin/<system>.Dockerfile`：`系统-版本-桌面-provider版本-jdk-时间/latest/snapshot`
-- `docker/dockerfiles/temurin_cn/<system>.Dockerfile`：`系统-版本-桌面-temurin版本-jdk-cn-时间/latest/snapshot`
-- `docker/dockerfiles/standard/<system>.Dockerfile`：`系统-版本-桌面-provider版本-standard-时间/latest/snapshot`
-- `docker/dockerfiles/standard_cn/<system>.Dockerfile`：`系统-版本-桌面-provider版本-standard_cn-时间/latest/snapshot`
 - 标准最终镜像：`系统-版本-桌面-provider版本-时间/latest/snapshot`
 - 中国环境镜像：`系统-版本-桌面-provider版本-cn-时间/latest/snapshot`
 - 开发镜像（基于标准镜像）：`系统-版本-桌面-provider版本-dev-时间/latest/snapshot`
@@ -125,15 +122,10 @@
 
 例如：
 
-- `debian-trixie-xfce-openjdk21-jdk-202603281653`
-- `debian-trixie-xfce-openjdk21-standard-latest`
-- `debian-trixie-xfce-openjdk21-standard_cn-latest`
 - `debian-trixie-xfce-openjdk21-202603281653`
 - `debian-trixie-xfce-openjdk21-cn-snapshot`
 - `debian-trixie-xfce-openjdk21-dev-latest`
 - `debian-trixie-xfce-openjdk21-cn-dev-202603281653`
-- `debian-trixie-xfce-temurin21-jdk-202603281653`
-- `debian-trixie-xfce-temurin21-jdk-cn-202603281653`
 - `debian-trixie-xfce-temurin21-dev-snapshot`
 
 默认构建会优先使用 `.env` 中已有的 `IMAGE_TAG_TIME`，因此多次构建不会因为当前时间变化而改变 tag。只有在 `IMAGE_TAG_TIME` 缺失或格式非法时，脚本才会回退到运行时时间。
@@ -237,7 +229,7 @@ logs
 .env
 ```
 
-如果需要中国环境，请直接基于 `*-cn` 或 `*-cn-dev` tag。标准环境会先经过 `docker/dockerfiles/standard/<system>.Dockerfile` 安装 Node.js/npm，中国环境会改走 `docker/dockerfiles/standard_cn/<system>.Dockerfile` 并在安装阶段切换到国内 npm registry；如果同时指定 `--jdk-provider temurin`，基础 JDK 层会自动改用 `docker/dockerfiles/temurin_cn/<system>.Dockerfile`，从清华 Adoptium 镜像源安装 Temurin。最终 `docker/dockerfiles/android/<system>.Dockerfile` 仍会额外注入 Docker registry mirror、输入法和相关配置，因此不需要再额外复制 `switch-docker-mirror.sh`。目前 Ubuntu 没有单独 Dockerfile 时会复用对应组件的 `debian.Dockerfile`。
+如果需要中国环境，请直接基于 `*-cn` 或 `*-cn-dev` tag。标准环境会注入 `docker/dockerfiles/standard/fragments/<system>.dockerfrag` 安装 Node.js/npm，中国环境会改注入 `docker/dockerfiles/standard_cn/fragments/<system>.dockerfrag` 并在安装阶段切换到国内 npm registry；如果同时指定 `--jdk-provider temurin`，JDK 注入片段会自动改用 `docker/dockerfiles/temurin_cn/fragments/<system>.dockerfrag`，从清华 Adoptium 镜像源安装 Temurin。目前 Ubuntu 没有单独 Dockerfile/dockerfrag 时会复用对应组件的 Debian 文件。
 
 .devcontainer/devcontainer.json
 

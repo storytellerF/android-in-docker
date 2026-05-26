@@ -1,0 +1,8 @@
+
+ARG OPENJDK_VERSION=21
+
+USER root
+
+RUN pacman -Sy --noconfirm --needed \
+    jdk${OPENJDK_VERSION}-openjdk \
+    && pacman -Scc --noconfirm
