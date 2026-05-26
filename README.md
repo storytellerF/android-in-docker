@@ -169,7 +169,7 @@ docker-compose 已配置以下卷（见 [`docker/compose/docker-compose.yml`](do
 - 快速测试构建脚本（使用假 Docker，不会真实构建镜像或启动容器）：
 
 ```sh
-./tests/test-build-image-with-fake-docker.sh
+./tests/verify-fake-docker.sh
 ```
 
 - 重建镜像并重启：
