@@ -59,11 +59,6 @@ cat > "${DEVCONTAINER_DIR}/devcontainer.json" <<EOF
   "service": "main",
   "workspaceFolder": "/workspace/${PROJECT_NAME}",
   "shutdownAction": "stopCompose",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "moby": false
-    }
-  },
   "remoteUser": "debian"
 }
 EOF

@@ -251,12 +251,6 @@ logs
 	"service": "main",
 	"workspaceFolder": "/workspace/your-project-name",
 	"shutdownAction": "stopCompose",
-	// Features to add to the dev container. More info: https://containers.dev/features.
-	"features": {
-		"ghcr.io/devcontainers/features/docker-in-docker:2": {
-			"moby": false
-		}
-	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Uncomment the next line to run commands after the container is created.
