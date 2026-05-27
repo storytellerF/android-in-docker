@@ -11,28 +11,14 @@ USER root
 RUN apk add --no-cache \
     btrfs-progs \
     e2fsprogs \
-    e2fsprogs-extra \
     git \
     ip6tables \
     iptables \
-    iptables-legacy \
     openssl \
     pigz \
     xfsprogs \
     xz \
     zfs
-
-# Configure iptables-legacy fallback for kernels without nf_tables
-RUN set -eux; \
-    apk add --no-cache iptables-legacy; \
-    mkdir -p /usr/local/sbin/.iptables-legacy; \
-    for f in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do \
-        b="$(command -v "${f/tables/tables-legacy}")"; \
-        "$b" --version; \
-        ln -svT "$b" "/usr/local/sbin/.iptables-legacy/$f"; \
-    done; \
-    export PATH="/usr/local/sbin/.iptables-legacy:$PATH"; \
-    iptables --version | grep legacy
 
 # Set up subuid/subgid for dockremap
 RUN set -eux; \

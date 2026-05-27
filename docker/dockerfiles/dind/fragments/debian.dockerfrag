@@ -15,25 +15,14 @@ RUN set -eux; \
         ca-certificates \
         curl \
         e2fsprogs \
-        e2fsprogs-extra \
         git \
-        ip6tables \
         iptables \
-        iptables-legacy \
         openssl \
         pigz \
         xfsprogs \
         xz-utils \
         zfsutils-linux; \
     rm -rf /var/lib/apt/lists/*
-
-# Configure iptables-legacy fallback for kernels without nf_tables
-RUN set -eux; \
-    mkdir -p /usr/local/sbin/.iptables-legacy; \
-    for f in iptables iptables-save iptables-restore ip6tables ip6tables-save ip6tables-restore; do \
-        b="$(command -v "${f/tables/tables-legacy}")"; \
-        ln -svT "$b" "/usr/local/sbin/.iptables-legacy/$f"; \
-    done
 
 # Set up subuid/subgid for dockremap
 RUN set -eux; \

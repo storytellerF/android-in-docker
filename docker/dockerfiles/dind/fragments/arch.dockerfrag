@@ -20,8 +20,6 @@ RUN pacman -Sy --noconfirm --needed \
     zfs-utils; \
     pacman -Scc --noconfirm
 
-# Note: Arch Linux uses nftables by default, but docker still supports iptables
-# The iptables package provides both iptables-legacy and iptables-nft
 
 # Set up subuid/subgid for dockremap
 RUN set -eux; \

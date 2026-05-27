@@ -12,7 +12,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
     btrfs-progs \
     e2fsprogs \
     git \
-    iptables-legacy \
     openssl \
     pigz \
     xfsprogs \
