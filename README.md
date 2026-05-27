@@ -19,11 +19,10 @@
 git submodule update --init --recursive
 ```
 
-创建外部卷。标准运行至少需要 `sdk_data`；开发模式还需要 `gradle_data`：
+创建外部卷。标准运行至少需要 `sdk_data`；
 
 ```sh
 docker volume create sdk_data
-docker volume create gradle_data
 ```
 
 首次生成或更新 `.env`：
