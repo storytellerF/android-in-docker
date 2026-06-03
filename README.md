@@ -6,7 +6,7 @@
 
 - Android Emulator + Android SDK 自动安装与 AVD 自动创建。
 - noVNC Web 桌面、原生 VNC、ADB、Appium Server。
-- Docker-in-Docker，便于在容器内继续构建或运行 Docker 任务。
+- Docker-in-Docker，便于在容器内继续构建或运行 Docker 任务（需要开启特权模式）。
 - 标准镜像和开发镜像两种模式；开发镜像额外包含 SSH、浏览器、Android Studio 等工具。
 - 支持 Debian、Ubuntu、Fedora、Arch、Alpine 基础系统。
 - 支持 OpenJDK 和 Eclipse Temurin；支持中国镜像源变体。
@@ -259,6 +259,5 @@ docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-com
 
 - 首次启动会下载 Android SDK、system image 和默认组件，耗时取决于网络。
 - Linux 宿主机建议启用 KVM，并确认当前用户有 `/dev/kvm` 访问权限。
-- WSL/Windows 环境通常需要 privileged 配置，模拟器性能和可用性取决于宿主虚拟化能力。
 - Alpine 镜像主要用于构建验证；Android Studio/Emulator 官方 Linux 运行要求 glibc，Alpine 运行属于实验性场景。
 - 如果使用 `--cn-mirror` 或位于中国时区，脚本会优先使用中国镜像源变体。
