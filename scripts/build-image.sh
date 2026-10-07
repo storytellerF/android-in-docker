@@ -7,10 +7,10 @@ ENV_FILE=".env"
 DOCKER_ROOT="docker"
 DOCKERFILE_DIR="${DOCKER_ROOT}/dockerfiles"
 COMPOSE_DIR="${DOCKER_ROOT}/compose"
+FRAGMENT_DIR="${DOCKER_ROOT}/fragments"
 DEFAULT_JDK_PROVIDER="openjdk"
 DEFAULT_JDK_VERSION="21"
 DEFAULT_VNC_PASSWORD="password"
-DEFAULT_SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
 DEFAULT_DESKTOP_TYPE="xfce"
 DEFAULT_BASE_SYSTEM="debian"
 DEFAULT_DEBIAN_VERSION="trixie"
@@ -135,7 +135,6 @@ usage() {
     echo "  --jdk-provider <provider>    Specify the JDK provider (openjdk, temurin) (default: $DEFAULT_JDK_PROVIDER)"
     echo "  -j, --jdk-version <version>  Specify the JDK version (default: $DEFAULT_JDK_VERSION)"
     echo "  -p, --password <password>    Specify the VNC password (default: $DEFAULT_VNC_PASSWORD)"
-    echo "  -i, --system-image <package> Specify the System Image Package (default: $DEFAULT_SYS_IMG_PKG)"
     echo "  -d, --desktop <type>         Specify the Desktop Type (xfce, lxqt, mate) (default: $DEFAULT_DESKTOP_TYPE)"
     echo "  -z, --timezone <timezone>    Specify the timezone (default: auto-detect from host)"
     echo "  --cn-mirror                  Force China variant (CN tags + build-time mirrors)"
@@ -144,7 +143,6 @@ usage() {
     echo "  -v, --version <version>      Specify the base version ($(supported_base_versions_summary); default depends on --system)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
     echo "  -b, --build                  Execute the docker build process"
-    echo "  -D, --dev                    Build ${DOCKERFILE_DIR}/dev/<system>.Dockerfile after ${DOCKERFILE_DIR}/android/<system>.Dockerfile (includes SSH, Chrome, Android Studio)"
     echo "  -S, --start                  Start docker compose up --build after building the image"
     echo "  -T, --stop                   Stop docker compose and remove the project containers"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
@@ -158,7 +156,6 @@ usage() {
 # Parse arguments
 CREATE_ENV=false
 EXECUTE_BUILD=false
-BUILD_DEV=false
 START_CONTAINER=false
 STOP_CONTAINER=false
 PUBLISH=false
@@ -167,7 +164,6 @@ DOCKER_USERNAME=""
 JDK_PROVIDER_INPUT=""
 JDK_VERSION=""
 VNC_PASSWORD=""
-SYS_IMG_PKG=""
 DESKTOP_TYPE_INPUT=""
 BASE_SYSTEM_INPUT=""
 BASE_VERSION_INPUT=""
@@ -188,10 +184,6 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -p|--password)
             VNC_PASSWORD="$2"
-            shift
-            ;;
-        -i|--system-image)
-            SYS_IMG_PKG="$2"
             shift
             ;;
         -d|--desktop)
@@ -221,9 +213,6 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -b|--build)
             EXECUTE_BUILD=true
-            ;;
-        -D|--dev)
-            BUILD_DEV=true
             ;;
         -S|--start)
             START_CONTAINER=true
@@ -269,8 +258,6 @@ fi
 [ -n "$JDK_PROVIDER_INPUT" ] && JDK_PROVIDER="$JDK_PROVIDER_INPUT"
 [ -n "$JDK_VERSION" ] && OPENJDK_VERSION="$JDK_VERSION"
 [ -n "$VNC_PASSWORD" ] && VNC_PASSWD="$VNC_PASSWORD"
-# SYS_IMG_PKG from args overrides the default legacy entry in .env
-[ -n "$SYS_IMG_PKG" ] && SYS_IMG_PKG="$SYS_IMG_PKG"
 [ -n "$DESKTOP_TYPE_INPUT" ] && DESKTOP_TYPE="$DESKTOP_TYPE_INPUT"
 [ -n "$BASE_SYSTEM_INPUT" ] && BASE_SYSTEM="$BASE_SYSTEM_INPUT"
 [ -n "$BASE_VERSION_INPUT" ] && BASE_VERSION="$BASE_VERSION_INPUT"
@@ -279,7 +266,6 @@ fi
 JDK_PROVIDER="${JDK_PROVIDER:-$DEFAULT_JDK_PROVIDER}"
 OPENJDK_VERSION="${OPENJDK_VERSION:-$DEFAULT_JDK_VERSION}"
 VNC_PASSWD="${VNC_PASSWD:-$DEFAULT_VNC_PASSWORD}"
-SYS_IMG_PKG="${SYS_IMG_PKG:-$DEFAULT_SYS_IMG_PKG}"
 DESKTOP_TYPE="${DESKTOP_TYPE:-$DEFAULT_DESKTOP_TYPE}"
 BASE_SYSTEM="${BASE_SYSTEM:-$DEFAULT_BASE_SYSTEM}"
 if [ -z "$BASE_VERSION" ]; then
@@ -302,7 +288,7 @@ if ! is_supported_base_version_for_system "$BASE_SYSTEM" "$BASE_VERSION"; then
 fi
 
 if [ "$BASE_SYSTEM" = "alpine" ]; then
-    echo "Warning: Alpine support is experimental. Android Studio/Emulator upstream Linux requirements include glibc 2.31+."
+    echo "Warning: Alpine support is experimental. Tools requiring glibc may not run in its musl environment."
 fi
 
 case "$JDK_PROVIDER" in
@@ -345,7 +331,6 @@ DESKTOP_IMAGE_REGION_SUFFIX=""
 if [ "$USE_CN_ENV" = "true" ]; then
     DESKTOP_IMAGE_REGION_SUFFIX="-cn"
 fi
-DESKTOP_IMAGE_LABEL="${DESKTOP_IMAGE_LABEL:-latest}"
 
 # Build fully-qualified tag prefixes.
 build_tag_prefix() {
@@ -404,10 +389,6 @@ refresh_tag_context() {
         TARGET_TAG_PREFIX="$STANDARD_TAG_PREFIX"
     fi
 
-    if [ "$BUILD_DEV" = "true" ]; then
-        TARGET_TAG_PREFIX="${TARGET_TAG_PREFIX}-dev"
-    fi
-
     IMAGE_TAG=$(build_image_tag "$TARGET_TAG_PREFIX" "$IMAGE_TAG_TIME")
 }
 
@@ -421,11 +402,7 @@ fi
 refresh_tag_context
 
 build_compose_files() {
-    if [ "$BUILD_DEV" = true ]; then
-        echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.dev.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml -f ${COMPOSE_DIR}/docker-compose.privileged.yml"
-    else
-        echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml -f ${COMPOSE_DIR}/docker-compose.privileged.yml"
-    fi
+    echo "-f ${COMPOSE_DIR}/docker-compose.yml"
 }
 
 resolve_component_dockerfile() {
@@ -451,11 +428,11 @@ resolve_component_dockerfile() {
     return 1
 }
 
-resolve_component_fragment() {
+resolve_install_fragment() {
     local component=$1
     local system=$2
-    local system_fragment="${DOCKERFILE_DIR}/${component}/fragments/${system}.dockerfrag"
-    local debian_fragment="${DOCKERFILE_DIR}/${component}/fragments/debian.dockerfrag"
+    local system_fragment="${FRAGMENT_DIR}/${component}/${system}.dockerfile.inc"
+    local debian_fragment="${FRAGMENT_DIR}/${component}/debian.dockerfile.inc"
 
     if [ -f "$system_fragment" ]; then
         echo "$system_fragment"
@@ -467,9 +444,9 @@ resolve_component_fragment() {
         return 0
     fi
 
-    echo "Error: missing dockerfrag for component '$component' and base system '$system': expected $system_fragment" >&2
+    echo "Error: missing installation fragment for component '$component' and base system '$system': expected $system_fragment" >&2
     if [ "$system" = "ubuntu" ]; then
-        echo "       Ubuntu may share Debian dockerfrag, but $debian_fragment was not found." >&2
+        echo "       Ubuntu may share Debian installation fragment, but $debian_fragment was not found." >&2
     fi
     return 1
 }
@@ -479,7 +456,7 @@ merge_android_dockerfile() {
     local output_file=$2
     shift 2
     local fragment_files=("$@")
-    local inject_marker="__INJECT_ANDROID_BASE_FRAGS__"
+    local inject_marker="__INJECT_INSTALL_FRAGMENTS__"
     local injected=false
 
     mkdir -p "$(dirname "$output_file")"
@@ -509,14 +486,11 @@ stop_compose_stack() {
 
     compose_files=$(build_compose_files)
 
-    if [ "$BUILD_DEV" = true ]; then
-        echo "Stopping docker compose with DEV configuration..."
-    else
-        echo "Stopping standard docker compose..."
-    fi
+    echo "Stopping docker compose..."
 
     export IMAGE_TAG="$IMAGE_TAG"
     export CONTAINER_HOME="$CONTAINER_HOME"
+    export DOCKER_USERNAME="$DOCKER_USERNAME"
     docker compose $compose_files down
 }
 
@@ -586,6 +560,32 @@ fi
 
 # Global array to accumulate all built tags (format: "dockerfile|tag")
 ALL_BUILT_TAGS=()
+
+# Build the pinned desktop source in an isolated context so its local .env and
+# generated files cannot override this build or dirty the submodule checkout.
+build_desktop_dependency() (
+    local source_dir="external/desktop-in-docker"
+    if [ ! -f "$source_dir/scripts/build-image.sh" ]; then
+        echo "Desktop submodule is missing. Run: git submodule update --init --recursive" >&2
+        exit 1
+    fi
+    local context
+    context=$(mktemp -d "${TMPDIR:-/tmp}/android-desktop-build.XXXXXX")
+    trap 'rm -rf "$context"' EXIT
+    # Preserve pipeline failures while copying the source.
+    set -o pipefail
+    tar --exclude=.git --exclude=.env --exclude=build -C "$source_dir" -cf - . | tar -xf - -C "$context"
+    printf 'DOCKER_USERNAME=%q\nCURRENT_DATE=%q\nTZ=%q\n' \
+        "$DOCKER_USERNAME" "$IMAGE_TAG_TIME" "$SYSTEM_TIMEZONE" > "$context/.env"
+    local args=(-s "$BASE_SYSTEM" -v "$BASE_VERSION" -d "$DESKTOP_TYPE" --image-variant x11)
+    if [ "$USE_CN_ENV" = true ]; then args+=(--cn-mirror); else args+=(--no-cn-mirror); fi
+    if [ "$TAG_LATEST" = true ]; then args+=(--latest); fi
+    if [ "$TAG_SNAPSHOT" = false ]; then args+=(--no-snapshot); fi
+    if [ "$PUBLISH" = true ]; then args+=(-P -m); else args+=(-b); fi
+    echo "Building desktop dependency: $DESKTOP_BASE_IMAGE"
+    cd "$context"
+    bash scripts/build-image.sh "${args[@]}"
+)
 
 # --- Build Function ---
 run_build() {
@@ -676,47 +676,49 @@ run_build() {
 }
 
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
-    JDK_COMPONENT="$JDK_PROVIDER"
+    JDK_COMPONENT="java/$JDK_PROVIDER"
     if [ "$JDK_PROVIDER" = "temurin" ] && [ "$USE_CN_ENV" = "true" ]; then
-        JDK_COMPONENT="temurin_cn"
+        JDK_COMPONENT="java/temurin/china"
     fi
 
-    BASE_JDK_FRAGMENT=$(resolve_component_fragment "$JDK_COMPONENT" "$BASE_SYSTEM")
+    JAVA_FRAGMENT=$(resolve_install_fragment "$JDK_COMPONENT" "$BASE_SYSTEM")
     if [ "$USE_CN_ENV" = "true" ]; then
-        STANDARD_FRAGMENT=$(resolve_component_fragment "standard_cn" "$BASE_SYSTEM")
+        NODEJS_FRAGMENT=$(resolve_install_fragment "nodejs/china" "$BASE_SYSTEM")
         ANDROID_TAG_PREFIX="$CHINA_TAG_PREFIX"
         ANDROID_SHORT_TAG_PREFIX=$(build_short_tag_prefix "cn")
         GENERATED_ANDROID_DOCKERFILE="build/android/${BASE_SYSTEM}_cn.Dockerfile"
     else
-        STANDARD_FRAGMENT=$(resolve_component_fragment "standard" "$BASE_SYSTEM")
+        NODEJS_FRAGMENT=$(resolve_install_fragment "nodejs/default" "$BASE_SYSTEM")
         ANDROID_TAG_PREFIX="$STANDARD_TAG_PREFIX"
         ANDROID_SHORT_TAG_PREFIX=$(build_short_tag_prefix "")
         GENERATED_ANDROID_DOCKERFILE="build/android/${BASE_SYSTEM}.Dockerfile"
     fi
-    DIND_FRAGMENT=$(resolve_component_fragment "dind" "$BASE_SYSTEM")
     ANDROID_SOURCE_DOCKERFILE=$(resolve_component_dockerfile "android" "$BASE_SYSTEM")
-    DEV_DOCKERFILE=$(resolve_component_dockerfile "dev" "$BASE_SYSTEM")
+
+    DESKTOP_BASE_IMAGE="${DOCKER_USERNAME:+${DOCKER_USERNAME}/}desktop-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}${DESKTOP_IMAGE_REGION_SUFFIX}-${IMAGE_TAG_TIME}"
+    build_desktop_dependency
+
+    INSTALL_FRAGMENTS=("$JAVA_FRAGMENT" "$NODEJS_FRAGMENT")
+    if [ "$USE_CN_ENV" = true ]; then
+        INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/npm/china.dockerfile.inc")
+    fi
+
+    INSTALL_FRAGMENTS+=(
+        "$(resolve_install_fragment development-tools "$BASE_SYSTEM")"
+        "$(resolve_install_fragment ssh "$BASE_SYSTEM")"
+        "${FRAGMENT_DIR}/ssh/configure.dockerfile.inc"
+    )
+    if [ "$BASE_SYSTEM" = debian ] || [ "$BASE_SYSTEM" = ubuntu ] || [ "$BASE_SYSTEM" = fedora ]; then
+        INSTALL_FRAGMENTS+=("$(resolve_install_fragment vscode "$BASE_SYSTEM")")
+    fi
 
     echo "Merging Android Dockerfile into $GENERATED_ANDROID_DOCKERFILE..."
     merge_android_dockerfile "$ANDROID_SOURCE_DOCKERFILE" "$GENERATED_ANDROID_DOCKERFILE" \
-        "$BASE_JDK_FRAGMENT" \
-        "$STANDARD_FRAGMENT" \
-        "$DIND_FRAGMENT"
+        "${INSTALL_FRAGMENTS[@]}"
 
     run_build "$GENERATED_ANDROID_DOCKERFILE" "${IMAGE_NAME}" "$ANDROID_TAG_PREFIX" "$ANDROID_SHORT_TAG_PREFIX" \
-        --build-arg DESKTOP_IMAGE_REGION_SUFFIX="$DESKTOP_IMAGE_REGION_SUFFIX" \
-        --build-arg DESKTOP_IMAGE_LABEL="$DESKTOP_IMAGE_LABEL"
+        --build-arg DESKTOP_BASE_IMAGE="$DESKTOP_BASE_IMAGE"
 
-    if [ "$BUILD_DEV" = true ]; then
-        if [ "$USE_CN_ENV" = "true" ]; then
-            run_build "$DEV_DOCKERFILE" "${IMAGE_NAME}" "${CHINA_TAG_PREFIX}-dev" "$(build_short_tag_prefix "cn-dev")" \
-                --build-arg BASE_IMAGE_VARIANT_SUFFIX="-cn" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-        else
-            run_build "$DEV_DOCKERFILE" "${IMAGE_NAME}" "${STANDARD_TAG_PREFIX}-dev" "$(build_short_tag_prefix "dev")" \
-                --build-arg BASE_IMAGE_SOURCE_LABEL="$IMAGE_TAG_TIME"
-        fi
-    fi
     echo "Cleaning up dangling images..."
     docker image prune -f
 
@@ -781,48 +783,24 @@ if [ "$START_CONTAINER" = true ]; then
     echo ""
     COMPOSE_FILES=$(build_compose_files)
 
-    if [ "$BUILD_DEV" = true ]; then
-        echo "Starting docker compose with DEV configuration..."
-        export IMAGE_TAG="$IMAGE_TAG"
-        export CONTAINER_HOME="$CONTAINER_HOME"
-        if docker compose $COMPOSE_FILES up -d --build; then
-            echo "Docker compose with DEV configuration started successfully."
-            # Retrieve dynamic ports
-            VNC_PORT=$(docker compose $COMPOSE_FILES port android 5901 2>/dev/null | cut -d: -f2)
-            NOVNC_PORT=$(docker compose $COMPOSE_FILES port android 6080 2>/dev/null | cut -d: -f2)
-            APPIUM_PORT=$(docker compose $COMPOSE_FILES port android 4723 2>/dev/null | cut -d: -f2)
-            SSH_PORT=$(docker compose $COMPOSE_FILES port android 22 2>/dev/null | cut -d: -f2)
-            ADB_PORT=$(docker compose $COMPOSE_FILES port android 5555 2>/dev/null | cut -d: -f2)
-
-            echo "You can access the Android emulator via:"
-            [ -n "$NOVNC_PORT" ] && echo "  - Web VNC: http://localhost:${NOVNC_PORT}/vnc.html"
-            [ -n "$VNC_PORT" ] && echo "  - VNC direct: localhost:${VNC_PORT}"
-            [ -n "$APPIUM_PORT" ] && echo "  - Appium: http://localhost:${APPIUM_PORT}/inspector"
-            [ -n "$SSH_PORT" ] && echo "  - SSH: ssh -p ${SSH_PORT} ${CONTAINER_USER}@localhost"
-            [ -n "$ADB_PORT" ] && echo "  - ADB: adb connect localhost:${ADB_PORT}"
-        else
-            echo "Failed to start docker compose with DEV configuration."
-        fi
+    echo "Starting docker compose..."
+    export IMAGE_TAG="$IMAGE_TAG"
+    export CONTAINER_HOME="$CONTAINER_HOME"
+    export DOCKER_USERNAME="$DOCKER_USERNAME"
+    if docker compose $COMPOSE_FILES up -d --build; then
+        echo "Docker compose started successfully."
+        VNC_PORT=$(docker compose $COMPOSE_FILES port android 5901 2>/dev/null | cut -d: -f2)
+        NOVNC_PORT=$(docker compose $COMPOSE_FILES port android 6080 2>/dev/null | cut -d: -f2)
+        APPIUM_PORT=$(docker compose $COMPOSE_FILES port android 4723 2>/dev/null | cut -d: -f2)
+        SSH_PORT=$(docker compose $COMPOSE_FILES port android 22 2>/dev/null | cut -d: -f2)
+        echo "You can access the desktop and services via:"
+        [ -n "$NOVNC_PORT" ] && echo "  - Web VNC: http://localhost:${NOVNC_PORT}/vnc.html"
+        [ -n "$VNC_PORT" ] && echo "  - VNC direct: localhost:${VNC_PORT}"
+        [ -n "$APPIUM_PORT" ] && echo "  - Appium: http://localhost:${APPIUM_PORT}/inspector"
+        [ -n "$SSH_PORT" ] && echo "  - SSH: ssh -p ${SSH_PORT} ${CONTAINER_USER}@localhost"
     else
-        echo "Starting standard docker compose..."
-        export IMAGE_TAG="$IMAGE_TAG"
-        export CONTAINER_HOME="$CONTAINER_HOME"
-        if docker compose $COMPOSE_FILES up -d --build; then
-            echo "Docker compose started successfully."
-            # Retrieve dynamic ports
-            VNC_PORT=$(docker compose $COMPOSE_FILES port android 5901 2>/dev/null | cut -d: -f2)
-            NOVNC_PORT=$(docker compose $COMPOSE_FILES port android 6080 2>/dev/null | cut -d: -f2)
-            APPIUM_PORT=$(docker compose $COMPOSE_FILES port android 4723 2>/dev/null | cut -d: -f2)
-            ADB_PORT=$(docker compose $COMPOSE_FILES port android 5555 2>/dev/null | cut -d: -f2)
-
-            echo "You can access the Android emulator via:"
-            [ -n "$NOVNC_PORT" ] && echo "  - Web VNC: http://localhost:${NOVNC_PORT}/vnc.html"
-            [ -n "$VNC_PORT" ] && echo "  - VNC direct: localhost:${VNC_PORT}"
-            [ -n "$APPIUM_PORT" ] && echo "  - Appium: http://localhost:${APPIUM_PORT}/inspector"
-            [ -n "$ADB_PORT" ] && echo "  - ADB: adb connect localhost:${ADB_PORT}"
-        else
-            echo "Failed to start docker compose."
-        fi
+        echo "Failed to start docker compose." >&2
+        exit 1
     fi
 fi
 

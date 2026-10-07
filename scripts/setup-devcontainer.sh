@@ -76,7 +76,6 @@ services:
     ports:
       - "6080" # noVNC web interface
       - "5901" # VNC direct connection
-      - "5555" # ADB
       - "4723" # Appium
       - "22" # ssh
     environment:
@@ -87,8 +86,6 @@ services:
       - ..:/workspace/${PROJECT_NAME}:cached
       - ./logs:\${CONTAINER_HOME:-/home/debian}/log/supervisor
       - ./data/authorized_keys:\${CONTAINER_HOME}/.ssh/authorized_keys
-      - avd_data:\${CONTAINER_HOME}/.android/avd
-      - sdk_data:\${CONTAINER_HOME}/Android/Sdk
       - bash_history:\${CONTAINER_HOME}/.desktop-in-docker/.bash_history
       - gradle_data:\${CONTAINER_HOME}/.gradle
       - konan_data:\${CONTAINER_HOME}/.konan
@@ -101,16 +98,8 @@ services:
       - vscode_data:\${CONTAINER_HOME}/.vscode
       - code_config:\${CONTAINER_HOME}/.config/Code
     shm_size: '2gb' # Allocate more shared memory
-    devices:
-      - /dev/kvm
-    security_opt:
-      - seccomp:unconfined
 
 volumes:
-  avd_data:
-  sdk_data:
-    name: sdk_data
-    external: true
   bash_history:
   gradle_data:
   konan_data:
@@ -124,42 +113,21 @@ volumes:
   code_config:
 EOF
 
-# 4. 生成 custom-entrypoint.sh
-echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/custom-entrypoint.sh${NC}"
-cat > "${DEVCONTAINER_DIR}/custom-entrypoint.sh" <<'EOF'
-#!/bin/bash
-
-set -e
-# check arch select SYS_IMG_PKG
-if [ "$(uname -m)" = "x86_64" ]; then
-    export SYS_IMG_PKG="system-images;android-36;google_apis;x86_64"
-else
-    export SYS_IMG_PKG="system-images;android-36;google_apis;arm64"
-fi
-
-./bin/entrypoint.sh
-EOF
-
-# 5. 生成 dev.Dockerfile
+# 4. 生成 dev.Dockerfile
 echo -e "${YELLOW}生成 ${DEVCONTAINER_DIR}/dev.Dockerfile${NC}"
 cat > "${DEVCONTAINER_DIR}/dev.Dockerfile" <<EOF
-FROM storytellerf/android-in-docker:debian-trixie-xfce-openjdk21-dev-latest
+FROM storytellerf/android-in-docker:debian-trixie-xfce-openjdk21-latest
 
 ARG USER_NAME
 
 USER \$USER_NAME
 WORKDIR /home/\$USER_NAME
 
-COPY --chown=\$USER_NAME:\$USER_NAME .devcontainer/custom-entrypoint.sh ./bin/custom-entrypoint.sh
-RUN chmod +x ./bin/custom-entrypoint.sh
-
-ENTRYPOINT ["sh", "-c", "\$HOME/bin/custom-entrypoint.sh"]
 EOF
 
 echo -e "${GREEN}完成！${NC}"
 echo -e "接下来你可以："
 echo -e "1. 检查生成的 .devcontainer 目录下的文件是否符合需求"
 echo -e "2. 如果需要配置 SSH 免密登录，请运行: ${YELLOW}cd .devcontainer && ${SCRIPT_DIR}/add-ssh-key.sh${NC}"
-echo -e "3. 如果需要中国环境，请将 ${YELLOW}${DEVCONTAINER_DIR}/dev.Dockerfile${NC} 中的镜像 tag 改为 *-cn 或 *-cn-dev"
-echo -e "4. 如果外部卷不存在，请先执行: ${YELLOW}docker volume create sdk_data${NC}"
-echo -e "5. 使用 VS Code 打开当前目录，并在提示时选择 'Reopen in Container'"
+echo -e "3. 如果需要中国环境，请将 ${YELLOW}${DEVCONTAINER_DIR}/dev.Dockerfile${NC} 中的镜像 tag 改为 *-cn-*"
+echo -e "4. 使用 VS Code 打开当前目录，并在提示时选择 'Reopen in Container'"

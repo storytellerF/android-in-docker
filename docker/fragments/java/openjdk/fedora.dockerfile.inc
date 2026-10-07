@@ -1,0 +1,7 @@
+ARG OPENJDK_VERSION=21
+
+USER root
+
+RUN dnf install -y \
+    java-${OPENJDK_VERSION}-openjdk-devel \
+    && dnf clean all

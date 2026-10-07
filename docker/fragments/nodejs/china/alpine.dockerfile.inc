@@ -1,0 +1,16 @@
+
+ENV NVM_DIR=/usr/local/nvm
+ENV NVM_NODEJS_ORG_MIRROR=https://npmmirror.com/mirrors/node
+ENV PATH=${NVM_DIR}/current/bin:${PATH}
+
+USER root
+
+RUN apk add --no-cache bash ca-certificates curl nodejs npm tar xz
+
+RUN update-ca-certificates || true
+
+RUN mkdir -p "$NVM_DIR" \
+    && node_prefix="$(dirname "$(dirname "$(readlink -f "$(command -v node)")")")" \
+    && ln -sfn "$node_prefix" "$NVM_DIR/current" \
+    && printf 'export NVM_DIR=%s\n' "$NVM_DIR" > /etc/profile.d/nvm.sh \
+    && printf '\nexport NVM_DIR=%s\n' "$NVM_DIR" >> /etc/profile

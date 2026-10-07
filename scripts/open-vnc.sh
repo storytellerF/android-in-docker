@@ -15,8 +15,6 @@ if [ -f ".devcontainer/docker-compose.yml" ]; then
     COMPOSE_FILE=".devcontainer/docker-compose.yml"
 elif [ -f "docker/compose/docker-compose.yml" ]; then
     COMPOSE_FILE="docker/compose/docker-compose.yml"
-elif [ -f "docker/compose/docker-compose.dev.yml" ]; then
-    COMPOSE_FILE="docker/compose/docker-compose.dev.yml"
 fi
 
 if [ -z "$COMPOSE_FILE" ]; then

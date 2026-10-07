@@ -5,7 +5,7 @@ _build_image_completion() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="--jdk-provider -j --jdk-version -c --create-env -p --password -h --help -b --build -D --dev -S --start -P --publish -m --multi-arch -i --system-image --latest --no-snapshot -s --system -v --version --cn-mirror --no-cn-mirror -d --desktop -z --timezone -T --stop"
+    opts="--jdk-provider -j --jdk-version -c --create-env -p --password -h --help -b --build -S --start -P --publish -m --multi-arch --latest --no-snapshot -s --system -v --version --cn-mirror --no-cn-mirror -d --desktop -z --timezone -T --stop"
 
     case "${prev}" in
         --jdk-provider)
