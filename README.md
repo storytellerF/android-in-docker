@@ -2,7 +2,7 @@
 
 A containerized desktop and Java development environment with Appium for Android automation. Every image provides noVNC, VNC, a JDK, Appium, SSH, and Git. Debian/Ubuntu and Fedora images also install VS Code. There is one image configuration; no separate standard or development mode is required.
 
-Android SDK installation, AVD creation and startup, Android Studio installation, and Docker-in-Docker are no longer included. Configure your own Android SDK and target devices when using Appium for Android tests.
+Android SDK installation, AVD creation, and emulator startup are provided by the pinned `android-profile` submodule. Android Studio installation and Docker-in-Docker are not included.
 
 ## Requirements
 
@@ -46,6 +46,7 @@ Docker assigns host ports automatically. The script prints connection addresses 
 | noVNC | 6080 | `http://localhost:<port>/vnc.html` |
 | VNC | 5901 | `localhost:<port>` |
 | Appium / Inspector | 4723 | `http://localhost:<port>/inspector` |
+| Emulator ADB | 5555 | Availability depends on the emulator profile and network binding |
 | SSH | 22 | `ssh -p <port> debian@localhost` |
 
 The SSH username depends on the base system. Debian uses `debian`, Ubuntu uses `ubuntu`, Fedora uses `user`, and Alpine uses `alpine`.
@@ -85,6 +86,16 @@ The Android image references the exact timestamped desktop tag produced earlier 
 ```
 
 Defaults are Debian `trixie`, Xfce, and OpenJDK 21. Debian, Ubuntu, Fedora, and Alpine builds are subject to the pinned desktop project's supported combinations. Its current X11 build rejects Arch and Ubuntu versions newer than 24.04, including `resolute`. Alpine uses musl; check compatibility before adding tools that require glibc.
+
+## Android SDK and emulator
+
+The `external/android-profile` submodule is pinned to commit `2d85cdc`. At container startup, Supervisor runs SDK installation, AVD creation, and emulator startup in that order. SDK setup installs command-line tools, platform-tools, and the emulator; AVD creation downloads the system image selected by the profile. These downloads occur at runtime, not during the Docker build.
+
+`sdk_data` persists `/home/<user>/Android/Sdk`, and `avd_data` persists `/home/<user>/.android/avd`. Both are Compose-managed named volumes. The generated Dev Container configuration includes the same volumes.
+
+The default profile is `/home/<user>/android-profiles/android.profile`. Set `ANDROID_PROFILE` to select another profile, and bind-mount that file into the container. It defines the system-image package prefix, device definition, display, and emulator arguments. The upstream scripts select the image ABI from the container architecture. Emulator output appears in `logs/android_stdout.log` and `logs/android_stderr.log`.
+
+Hardware acceleration requires a usable KVM device and matching access permissions; the supplied Compose configuration does not mount it or enable privileged mode. If running without KVM, configure software acceleration in your profile. Android's Linux emulator requires glibc, so Alpine is not a supported emulator runtime. Installing SDK tools does not establish that every architecture/profile can boot successfully.
 
 ## Publishing
 
@@ -157,7 +168,7 @@ source scripts/completion.bash
 
 ## Compose and development containers
 
-`docker/compose/docker-compose.yml` defines all services and ports, SSH authorized keys, logs, shell history, and development caches. All features are enabled by default. Image tags no longer carry a `-dev` suffix, and `-D` / `--dev` are no longer accepted.
+`docker/compose/docker-compose.yml` defines all services and ports, SSH authorized keys, logs, SDK/AVD storage, shell history, and development caches. All features are enabled by default. Image tags no longer carry a `-dev` suffix, and `-D` / `--dev` are no longer accepted.
 
 To generate a Dev Container configuration in another project, run this script from that project's root:
 
@@ -207,14 +218,16 @@ These checks cover supported build combinations, image dependency order, publish
 | `scripts/setup-devcontainer.sh` | Generate Dev Container files |
 | `scripts/add-ssh-key.sh` | Add a public key to Dev Container authorized keys |
 | `scripts/open-vnc.sh` | Detect the VNC port and launch a local client |
-| `base-scripts/` | Install and start Appium |
+| `base-scripts/` | Appium installation/startup and the SDK/AVD/emulator startup sequence |
 | `docker/dockerfiles/android/` | Unified image Dockerfile templates |
 | `docker/fragments/` | Java, Node.js, npm, SSH, development tools, and editor fragments |
 | `docker/compose/` | Unified Compose configuration |
 | `docker/config/supervisor/` | Container service configuration |
 | `docker/config/appium/` | Example Appium capabilities |
 | `external/desktop-in-docker/` | Pinned upstream desktop source submodule |
+| `external/android-profile/` | Pinned SDK installation, AVD creation, startup scripts, and profiles |
 | `tests/verify-fake-docker.sh` | Build orchestration smoke tests |
+| `tests/test-android-startup.sh` | SDK/AVD/emulator startup order and failure handling |
 
 ## Dockerfile fragments
 
@@ -236,9 +249,13 @@ docker/fragments/
 ├── ssh/
 │   ├── <system>.dockerfile.inc
 │   └── configure.dockerfile.inc
-└── vscode/<system>.dockerfile.inc
+├── vscode/<system>.dockerfile.inc
+├── android-sdk/configure.dockerfile.inc
+└── android-emulator/startup.dockerfile.inc
 ```
 
 Java fragments install the selected JDK. Node.js fragments install Node.js and npm, using regional download settings when selected. The separate npm fragment configures registry mirrors for root and the container user after Node.js is installed.
 
 Each system-specific installer declares its own arguments, environment, and root user. Ubuntu reuses the Debian installers. The build script injects Java, Node.js, optional npm configuration, development tools, SSH installation and configuration, and VS Code where supported at `__INJECT_INSTALL_FRAGMENTS__`. SSH package installation is system-specific; service registration and authentication settings are shared. The image template then selects its runtime user and installs Appium.
+
+The Android SDK fragment copies upstream scripts and profiles and configures SDK paths. The separate emulator fragment registers the startup wrapper with Supervisor. Runtime provisioning remains separate from image build-time package installation.

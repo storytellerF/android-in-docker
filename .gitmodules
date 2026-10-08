@@ -1,3 +1,6 @@
 [submodule "external/desktop-in-docker"]
 	path = external/desktop-in-docker
 	url = https://github.com/storytellerF/desktop-in-docker.git
+[submodule "external/android-profile"]
+	path = external/android-profile
+	url = https://github.com/storytellerF/android-profile.git

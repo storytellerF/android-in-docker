@@ -77,6 +77,7 @@ services:
       - "6080" # noVNC web interface
       - "5901" # VNC direct connection
       - "4723" # Appium
+      - "5555" # Emulator ADB
       - "22" # ssh
     environment:
       - VNC_PASSWD=\${VNC_PASSWD}
@@ -86,6 +87,8 @@ services:
       - ..:/workspace/${PROJECT_NAME}:cached
       - ./logs:\${CONTAINER_HOME:-/home/debian}/log/supervisor
       - ./data/authorized_keys:\${CONTAINER_HOME}/.ssh/authorized_keys
+      - sdk_data:\${CONTAINER_HOME}/Android/Sdk
+      - avd_data:\${CONTAINER_HOME}/.android/avd
       - bash_history:\${CONTAINER_HOME}/.desktop-in-docker/.bash_history
       - gradle_data:\${CONTAINER_HOME}/.gradle
       - konan_data:\${CONTAINER_HOME}/.konan
@@ -100,6 +103,8 @@ services:
     shm_size: '2gb' # Allocate more shared memory
 
 volumes:
+  sdk_data:
+  avd_data:
   bash_history:
   gradle_data:
   konan_data:

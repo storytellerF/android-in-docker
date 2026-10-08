@@ -6,6 +6,7 @@ services:
     - '5901'
     - '4723'
     - '22'
+    - '5555'
     environment:
     - VNC_GEOMETRY=1920x1080
     - VNC_DEPTH=24
@@ -22,6 +23,8 @@ services:
     - firefox_config:${CONTAINER_HOME:-/home/debian}/.mozilla/firefox
     - vscode_data:${CONTAINER_HOME:-/home/debian}/.vscode
     - vscode_config:${CONTAINER_HOME:-/home/debian}/.config/Code
+    - sdk_data:${CONTAINER_HOME:-/home/debian}/Android/Sdk
+    - avd_data:${CONTAINER_HOME:-/home/debian}/.android/avd
     shm_size: 2gb
     restart: unless-stopped
 volumes:
@@ -33,3 +36,5 @@ volumes:
   firefox_config: null
   vscode_data: null
   vscode_config: null
+  sdk_data: null
+  avd_data: null

@@ -696,6 +696,10 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     ANDROID_SOURCE_DOCKERFILE=$(resolve_component_dockerfile "android" "$BASE_SYSTEM")
 
     DESKTOP_BASE_IMAGE="${DOCKER_USERNAME:+${DOCKER_USERNAME}/}desktop-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}${DESKTOP_IMAGE_REGION_SUFFIX}-${IMAGE_TAG_TIME}"
+    if [ ! -f external/android-profile/scripts/install-sdk.sh ]; then
+        echo "Android profile submodule is missing. Run: git submodule update --init --recursive" >&2
+        exit 1
+    fi
     build_desktop_dependency
 
     INSTALL_FRAGMENTS=("$JAVA_FRAGMENT" "$NODEJS_FRAGMENT")
@@ -711,6 +715,8 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
     if [ "$BASE_SYSTEM" = debian ] || [ "$BASE_SYSTEM" = ubuntu ] || [ "$BASE_SYSTEM" = fedora ]; then
         INSTALL_FRAGMENTS+=("$(resolve_install_fragment vscode "$BASE_SYSTEM")")
     fi
+
+    INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/android-sdk/configure.dockerfile.inc" "${FRAGMENT_DIR}/android-emulator/startup.dockerfile.inc")
 
     echo "Merging Android Dockerfile into $GENERATED_ANDROID_DOCKERFILE..."
     merge_android_dockerfile "$ANDROID_SOURCE_DOCKERFILE" "$GENERATED_ANDROID_DOCKERFILE" \

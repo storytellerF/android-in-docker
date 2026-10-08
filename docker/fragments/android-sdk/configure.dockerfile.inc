@@ -1,0 +1,13 @@
+# Android SDK is installed at container startup into its persistent volume.
+ARG USERNAME
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+USER root
+ENV ANDROID_HOME=/home/${USERNAME}/Android/Sdk
+ENV ANDROID_PROFILE_DIR=/home/${USERNAME}/android-profiles
+ENV PATH=${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator:${PATH}
+
+COPY --chown=${USER_UID}:${USER_GID} external/android-profile/scripts/ /home/${USERNAME}/bin/
+COPY --chown=${USER_UID}:${USER_GID} external/android-profile/profiles/ /home/${USERNAME}/android-profiles/
+RUN chmod +x /home/${USERNAME}/bin/*.sh

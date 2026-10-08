@@ -63,11 +63,14 @@ for system in debian ubuntu fedora alpine; do
             generated="build/android/${system}.Dockerfile"
             [ "$mirror" != --cn-mirror ] || generated="build/android/${system}_cn.Dockerfile"
             assert_file_exists "$generated"
-            if grep -Eq 'external/|dockerd|/usr/local/bin/dind|start-android|android-profiles|EXPOSE.*(5555|2375|2376)' "$generated"; then
+            if grep -Eq 'external/docker/|dockerd|/usr/local/bin/dind|EXPOSE.*(2375|2376)' "$generated"; then
                 echo "Removed runtime dependency remains in $generated" >&2
                 exit 1
             fi
             assert_contains "$generated" "install-appium.sh"
+            assert_contains "$generated" "external/android-profile/scripts/"
+            assert_contains "$generated" "# Source: docker/fragments/android-emulator/startup.dockerfile.inc"
+            assert_contains "$generated" "ENV ANDROID_HOME="
             assert_contains "$generated" "# Source: docker/fragments/development-tools/"
             assert_contains "$generated" "# Source: docker/fragments/ssh/configure.dockerfile.inc"
             assert_contains "$generated" "EXPOSE 22"
