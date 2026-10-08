@@ -1,0 +1,32 @@
+{
+  "id": "nodejs",
+  "version": "1.0.0",
+  "name": "Nodejs",
+  "description": "Install Node.js and npm with automatic source selection and optional npm registry configuration.",
+  "options": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "default",
+        "china"
+      ],
+      "default": "auto",
+      "description": "Select a source explicitly or detect it from environment and timezone."
+    },
+    "timezone": {
+      "type": "string",
+      "default": "",
+      "description": "Timezone used for automatic source selection; defaults to TZ or system timezone."
+    },
+    "registry": {
+      "type": "string",
+      "default": "",
+      "description": "Override the npm registry. Empty uses Tencent for the China source and leaves the default source unchanged."
+    }
+  },
+  "containerEnv": {
+    "NVM_DIR": "/usr/local/nvm",
+    "PATH": "/usr/local/nvm/current/bin:${PATH}"
+  }
+}

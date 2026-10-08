@@ -1,13 +1,14 @@
 # Android in Docker
 
-A containerized desktop and Java development environment with Appium for Android automation. Every image provides noVNC, VNC, a JDK, Appium, SSH, and Git. Debian/Ubuntu and Fedora images also install VS Code. There is one image configuration; no separate standard or development mode is required.
+A containerized desktop and Java development environment with Appium for Android automation. Every image provides noVNC, VNC, a JDK, Node.js, Python, Appium, SSH, and Git. Debian/Ubuntu and Fedora images also install VS Code. There is one image configuration; no separate standard or development mode is required.
 
 Android SDK installation, AVD creation, and emulator startup are provided by the pinned `android-profile` submodule. Android Studio installation and Docker-in-Docker are not included.
 
 ## Requirements
 
 - Docker Engine and Docker Compose v2.
-- Git with submodule support and Bash.
+- Git with submodule support, Bash, and Python 3 on the build host.
+- Node.js and the Dev Container CLI (`npm install -g @devcontainers/cli@0.87.0`).
 - Docker Buildx and registry access for multi-platform publishing.
 - Internet access for downloading build dependencies.
 
@@ -45,9 +46,16 @@ Docker assigns host ports automatically. The script prints connection addresses 
 | --- | --- | --- |
 | noVNC | 6080 | `http://localhost:<port>/vnc.html` |
 | VNC | 5901 | `localhost:<port>` |
-| Appium / Inspector | 4723 | `http://localhost:<port>/inspector` |
+| Appium / Inspector | 4723 | `http://localhost:<port>/inspector` after manual startup |
 | Emulator ADB | 5555 | Availability depends on the emulator profile and network binding |
 | SSH | 22 | `ssh -p <port> debian@localhost` |
+
+Appium is installed but is not started by Supervisor. Start it manually inside the container when needed:
+
+```sh
+~/bin/start-appium.sh
+# Or: appium --use-plugins=storage,inspector --allow-cors
+```
 
 The SSH username depends on the base system. Debian uses `debian`, Ubuntu uses `ubuntu`, Fedora uses `user`, and Alpine uses `alpine`.
 
@@ -99,7 +107,7 @@ Hardware acceleration requires a usable KVM device and matching access permissio
 
 ### KVM acceleration
 
-`docker/fragments/kvm/permissions.dockerfrag` restores the original user group setup: it reuses or creates groups with GIDs `992` and `993` (`hostkvm1` and `hostkvm2`) and adds the container user to them. Hosts using a different KVM group ID need matching container permissions.
+The `kvm` Feature restores the original user group setup: it reuses or creates groups with GIDs `992` and `993` (`hostkvm1` and `hostkvm2`) and adds the container user to them. Hosts using a different KVM group ID need matching container permissions.
 
 `build-image.sh -S` automatically loads `docker/compose/docker-compose.kvm.yml` to map `/dev/kvm`. The generated Dev Container configuration also maps this device. No `KVM_GID` setting or privileged mode is required. Emulator acceleration settings are controlled by the Android profile.
 
@@ -186,18 +194,7 @@ source scripts/completion.bash
 
 `docker/compose/docker-compose.yml` defines all services and ports, SSH authorized keys, logs, SDK/AVD storage, shell history, and development caches. All features are enabled by default. Image tags no longer carry a `-dev` suffix, and `-D` / `--dev` are no longer accepted.
 
-To generate a Dev Container configuration in another project, run this script from that project's root:
-
-```sh
-/path/to/android-in-docker/scripts/setup-devcontainer.sh
-```
-
-Adjust the generated `.devcontainer/dev.Dockerfile` image reference to match your namespace and published image tag. To add an SSH key:
-
-```sh
-cd .devcontainer
-/path/to/android-in-docker/scripts/add-ssh-key.sh
-```
+For another project, configure its Dev Container directly and select the reusable Features described in [the Features reference](features/README.md).
 
 ## Logs and diagnostics
 
@@ -231,47 +228,54 @@ These checks cover supported build combinations, image dependency order, publish
 | Path | Purpose |
 | --- | --- |
 | `scripts/build-image.sh` | Build, publish, start, and stop entry point |
-| `scripts/setup-devcontainer.sh` | Generate Dev Container files |
 | `scripts/add-ssh-key.sh` | Add a public key to Dev Container authorized keys |
 | `scripts/open-vnc.sh` | Detect the VNC port and launch a local client |
 | `base-scripts/` | Appium installation/startup and the SDK/AVD/emulator startup sequence |
-| `docker/dockerfiles/android/` | Unified image Dockerfile templates |
-| `docker/fragments/` | Java, Node.js, npm, SSH, development tools, and editor fragments |
+| `docker/dockerfiles/default/` | Unified image Dockerfile templates |
+| `features/` | Reusable Features for Java, Node.js, Python, SSH, KVM, and Appium |
 | `docker/compose/` | Unified Compose configuration |
 | `docker/config/supervisor/` | Container service configuration |
 | `docker/config/appium/` | Example Appium capabilities |
 | `external/desktop-in-docker/` | Pinned upstream desktop source submodule |
 | `external/android-profile/` | Pinned SDK installation, AVD creation, startup scripts, and profiles |
 | `tests/verify-fake-docker.sh` | Build orchestration smoke tests |
+| `tests/smoke-features.sh` | Real tool/virtual environment/KVM Feature build test |
 | `tests/test-android-startup.sh` | SDK/AVD/emulator startup order and failure handling |
 
-## Dockerfile fragments
+## Dev Container Features
 
-Image templates live in `docker/dockerfiles/`; reusable installation fragments live in `docker/fragments/`. Files ending in `.dockerfrag` contain Dockerfile instructions and are included by the build script rather than built separately.
+Reusable tool installation is implemented as local Dev Container Features in `features/`, each with `devcontainer-feature.json` and `install.sh`. There is no Dockerfile fragment injection. Every Feature installs the packages it requires. Source selection happens inside the Feature: Java, Node.js, and Python default to automatic source selection from build environment variables and timezone, with explicit `source` overrides. Python switches pip between PyPI and the TUNA mirror. Existing official Node.js and Python installers are reused where compatible, with their version and source revision recorded under each Feature’s `upstream/` directory.
 
-```text
-docker/fragments/
-├── java/
-│   ├── openjdk/<system>.dockerfrag
-│   └── temurin/
-│       ├── <system>.dockerfrag
-│       └── china/<system>.dockerfrag
-├── nodejs/
-│   ├── default/<system>.dockerfrag
-│   └── china/<system>.dockerfrag
-├── npm/
-│   └── china.dockerfrag
-├── development-tools/<system>.dockerfrag
-├── ssh/
-│   ├── <system>.dockerfrag
-│   └── configure.dockerfrag
-├── vscode/<system>.dockerfrag
-├── kvm/permissions.dockerfrag
-└── android/configure.dockerfrag
+Java, Node.js (including npm registry configuration), Python, SSH, KVM permissions, and Appium are installed in the generated configuration's explicit order. VS Code is installed directly by the Debian/Ubuntu and Fedora image Dockerfiles; Android provisioning uses the pinned submodule. Ubuntu shares Debian installers. See [the Features reference](features/README.md) for options and reuse instructions.
+
+The build script first builds the pinned desktop source. It then stages Features and generates `build/.devcontainer/devcontainer.json`, based on the minimal templates in `docker/dockerfiles/default/`. The Dev Container CLI builds the final image with the existing timestamp, snapshot, latest, and short tags. Publishing uses `--platform linux/amd64,linux/arm64 --push`.
+
+Install the CLI on the build host:
+
+```sh
+npm install -g @devcontainers/cli@0.87.0
 ```
 
-Java fragments install the selected JDK. Node.js fragments install Node.js and npm, using regional download settings when selected. The separate npm fragment configures registry mirrors for root and the container user after Node.js is installed.
+The host also needs Python 3, Docker, and Buildx for multi-platform publication. Set `DEVCONTAINER_CLI` to use an alternate CLI executable. The generated configuration can be built directly after the desktop dependency exists:
 
-Each system-specific installer declares its own arguments, environment, and root user. Ubuntu reuses the Debian installers. The build script injects Java, Node.js, optional npm configuration, development tools, SSH installation and configuration, and VS Code where supported at `__INJECT_INSTALL_FRAGMENTS__`. SSH package installation is system-specific; service registration and authentication settings are shared. The image template then selects its runtime user and installs Appium.
+```sh
+devcontainer build --workspace-folder "$PWD/build" \
+  --config "$PWD/build/.devcontainer/devcontainer.json" \
+  --image-name android-in-docker:local --no-lockfile
+```
 
-The Android configuration fragment copies upstream scripts, profiles, and the emulator startup wrapper, configures SDK paths, and registers the combined Android/Appium Supervisor configuration. The image template exposes the emulator ADB port. Runtime provisioning remains separate from image build-time package installation.
+The image templates copy SDK/AVD scripts and profiles directly from the pinned `external/android-profile` submodule, together with project startup scripts and Supervisor configuration. Appium installation runs after Node.js through the reusable `features/appium/` Feature, including UiAutomator2 and the storage/inspector plugins. The image template declares runtime SDK paths and ports. SDK/AVD provisioning, persisted data, KVM device mapping, and Compose startup retain their existing behavior.
+
+Validation commands:
+
+```sh
+bash tests/verify-fake-docker.sh
+bash tests/test-android-startup.sh
+bash tests/test-feature-sources.sh
+# Requires Docker and the Dev Container CLI; downloads tool packages.
+bash tests/smoke-features.sh
+# Exercise Python package installation using TUNA.
+PYTHON_CHINA_MIRROR=true bash tests/smoke-features.sh
+```
+
+The smoke build checks Git, JDK 21, Node/npm/NVM, Python/pip/virtualenv, and KVM group reuse as the non-root user. It does not boot an Android emulator or validate the full desktop image.

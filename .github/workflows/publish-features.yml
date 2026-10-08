@@ -1,0 +1,51 @@
+name: Publish Dev Container Features
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'features/**'
+      - 'scripts/prepare-feature-release.py'
+      - '.github/workflows/publish-features.yml'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-features-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Dev Container CLI
+        run: npm install -g @devcontainers/cli@0.87.0
+      - name: Check source selection
+        run: bash tests/test-feature-sources.sh
+      - name: Stage Features
+        id: stage
+        shell: bash
+        run: |
+          namespace="${GITHUB_REPOSITORY,,}"
+          feature_path="$RUNNER_TEMP/publishable-features"
+          python3 scripts/prepare-feature-release.py --namespace "$namespace" --output "$feature_path"
+          echo "namespace=$namespace" >> "$GITHUB_OUTPUT"
+          echo "feature_path=$feature_path" >> "$GITHUB_OUTPUT"
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish Features
+        env:
+          FEATURE_PATH: ${{ steps.stage.outputs.feature_path }}
+          FEATURE_NAMESPACE: ${{ steps.stage.outputs.namespace }}
+        run: devcontainer features publish "$FEATURE_PATH" --registry ghcr.io --namespace "$FEATURE_NAMESPACE"

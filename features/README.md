@@ -1,0 +1,92 @@
+# Local Dev Container Features
+
+Each directory contains a `devcontainer-feature.json` and executable `install.sh`. Installers detect Debian/Ubuntu, Fedora, Arch, or Alpine and install their own prerequisites. Android emulator execution requires glibc; Alpine can install tools but cannot run the Linux emulator.
+
+| Feature | Options | Behavior |
+| --- | --- | --- |
+| `java` | `provider`, `version`, `source`, `timezone` | OpenJDK or Temurin; defaults to OpenJDK 21 |
+| `nodejs` | `source`, `timezone`, `registry` | Node.js and npm through NVM; default Debian/Ubuntu/Fedora installs reuse the official installer, China builds preserve the Node mirror, Alpine uses distro packages |
+| `python` | `source`, `timezone`, `indexUrl` | Python 3, pip, and virtual environment support; official installer on Debian/Ubuntu/Fedora, distro packages on Alpine/Arch |
+| `ssh` | — | OpenSSH, key authentication, startup script, and Supervisor service |
+| `appium` | `version` | Appium server, UiAutomator2 driver, storage/inspector plugins |
+| `kvm` | — | Reuse/create GIDs 992 and 993 and add the selected user |
+
+Features use the Dev Container-provided `_REMOTE_USER` and `_REMOTE_USER_HOME`, derived from `remoteUser`, for user-specific configuration. There is no separate username option or UID-based user guessing. They expect an existing user. SSH service integration targets the desktop-in-docker image, which supplies Supervisor and passwordless sudo for that user. KVM device mapping belongs in Compose, not in the installer. Select the Java and Node.js Features before Appium; the generated configuration includes them and sets their installation order.
+
+The build script stages these Features in `build/.devcontainer/features/` and generates `devcontainer.json`. The Appium Feature is self-contained and can be reused with a Node.js Feature; it installs the server as root and the driver/plugins for `_REMOTE_USER`. The image Dockerfiles copy Android scripts/profiles directly from the pinned `android-profile` submodule; no simulator assets are packaged as a Feature. Feature installation runs during image build; SDK and AVD provisioning runs at container startup into persistent volumes.
+
+For another local Dev Container, copy the selected Feature directories under `.devcontainer/features/` and reference them in `devcontainer.json`:
+
+```json
+{
+  "image": "storytellerf/desktop-in-docker:debian-trixie-xfce-latest",
+  "remoteUser": "debian",
+  "features": {
+    "./features/java": { "provider": "openjdk", "version": "21" },
+    "./features/nodejs": {},
+    "./features/python": {}
+  },
+  "overrideFeatureInstallOrder": [
+    "./features/java", "./features/nodejs", "./features/python"
+  ]
+}
+```
+
+These are local Features, not published registry references. No Feature publishing occurs during image publication.
+
+## Reused upstream installers
+
+Node 2.1.1 and Python 1.8.0 installers from [devcontainers/features](https://github.com/devcontainers/features) are bundled, unmodified, under the corresponding `upstream/` directories. Each copy includes its license, metadata, and source revision. The local Feature is the single public entry point and selects its installer internally. There is no generic development-tools Feature.
+
+Compatibility decisions:
+
+- Java retains the existing OpenJDK/Temurin package installation, JDK version option, TUNA Temurin repositories, and Arch architecture selection.
+- Node retains NVM 0.40.3, the current Node release, China mirror selection, npm, shell initialization, and the existing NVM location. Official installers are used only on their supported distributions and for the default source.
+- Python retains pip and virtual environment support. Its source selection switches between PyPI and the TUNA PyPI mirror for installation and persists the selected index in global pip configuration. The official installer uses OS-provided Python and installs `virtualenv`; it also provides pipx.
+- Git remains available in every project image through its Dockerfile; it is not a Feature.
+- Desktop VS Code is installed directly by the Debian/Ubuntu and Fedora image Dockerfiles; it is not published as a Feature.
+- Node.js includes npm configuration: China source selection installs `nrm` and configures the Tencent registry for root and the remote user. The `registry` option overrides that registry or enables registry configuration for the default source.
+- SSH retains key-only authentication and Supervisor service management, rather than introducing the official SSH Feature's separate entrypoint.
+- KVM retains GIDs 992/993. The project image retains pinned profile scripts, SDK/AVD paths, and Supervisor-managed emulator startup. The Appium Feature installs the server, driver, and plugins; Appium is started manually rather than by Supervisor.
+
+For an installer update, compare the upstream options and distribution support, preserve the source/license records, then run configuration tests and actual Feature build checks before accepting it.
+
+## Automatic source selection
+
+Java, Node.js, and Python default to `source: "auto"`. Preset choices are `default` and `china`; mirror selection stays inside each Feature.
+
+Selection priority:
+
+1. An explicit `source` option.
+2. A per-tool build environment variable (`JAVA_SOURCE`, `NODEJS_SOURCE`, or `PYTHON_SOURCE`), then `FEATURE_SOURCE`.
+3. The `timezone` option, `TZ`, `/etc/timezone`, or `/etc/localtime`.
+
+Mainland China timezone identifiers select China mirrors; other timezones select the default source. `source: "default"` explicitly disables China mirrors.
+
+Feature installers run while building the image. Host variables and `containerEnv`/`remoteEnv` are not automatically available during that phase. Pass host selections through Feature options, for example:
+
+```json
+{
+  "features": {
+    "./features/python": {
+      "source": "${localEnv:PYTHON_SOURCE:auto}",
+      "timezone": "${localEnv:TZ:}",
+      "indexUrl": "${localEnv:PYTHON_INDEX_URL:}"
+    }
+  }
+}
+```
+
+Set `TZ=Asia/Shanghai` for automatic China selection, `PYTHON_SOURCE=default` to force PyPI, or `PYTHON_INDEX_URL=https://your-mirror.example/simple` for another index. Use `${localEnv:FEATURE_SOURCE:auto}` in the `source` option to share a host selection across tools.
+
+Python uses PyPI (`https://pypi.org/simple`) or TUNA (`https://pypi.tuna.tsinghua.edu.cn/simple`). A non-empty `indexUrl` overrides the preset; build environment `PYTHON_INDEX_URL` or `PIP_INDEX_URL` can also specify an index. The selected HTTPS index is used during installation and persisted in `/etc/pip.conf` for users and virtual environments. TLS verification remains enabled.
+
+The existing build script passes its resolved source explicitly to each Feature, preserving `--cn-mirror` and `--no-cn-mirror` behavior.
+
+## Publish to GHCR
+
+The `Publish Dev Container Features` workflow runs when Feature sources or publishing configuration change on `main`, and can also be started manually from the Actions tab. It uses `GITHUB_TOKEN` with `packages: write`; no personal token secret is required.
+
+Packages are published under `ghcr.io/<repository-owner>/<repository-name>/<feature-id>`. The release staging script rewrites collection-local `installsAfter` references to the actual repository namespace, supporting both the upstream repository and forks without changing source metadata. Only directories in `features/` are published; Android profiles and emulator scripts remain in the submodule.
+
+Each Feature's `version` field determines its release version and major-version tag. Increment it when publishing changes to an existing release. For public reuse, set the packages to Public in GitHub Packages after initial publication, and ensure the repository's Actions token has write access to existing packages. This workflow publishes Feature packages, not Android images.

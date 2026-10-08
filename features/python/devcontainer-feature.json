@@ -1,0 +1,34 @@
+{
+  "id": "python",
+  "version": "1.0.0",
+  "name": "Python",
+  "description": "Install and configure python for desktop-based development containers.",
+  "options": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "default",
+        "china"
+      ],
+      "default": "auto",
+      "description": "Select a source explicitly or detect it from environment and timezone."
+    },
+    "timezone": {
+      "type": "string",
+      "default": "",
+      "description": "Timezone used for automatic source selection; defaults to TZ or system timezone."
+    },
+    "indexUrl": {
+      "type": "string",
+      "default": "",
+      "description": "Custom HTTPS PyPI index; overrides source presets."
+    }
+  },
+  "containerEnv": {
+    "PYTHON_PATH": "/usr/local/python/current",
+    "PIPX_HOME": "/usr/local/py-utils",
+    "PIPX_BIN_DIR": "/usr/local/py-utils/bin",
+    "PATH": "/usr/local/python/current/bin:/usr/local/py-utils/bin:/usr/local/jupyter:${PATH}"
+  }
+}
