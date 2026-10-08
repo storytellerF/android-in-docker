@@ -25,8 +25,11 @@ assert './features/git' not in f
 assert not Path('features/git').exists()
 assert ' git' in (p.parent / c['build']['dockerfile']).read_text()
 assert f['./features/nodejs']['source'] == ('china' if mirror == '--cn-mirror' else 'default')
-assert ('./features/npm' in f) == (mirror == '--cn-mirror')
-assert ('./features/vscode' in f) == (system in ['debian','ubuntu','fedora'])
+assert './features/npm' not in f
+assert not Path('features/npm').exists()
+assert './features/vscode' not in f
+assert not Path('features/vscode').exists()
+assert ('/tmp/install-vscode.sh' in (p.parent / c['build']['dockerfile']).read_text()) == (system in ['debian','ubuntu','fedora'])
 assert f['./features/python']['source'] == ('china' if mirror == '--cn-mirror' else 'default')
 assert './features/development-tools' not in f
 assert './features/kvm' in f

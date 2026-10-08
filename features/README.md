@@ -1,15 +1,13 @@
 # Local Dev Container Features
 
-Each directory contains a `devcontainer-feature.json` and executable `install.sh`. Installers detect Debian/Ubuntu, Fedora, Arch, or Alpine and install their own prerequisites. VS Code is supported on Debian/Ubuntu and Fedora. Android emulator execution requires glibc; Alpine can install tools but cannot run the Linux emulator.
+Each directory contains a `devcontainer-feature.json` and executable `install.sh`. Installers detect Debian/Ubuntu, Fedora, Arch, or Alpine and install their own prerequisites. Android emulator execution requires glibc; Alpine can install tools but cannot run the Linux emulator.
 
 | Feature | Options | Behavior |
 | --- | --- | --- |
 | `java` | `provider`, `version`, `source`, `timezone` | OpenJDK or Temurin; defaults to OpenJDK 21 |
-| `nodejs` | `source`, `timezone` | Node.js and npm through NVM; default Debian/Ubuntu/Fedora installs reuse the official installer, China builds preserve the Node mirror, Alpine uses distro packages |
-| `npm` | `registry` | nrm and optional registry configuration for root and the selected user |
+| `nodejs` | `source`, `timezone`, `registry` | Node.js and npm through NVM; default Debian/Ubuntu/Fedora installs reuse the official installer, China builds preserve the Node mirror, Alpine uses distro packages |
 | `python` | `source`, `timezone`, `indexUrl` | Python 3, pip, and virtual environment support; official installer on Debian/Ubuntu/Fedora, distro packages on Alpine/Arch |
 | `ssh` | — | OpenSSH, key authentication, startup script, and Supervisor service |
-| `vscode` | — | Microsoft's desktop VS Code package |
 | `appium` | `version` | Appium server, UiAutomator2 driver, storage/inspector plugins |
 | `kvm` | — | Reuse/create GIDs 992 and 993 and add the selected user |
 
@@ -46,7 +44,8 @@ Compatibility decisions:
 - Node retains NVM 0.40.3, the current Node release, China mirror selection, npm, shell initialization, and the existing NVM location. Official installers are used only on their supported distributions and for the default source.
 - Python retains pip and virtual environment support. Its source selection switches between PyPI and the TUNA PyPI mirror for installation and persists the selected index in global pip configuration. The official installer uses OS-provided Python and installs `virtualenv`; it also provides pipx.
 - Git remains available in every project image through its Dockerfile; it is not a Feature.
-- npm retains `nrm`, Tencent registry selection, and root/user configuration.
+- Desktop VS Code is installed directly by the Debian/Ubuntu and Fedora image Dockerfiles; it is not published as a Feature.
+- Node.js includes npm configuration: China source selection installs `nrm` and configures the Tencent registry for root and the remote user. The `registry` option overrides that registry or enables registry configuration for the default source.
 - SSH retains key-only authentication and Supervisor service management, rather than introducing the official SSH Feature's separate entrypoint.
 - KVM retains GIDs 992/993. The project image retains pinned profile scripts, SDK/AVD paths, and Supervisor-managed emulator startup. The Appium Feature installs the server, driver, and plugins; Appium is started manually rather than by Supervisor.
 

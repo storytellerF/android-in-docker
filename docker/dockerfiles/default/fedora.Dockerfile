@@ -12,6 +12,10 @@ USER root
 # Install project image prerequisites for Git and Android provisioning.
 RUN dnf install -y git bash ca-certificates wget unzip sudo && dnf clean all
 
+# Install the desktop editor as part of the project image.
+COPY docker/scripts/vscode/fedora.sh /tmp/install-vscode.sh
+RUN bash /tmp/install-vscode.sh && rm /tmp/install-vscode.sh
+
 ARG USERNAME
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID

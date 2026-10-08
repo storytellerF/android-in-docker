@@ -232,7 +232,7 @@ These checks cover supported build combinations, image dependency order, publish
 | `scripts/open-vnc.sh` | Detect the VNC port and launch a local client |
 | `base-scripts/` | Appium installation/startup and the SDK/AVD/emulator startup sequence |
 | `docker/dockerfiles/default/` | Unified image Dockerfile templates |
-| `features/` | Reusable Features for Java, Node.js, Python, npm, SSH, VS Code, KVM, and Appium |
+| `features/` | Reusable Features for Java, Node.js, Python, SSH, KVM, and Appium |
 | `docker/compose/` | Unified Compose configuration |
 | `docker/config/supervisor/` | Container service configuration |
 | `docker/config/appium/` | Example Appium capabilities |
@@ -246,7 +246,7 @@ These checks cover supported build combinations, image dependency order, publish
 
 Reusable tool installation is implemented as local Dev Container Features in `features/`, each with `devcontainer-feature.json` and `install.sh`. There is no Dockerfile fragment injection. Every Feature installs the packages it requires. Source selection happens inside the Feature: Java, Node.js, and Python default to automatic source selection from build environment variables and timezone, with explicit `source` overrides. Python switches pip between PyPI and the TUNA mirror. Existing official Node.js and Python installers are reused where compatible, with their version and source revision recorded under each Feature’s `upstream/` directory.
 
-Java, Node.js, optional npm registry configuration, Python, SSH, VS Code (where supported), KVM permissions, and Android/Appium are installed in the generated configuration's explicit order. Ubuntu shares Debian installers. See [the Features reference](features/README.md) for options and reuse instructions.
+Java, Node.js (including npm registry configuration), Python, SSH, KVM permissions, and Appium are installed in the generated configuration's explicit order. VS Code is installed directly by the Debian/Ubuntu and Fedora image Dockerfiles; Android provisioning uses the pinned submodule. Ubuntu shares Debian installers. See [the Features reference](features/README.md) for options and reuse instructions.
 
 The build script first builds the pinned desktop source. It then stages Features and generates `build/.devcontainer/devcontainer.json`, based on the minimal templates in `docker/dockerfiles/default/`. The Dev Container CLI builds the final image with the existing timestamp, snapshot, latest, and short tags. Publishing uses `--platform linux/amd64,linux/arm64 --push`.
 

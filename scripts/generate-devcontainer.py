@@ -28,12 +28,8 @@ def add(name, **options):
     features[f'./features/{name}'] = options
 add('java', provider=args.provider, version=args.version, source='china' if args.china == 'true' else 'default')
 add('nodejs', source='china' if args.china == 'true' else 'default')
-if args.china == 'true':
-    add('npm')
 add('python', source='china' if args.china == 'true' else 'default')
 add('ssh')
-if args.system in ['debian', 'ubuntu', 'fedora']:
-    add('vscode')
 for name in ['kvm', 'appium']:
     add(name)
 system = 'debian' if args.system == 'ubuntu' else args.system

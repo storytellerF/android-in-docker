@@ -23,3 +23,13 @@ for name in node npm npx; do
     target="/usr/local/bin/$(basename "$binary")"
     [ "$(readlink -f "$binary")" = "$(readlink -f "$target")" ] || ln -sfn "$binary" "$target"
 done
+
+# Configure npm after Node.js is available, using the same source selection.
+NPM_REGISTRY="${REGISTRY:-}"
+if [ "$FEATURE_SELECTED_SOURCE" = china ]; then
+    NPM_REGISTRY="${NPM_REGISTRY:-https://mirrors.cloud.tencent.com/npm/}"
+fi
+if [ -n "$NPM_REGISTRY" ]; then
+    export NPM_REGISTRY
+    bash "$FEATURE_DIR/configure-npm.sh"
+fi

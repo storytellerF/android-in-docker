@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-FEATURE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 USERNAME="${_REMOTE_USER:?Dev Container remote user is required}"
 SYSTEM_ID=$( . /etc/os-release; printf '%s' "$ID")
 case "$SYSTEM_ID" in
@@ -17,5 +16,5 @@ esac
 NPM_CONFIG_REGISTRY=https://registry.npmmirror.com npm install -g nrm
 nrm use tencent
 sudo -u "$USERNAME" -H -- env PATH="$PATH" nrm use tencent
-npm config set registry "$REGISTRY" --global
-sudo -u "$USERNAME" -H -- npm config set registry "$REGISTRY"
+npm config set registry "$NPM_REGISTRY" --global
+sudo -u "$USERNAME" -H -- npm config set registry "$NPM_REGISTRY"
