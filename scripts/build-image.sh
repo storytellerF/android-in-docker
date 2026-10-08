@@ -402,7 +402,7 @@ fi
 refresh_tag_context
 
 build_compose_files() {
-    echo "-f ${COMPOSE_DIR}/docker-compose.yml"
+    echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
 }
 
 resolve_component_dockerfile() {
@@ -652,7 +652,6 @@ run_build() {
         --build-arg JDK_PROVIDER="$JDK_PROVIDER"
         --build-arg OPENJDK_VERSION="$OPENJDK_VERSION"
         --build-arg DESKTOP_TYPE="$DESKTOP_TYPE"
-        --build-arg KVM_GID="${KVM_GID:-109}"
     )
 
     while [ "$#" -gt 0 ]; do

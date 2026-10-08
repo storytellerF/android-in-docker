@@ -11,7 +11,7 @@ Android SDK installation, AVD creation, and emulator startup are provided by the
 - Docker Buildx and registry access for multi-platform publishing.
 - Internet access for downloading build dependencies.
 
-The default Compose configuration does not require privileged mode or `/dev/kvm`.
+The build script maps `/dev/kvm` when starting containers; privileged mode is not required.
 
 ## Quick start
 
@@ -95,23 +95,23 @@ The `external/android-profile` submodule is pinned to commit `2d85cdc`. At conta
 
 The default profile is `/home/<user>/android-profiles/android.profile`. Set `ANDROID_PROFILE` to select another profile, and bind-mount that file into the container. It defines the system-image package prefix, device definition, display, and emulator arguments. The upstream scripts select the image ABI from the container architecture. Emulator output appears in `logs/android_stdout.log` and `logs/android_stderr.log`.
 
-Hardware acceleration requires a usable KVM device and matching access permissions; the default Compose configuration does not mount it or enable privileged mode. If running without KVM, configure software acceleration in your profile. Android's Linux emulator requires glibc, so Alpine is not a supported emulator runtime. Installing SDK tools does not establish that every architecture/profile can boot successfully.
+Hardware acceleration requires a usable KVM device and matching access permissions. Android's Linux emulator requires glibc, so Alpine is not a supported emulator runtime. Installing SDK tools does not establish that every architecture/profile can boot successfully.
 
-### Optional KVM acceleration
+### KVM acceleration
 
-`docker/fragments/kvm/permissions.dockerfrag` prepares the container user's KVM group membership. `KVM_GID` defaults to `109` during image builds and can be set in `.env`; it is independent of SDK installation and emulator startup.
+`docker/fragments/kvm/permissions.dockerfrag` restores the original user group setup: it reuses or creates groups with GIDs `992` and `993` (`hostkvm1` and `hostkvm2`) and adds the container user to them. Hosts using a different KVM group ID need matching container permissions.
 
-At runtime, use the host device's actual group ID. The optional Compose override adds that numeric supplementary group even when the image was built with a different GID:
+`build-image.sh -S` automatically loads `docker/compose/docker-compose.kvm.yml` to map `/dev/kvm`. The generated Dev Container configuration also maps this device. No `KVM_GID` setting or privileged mode is required. Emulator acceleration settings are controlled by the Android profile.
+
+For manual startup:
 
 ```sh
-export KVM_GID="$(stat -c '%g' /dev/kvm)"
-# Retain the image tag, namespace, and home directory used for your build.
 docker compose --env-file .env \
   -f docker/compose/docker-compose.yml \
   -f docker/compose/docker-compose.kvm.yml up -d
 ```
 
-Select your built `IMAGE_TAG` when it differs from the default snapshot tag. The override requires `/dev/kvm` and an explicit `KVM_GID`; it does not enable privileged mode. The regular `build-image.sh -S` command continues to use only the default Compose file. Emulator acceleration settings are controlled by the Android profile.
+Select your built `IMAGE_TAG` when it differs from the default snapshot tag. For hosts without `/dev/kvm`, use only the base Compose file and configure software acceleration in your profile.
 
 ## Publishing
 
@@ -205,9 +205,9 @@ Supervisor logs are mounted under `./logs`:
 
 ```sh
 tail -f ./logs/appium_stdout.log ./logs/appium_stderr.log
-docker compose -f docker/compose/docker-compose.yml ps
-docker compose -f docker/compose/docker-compose.yml exec android bash
-docker compose -f docker/compose/docker-compose.yml exec android supervisorctl status
+docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml ps
+docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml exec android bash
+docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml exec android supervisorctl status
 ```
 
 When using non-default image tags, namespaces, or home directories, retain the `IMAGE_TAG`, `DOCKER_USERNAME`, and `CONTAINER_HOME` values selected by the build script.

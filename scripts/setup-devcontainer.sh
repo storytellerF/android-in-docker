@@ -97,6 +97,8 @@ services:
       - google_local:\${CONTAINER_HOME}/.local/share/Google
       - vscode_data:\${CONTAINER_HOME}/.vscode
       - code_config:\${CONTAINER_HOME}/.config/Code
+    devices:
+      - /dev/kvm
     shm_size: '2gb' # Allocate more shared memory
 
 volumes:

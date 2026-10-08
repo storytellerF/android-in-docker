@@ -1,7 +1,4 @@
-# Optional Linux host device access; no privileged mode is required.
 services:
   android:
     devices:
-      - /dev/kvm:/dev/kvm
-    group_add:
-      - "${KVM_GID:?Set KVM_GID to the host /dev/kvm group ID}"
+      - /dev/kvm

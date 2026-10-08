@@ -1,21 +1,25 @@
-# Prepare emulator user membership without requiring a KVM device at build time.
+# Restore the original host KVM group IDs without requiring a device at build time.
 ARG USERNAME
-ARG KVM_GID=109
 
 USER root
 RUN set -eu; \
-    case "$KVM_GID" in ''|*[!0-9]*) echo 'KVM_GID must be numeric' >&2; exit 1 ;; esac; \
-    group_name="$(awk -F: -v gid="$KVM_GID" '$3 == gid {print $1; exit}' /etc/group)"; \
-    if [ -z "$group_name" ]; then \
-        group_name="hostkvm${KVM_GID}"; \
-        if command -v groupadd >/dev/null 2>&1; then \
-            groupadd -g "$KVM_GID" "$group_name"; \
-        else \
-            addgroup -g "$KVM_GID" "$group_name"; \
+    add_group_for_gid() { \
+        gid="$1"; \
+        fallback_name="$2"; \
+        group_name="$(awk -F: -v gid="$gid" '$3 == gid {print $1; exit}' /etc/group)"; \
+        if [ -z "$group_name" ]; then \
+            group_name="$fallback_name"; \
+            if command -v groupadd >/dev/null 2>&1; then \
+                groupadd -g "$gid" "$group_name"; \
+            else \
+                addgroup -g "$gid" "$group_name"; \
+            fi; \
         fi; \
-    fi; \
-    if command -v usermod >/dev/null 2>&1; then \
-        usermod -aG "$group_name" "$USERNAME"; \
-    else \
-        adduser "$USERNAME" "$group_name"; \
-    fi
+        if command -v usermod >/dev/null 2>&1; then \
+            usermod -aG "$group_name" "$USERNAME"; \
+        else \
+            adduser "$USERNAME" "$group_name"; \
+        fi; \
+    }; \
+    add_group_for_gid 992 hostkvm1; \
+    add_group_for_gid 993 hostkvm2
