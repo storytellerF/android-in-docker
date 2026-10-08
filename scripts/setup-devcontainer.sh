@@ -90,9 +90,6 @@ services:
       - sdk_data:\${CONTAINER_HOME}/Android/Sdk
       - avd_data:\${CONTAINER_HOME}/.android/avd
       - bash_history:\${CONTAINER_HOME}/.desktop-in-docker/.bash_history
-      - gradle_data:\${CONTAINER_HOME}/.gradle
-      - konan_data:\${CONTAINER_HOME}/.konan
-      - m2_data:\${CONTAINER_HOME}/.m2
       - firefox_cache:\${CONTAINER_HOME}/.cache/google-chrome
       - firefox_config:\${CONTAINER_HOME}/.config/google-chrome
       - google_cache:\${CONTAINER_HOME}/.cache/Google
@@ -106,9 +103,6 @@ volumes:
   sdk_data:
   avd_data:
   bash_history:
-  gradle_data:
-  konan_data:
-  m2_data:
   firefox_cache:
   firefox_config:
   google_cache:
