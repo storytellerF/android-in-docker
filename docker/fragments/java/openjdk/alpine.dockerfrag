@@ -1,0 +1,6 @@
+ARG OPENJDK_VERSION=21
+
+USER root
+
+RUN apk add --no-cache \
+    openjdk${OPENJDK_VERSION}
