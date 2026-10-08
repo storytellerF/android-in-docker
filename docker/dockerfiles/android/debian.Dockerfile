@@ -14,13 +14,6 @@ ARG USERNAME=debian
 
 USER root
 
-# Install system packages shared by all Android images.
-RUN set -eux; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
-        android-sdk-platform-tools-common; \
-    rm -rf /var/lib/apt/lists/*
-
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
@@ -38,5 +31,6 @@ RUN ./bin/install-appium.sh
 COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf
 
 # Expose Ports:
+# 5555: ADB port
 # 4723: Appium port
-EXPOSE 4723
+EXPOSE 5555 4723

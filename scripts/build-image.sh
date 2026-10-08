@@ -799,11 +799,13 @@ if [ "$START_CONTAINER" = true ]; then
         NOVNC_PORT=$(docker compose $COMPOSE_FILES port android 6080 2>/dev/null | cut -d: -f2)
         APPIUM_PORT=$(docker compose $COMPOSE_FILES port android 4723 2>/dev/null | cut -d: -f2)
         SSH_PORT=$(docker compose $COMPOSE_FILES port android 22 2>/dev/null | cut -d: -f2)
+        ADB_PORT=$(docker compose $COMPOSE_FILES port android 5555 2>/dev/null | cut -d: -f2)
         echo "You can access the desktop and services via:"
         [ -n "$NOVNC_PORT" ] && echo "  - Web VNC: http://localhost:${NOVNC_PORT}/vnc.html"
         [ -n "$VNC_PORT" ] && echo "  - VNC direct: localhost:${VNC_PORT}"
         [ -n "$APPIUM_PORT" ] && echo "  - Appium: http://localhost:${APPIUM_PORT}/inspector"
         [ -n "$SSH_PORT" ] && echo "  - SSH: ssh -p ${SSH_PORT} ${CONTAINER_USER}@localhost"
+        [ -n "$ADB_PORT" ] && echo "  - ADB: adb connect localhost:${ADB_PORT}"
     else
         echo "Failed to start docker compose." >&2
         exit 1

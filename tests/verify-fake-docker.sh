@@ -47,6 +47,7 @@ assert_file_exists "build/android/debian_cn.Dockerfile"
 assert_contains "$FAKE_DOCKER_LOG" "-f build/android/debian_cn.Dockerfile"
 assert_contains "build/android/debian_cn.Dockerfile" "# Source: docker/fragments/ssh/configure.dockerfrag"
 assert_contains "$start_out" "SSH: ssh -p 10022"
+assert_contains "$start_out" "ADB: adb connect localhost:15555"
 assert_contains "$FAKE_DOCKER_LOG" "docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml up -d --build"
 assert_contains "$FAKE_DOCKER_LOG" "docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml port android 6080"
 assert_contains "$start_out" "Web VNC: http://localhost:16080/vnc.html"
@@ -77,6 +78,7 @@ for system in debian ubuntu fedora alpine; do
             assert_contains "$generated" "# Source: docker/fragments/development-tools/"
             assert_contains "$generated" "# Source: docker/fragments/ssh/configure.dockerfrag"
             assert_contains "$generated" "EXPOSE 22"
+            assert_contains "$generated" "EXPOSE 5555 4723"
             if [ "$system" = debian ] || [ "$system" = ubuntu ] || [ "$system" = fedora ]; then
                 assert_contains "$generated" "# Source: docker/fragments/vscode/"
             fi
