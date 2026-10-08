@@ -10,11 +10,12 @@ Each directory contains a `devcontainer-feature.json` and executable `install.sh
 | `python` | `source`, `timezone`, `indexUrl` | Python 3, pip, and virtual environment support; official installer on Debian/Ubuntu/Fedora, distro packages on Alpine/Arch |
 | `ssh` | — | OpenSSH, key authentication, startup script, and Supervisor service |
 | `vscode` | — | Microsoft's desktop VS Code package |
+| `appium` | `version` | Appium server, UiAutomator2 driver, storage/inspector plugins |
 | `kvm` | — | Reuse/create GIDs 992 and 993 and add the selected user |
 
-Features use the Dev Container-provided `_REMOTE_USER` and `_REMOTE_USER_HOME`, derived from `remoteUser`, for user-specific configuration. There is no separate username option or UID-based user guessing. They expect an existing user. SSH service integration targets the desktop-in-docker image, which supplies Supervisor and passwordless sudo for that user. KVM device mapping belongs in Compose, not in the installer. Select the Java and Node.js Features before project-local Appium; the generated configuration includes them and sets their installation order.
+Features use the Dev Container-provided `_REMOTE_USER` and `_REMOTE_USER_HOME`, derived from `remoteUser`, for user-specific configuration. There is no separate username option or UID-based user guessing. They expect an existing user. SSH service integration targets the desktop-in-docker image, which supplies Supervisor and passwordless sudo for that user. KVM device mapping belongs in Compose, not in the installer. Select the Java and Node.js Features before Appium; the generated configuration includes them and sets their installation order.
 
-The build script stages these Features in `build/.devcontainer/features/` and generates `devcontainer.json`. The project-only Appium installer resides in `docker/features/appium/` and is staged alongside the reusable Features solely for image builds. The image Dockerfiles copy Android scripts/profiles directly from the pinned `android-profile` submodule; no simulator assets are packaged as a Feature. Feature installation runs during image build; SDK and AVD provisioning runs at container startup into persistent volumes.
+The build script stages these Features in `build/.devcontainer/features/` and generates `devcontainer.json`. The Appium Feature is self-contained and can be reused with a Node.js Feature; it installs the server as root and the driver/plugins for `_REMOTE_USER`. The image Dockerfiles copy Android scripts/profiles directly from the pinned `android-profile` submodule; no simulator assets are packaged as a Feature. Feature installation runs during image build; SDK and AVD provisioning runs at container startup into persistent volumes.
 
 For another local Dev Container, copy the selected Feature directories under `.devcontainer/features/` and reference them in `devcontainer.json`:
 
@@ -47,7 +48,7 @@ Compatibility decisions:
 - Git remains available in every project image through its Dockerfile; it is not a Feature.
 - npm retains `nrm`, Tencent registry selection, and root/user configuration.
 - SSH retains key-only authentication and Supervisor service management, rather than introducing the official SSH Feature's separate entrypoint.
-- KVM retains GIDs 992/993. Project-only Android provisioning retains pinned profile scripts, Appium plugins/driver installation, SDK/AVD paths, and Supervisor integration; it is excluded when publishing `features/`.
+- KVM retains GIDs 992/993. The project image retains pinned profile scripts, SDK/AVD paths, and Supervisor-managed emulator startup. The Appium Feature installs the server, driver, and plugins; Appium is started manually rather than by Supervisor.
 
 For an installer update, compare the upstream options and distribution support, preserve the source/license records, then run configuration tests and actual Feature build checks before accepting it.
 

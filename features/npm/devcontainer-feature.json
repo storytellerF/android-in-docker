@@ -10,6 +10,7 @@
     }
   },
   "installsAfter": [
-    "./features/nodejs"
+    "ghcr.io/storytellerf/android-in-docker/nodejs",
+    "ghcr.io/devcontainers/features/node"
   ]
 }

@@ -46,9 +46,16 @@ Docker assigns host ports automatically. The script prints connection addresses 
 | --- | --- | --- |
 | noVNC | 6080 | `http://localhost:<port>/vnc.html` |
 | VNC | 5901 | `localhost:<port>` |
-| Appium / Inspector | 4723 | `http://localhost:<port>/inspector` |
+| Appium / Inspector | 4723 | `http://localhost:<port>/inspector` after manual startup |
 | Emulator ADB | 5555 | Availability depends on the emulator profile and network binding |
 | SSH | 22 | `ssh -p <port> debian@localhost` |
+
+Appium is installed but is not started by Supervisor. Start it manually inside the container when needed:
+
+```sh
+~/bin/start-appium.sh
+# Or: appium --use-plugins=storage,inspector --allow-cors
+```
 
 The SSH username depends on the base system. Debian uses `debian`, Ubuntu uses `ubuntu`, Fedora uses `user`, and Alpine uses `alpine`.
 
@@ -225,8 +232,7 @@ These checks cover supported build combinations, image dependency order, publish
 | `scripts/open-vnc.sh` | Detect the VNC port and launch a local client |
 | `base-scripts/` | Appium installation/startup and the SDK/AVD/emulator startup sequence |
 | `docker/dockerfiles/default/` | Unified image Dockerfile templates |
-| `features/` | Reusable Features for Java, Node.js, Python, npm, SSH, VS Code, and KVM |
-| `docker/features/appium/` | Project-only Appium installation after Node.js |
+| `features/` | Reusable Features for Java, Node.js, Python, npm, SSH, VS Code, KVM, and Appium |
 | `docker/compose/` | Unified Compose configuration |
 | `docker/config/supervisor/` | Container service configuration |
 | `docker/config/appium/` | Example Appium capabilities |
@@ -258,7 +264,7 @@ devcontainer build --workspace-folder "$PWD/build" \
   --image-name android-in-docker:local --no-lockfile
 ```
 
-The image templates copy SDK/AVD scripts and profiles directly from the pinned `external/android-profile` submodule, together with project startup scripts and Supervisor configuration. Appium installation runs after Node.js through the project-only local Feature in `docker/features/appium/`. Publishing `features/` excludes this internal Feature. The image template declares runtime SDK paths and ports. SDK/AVD provisioning, persisted data, KVM device mapping, and Compose startup retain their existing behavior.
+The image templates copy SDK/AVD scripts and profiles directly from the pinned `external/android-profile` submodule, together with project startup scripts and Supervisor configuration. Appium installation runs after Node.js through the reusable `features/appium/` Feature, including UiAutomator2 and the storage/inspector plugins. The image template declares runtime SDK paths and ports. SDK/AVD provisioning, persisted data, KVM device mapping, and Compose startup retain their existing behavior.
 
 Validation commands:
 

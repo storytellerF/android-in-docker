@@ -21,8 +21,6 @@ staged = output / 'features'
 if staged.exists():
     shutil.rmtree(staged)
 shutil.copytree(root / 'features', staged)
-# Appium alone requires a local post-Node installer; emulator assets stay in the submodule.
-shutil.copytree(root / 'docker/features/appium', staged / 'appium')
 shutil.copy2(root / 'scripts/start-ssh.sh', staged / 'ssh/start-ssh.sh')
 shutil.copy2(root / 'docker/config/supervisor/ssh.supervisord.conf', staged / 'ssh/ssh.supervisord.conf')
 features = {}
