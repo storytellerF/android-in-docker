@@ -1,0 +1,13 @@
+{
+  "id": "git",
+  "version": "1.0.0",
+  "name": "Git",
+  "description": "Install distro Git on Alpine and Arch.",
+  "options": {
+    "username": {
+      "type": "string",
+      "default": "automatic",
+      "description": "Existing container user."
+    }
+  }
+}

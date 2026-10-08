@@ -1,0 +1,13 @@
+{
+  "id": "vscode",
+  "version": "1.0.0",
+  "name": "Vscode",
+  "description": "Install and configure vscode for desktop-based development containers.",
+  "options": {
+    "username": {
+      "type": "string",
+      "default": "automatic",
+      "description": "Existing container user."
+    }
+  }
+}

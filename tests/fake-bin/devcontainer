@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""Validate Features build inputs without downloading or building images."""
+import json
+import os
+import shlex
+import sys
+from pathlib import Path
+args = sys.argv[1:]
+assert args[0] == 'build'
+config_path = Path(args[args.index('--config') + 1])
+config = json.loads(config_path.read_text())
+assert (config_path.parent / config['build']['dockerfile']).is_file()
+assert config['overrideFeatureInstallOrder'] == list(config['features'])
+for name, options in config['features'].items():
+    directory = config_path.parent / name
+    metadata = json.loads((directory / 'devcontainer-feature.json').read_text())
+    assert (directory / 'install.sh').is_file()
+    assert set(options) <= set(metadata['options'])
+assert args.count('--image-name') >= 2
+assert ('--push' in args) == ('--platform' in args)
+with open(os.environ['FAKE_DOCKER_LOG'], 'a') as log:
+    log.write('devcontainer ' + shlex.join(args + ['--test-base-image', config['build']['args']['DESKTOP_BASE_IMAGE']]) + '\n')
+print(json.dumps({'outcome': 'success'}))

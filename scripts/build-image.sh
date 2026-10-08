@@ -5,9 +5,8 @@ IMAGE_NAME="android-in-docker"
 # IMAGE_TAG="latest"
 ENV_FILE=".env"
 DOCKER_ROOT="docker"
-DOCKERFILE_DIR="${DOCKER_ROOT}/dockerfiles"
 COMPOSE_DIR="${DOCKER_ROOT}/compose"
-FRAGMENT_DIR="${DOCKER_ROOT}/fragments"
+DEVCONTAINER_CLI="${DEVCONTAINER_CLI:-devcontainer}"
 DEFAULT_JDK_PROVIDER="openjdk"
 DEFAULT_JDK_VERSION="21"
 DEFAULT_VNC_PASSWORD="password"
@@ -142,7 +141,7 @@ usage() {
     echo "  -s, --system <system>        Specify the base system ($(supported_base_systems)) (default: $DEFAULT_BASE_SYSTEM)"
     echo "  -v, --version <version>      Specify the base version ($(supported_base_versions_summary); default depends on --system)"
     echo "  -c, --create-env             Create or overwrite the .env file with the specified or default values"
-    echo "  -b, --build                  Execute the docker build process"
+    echo "  -b, --build                  Build with the Dev Container CLI"
     echo "  -S, --start                  Start docker compose up --build after building the image"
     echo "  -T, --stop                   Stop docker compose and remove the project containers"
     echo "  -P, --publish                Build and Push multi-arch images to Docker Hub (requires docker login)"
@@ -405,82 +404,6 @@ build_compose_files() {
     echo "-f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.kvm.yml"
 }
 
-resolve_component_dockerfile() {
-    local component=$1
-    local system=$2
-    local system_dockerfile="${DOCKERFILE_DIR}/${component}/${system}.Dockerfile"
-    local debian_dockerfile="${DOCKERFILE_DIR}/${component}/debian.Dockerfile"
-
-    if [ -f "$system_dockerfile" ]; then
-        echo "$system_dockerfile"
-        return 0
-    fi
-
-    if [ "$system" = "ubuntu" ] && [ -f "$debian_dockerfile" ]; then
-        echo "$debian_dockerfile"
-        return 0
-    fi
-
-    echo "Error: missing Dockerfile for component '$component' and base system '$system': expected $system_dockerfile" >&2
-    if [ "$system" = "ubuntu" ]; then
-        echo "       Ubuntu may share Debian Dockerfile, but $debian_dockerfile was not found." >&2
-    fi
-    return 1
-}
-
-resolve_install_fragment() {
-    local component=$1
-    local system=$2
-    local system_fragment="${FRAGMENT_DIR}/${component}/${system}.dockerfrag"
-    local debian_fragment="${FRAGMENT_DIR}/${component}/debian.dockerfrag"
-
-    if [ -f "$system_fragment" ]; then
-        echo "$system_fragment"
-        return 0
-    fi
-
-    if [ "$system" = "ubuntu" ] && [ -f "$debian_fragment" ]; then
-        echo "$debian_fragment"
-        return 0
-    fi
-
-    echo "Error: missing installation fragment for component '$component' and base system '$system': expected $system_fragment" >&2
-    if [ "$system" = "ubuntu" ]; then
-        echo "       Ubuntu may share Debian installation fragment, but $debian_fragment was not found." >&2
-    fi
-    return 1
-}
-
-merge_android_dockerfile() {
-    local android_dockerfile=$1
-    local output_file=$2
-    shift 2
-    local fragment_files=("$@")
-    local inject_marker="__INJECT_INSTALL_FRAGMENTS__"
-    local injected=false
-
-    mkdir -p "$(dirname "$output_file")"
-    : > "$output_file"
-
-    while IFS= read -r line || [ -n "$line" ]; do
-        echo "$line" >> "$output_file"
-        if [[ "$line" == *"$inject_marker"* ]]; then
-            injected=true
-            for fragment_file in "${fragment_files[@]}"; do
-                echo "" >> "$output_file"
-                echo "# Injected configuration - $(date)" >> "$output_file"
-                echo "# Source: $fragment_file" >> "$output_file"
-                cat "$fragment_file" >> "$output_file"
-            done
-        fi
-    done < "$android_dockerfile"
-
-    if [ "$injected" != true ]; then
-        echo "Error: injection marker '$inject_marker' not found in $android_dockerfile" >&2
-        return 1
-    fi
-}
-
 stop_compose_stack() {
     local compose_files
 
@@ -644,86 +567,43 @@ run_build() {
         fi
     fi
 
-    local build_args=(
-        --build-arg BASE_SYSTEM="$BASE_SYSTEM"
-        --build-arg BASE_VERSION="$BASE_VERSION"
-        --build-arg USERNAME="$CONTAINER_USER"
-        --build-arg USER_NAME="$CONTAINER_USER"
-        --build-arg JDK_PROVIDER="$JDK_PROVIDER"
-        --build-arg OPENJDK_VERSION="$OPENJDK_VERSION"
-        --build-arg DESKTOP_TYPE="$DESKTOP_TYPE"
-    )
-
-    while [ "$#" -gt 0 ]; do
-        build_args+=("$1")
-        shift
+    local index
+    local image_names=()
+    for ((index=1; index<${#tags[@]}; index+=2)); do
+        image_names+=(--image-name "${tags[index]}")
     done
-
-    # Execute the build
+    local cli_args=(build --workspace-folder "$PWD/build" --config "$df" --no-lockfile "${image_names[@]}")
     if [ "$PUBLISH" = true ]; then
-        docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            "${build_args[@]}" \
-            "${tags[@]}" \
-            --push \
-            -f "$df" .
-    elif [ "$EXECUTE_BUILD" = true ]; then
-        docker build \
-            "${build_args[@]}" \
-            "${tags[@]}" \
-            -f "$df" .
+        cli_args+=(--platform linux/amd64,linux/arm64 --push)
     fi
+    "$DEVCONTAINER_CLI" "${cli_args[@]}"
+
 }
 
 if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
-    JDK_COMPONENT="java/$JDK_PROVIDER"
-    if [ "$JDK_PROVIDER" = "temurin" ] && [ "$USE_CN_ENV" = "true" ]; then
-        JDK_COMPONENT="java/temurin/china"
-    fi
-
-    JAVA_FRAGMENT=$(resolve_install_fragment "$JDK_COMPONENT" "$BASE_SYSTEM")
-    if [ "$USE_CN_ENV" = "true" ]; then
-        NODEJS_FRAGMENT=$(resolve_install_fragment "nodejs/china" "$BASE_SYSTEM")
+    command -v "$DEVCONTAINER_CLI" >/dev/null || {
+        echo "Dev Container CLI is required: npm install -g @devcontainers/cli" >&2
+        exit 1
+    }
+    command -v python3 >/dev/null || { echo "Python 3 is required on the build host" >&2; exit 1; }
+    if [ "$USE_CN_ENV" = true ]; then
         ANDROID_TAG_PREFIX="$CHINA_TAG_PREFIX"
         ANDROID_SHORT_TAG_PREFIX=$(build_short_tag_prefix "cn")
-        GENERATED_ANDROID_DOCKERFILE="build/android/${BASE_SYSTEM}_cn.Dockerfile"
     else
-        NODEJS_FRAGMENT=$(resolve_install_fragment "nodejs/default" "$BASE_SYSTEM")
         ANDROID_TAG_PREFIX="$STANDARD_TAG_PREFIX"
         ANDROID_SHORT_TAG_PREFIX=$(build_short_tag_prefix "")
-        GENERATED_ANDROID_DOCKERFILE="build/android/${BASE_SYSTEM}.Dockerfile"
     fi
-    ANDROID_SOURCE_DOCKERFILE=$(resolve_component_dockerfile "android" "$BASE_SYSTEM")
-
     DESKTOP_BASE_IMAGE="${DOCKER_USERNAME:+${DOCKER_USERNAME}/}desktop-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}${DESKTOP_IMAGE_REGION_SUFFIX}-${IMAGE_TAG_TIME}"
     if [ ! -f external/android-profile/scripts/install-sdk.sh ]; then
         echo "Android profile submodule is missing. Run: git submodule update --init --recursive" >&2
         exit 1
     fi
     build_desktop_dependency
-
-    INSTALL_FRAGMENTS=("$JAVA_FRAGMENT" "$NODEJS_FRAGMENT")
-    if [ "$USE_CN_ENV" = true ]; then
-        INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/npm/china.dockerfrag")
-    fi
-
-    INSTALL_FRAGMENTS+=(
-        "$(resolve_install_fragment development-tools "$BASE_SYSTEM")"
-        "$(resolve_install_fragment ssh "$BASE_SYSTEM")"
-        "${FRAGMENT_DIR}/ssh/configure.dockerfrag"
-    )
-    if [ "$BASE_SYSTEM" = debian ] || [ "$BASE_SYSTEM" = ubuntu ] || [ "$BASE_SYSTEM" = fedora ]; then
-        INSTALL_FRAGMENTS+=("$(resolve_install_fragment vscode "$BASE_SYSTEM")")
-    fi
-
-    INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/kvm/permissions.dockerfrag" "${FRAGMENT_DIR}/android/configure.dockerfrag")
-
-    echo "Merging Android Dockerfile into $GENERATED_ANDROID_DOCKERFILE..."
-    merge_android_dockerfile "$ANDROID_SOURCE_DOCKERFILE" "$GENERATED_ANDROID_DOCKERFILE" \
-        "${INSTALL_FRAGMENTS[@]}"
-
-    run_build "$GENERATED_ANDROID_DOCKERFILE" "${IMAGE_NAME}" "$ANDROID_TAG_PREFIX" "$ANDROID_SHORT_TAG_PREFIX" \
-        --build-arg DESKTOP_BASE_IMAGE="$DESKTOP_BASE_IMAGE"
+    CONFIG_FILE=$(python3 scripts/generate-devcontainer.py \
+        --system "$BASE_SYSTEM" --username "$CONTAINER_USER" \
+        --provider "$JDK_PROVIDER" --version "$OPENJDK_VERSION" \
+        --china "$USE_CN_ENV" --desktop-image "$DESKTOP_BASE_IMAGE")
+    run_build "$CONFIG_FILE" "$IMAGE_NAME" "$ANDROID_TAG_PREFIX" "$ANDROID_SHORT_TAG_PREFIX"
 
     echo "Cleaning up dangling images..."
     docker image prune -f

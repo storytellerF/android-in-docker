@@ -1,0 +1,18 @@
+{
+  "id": "android",
+  "version": "1.0.0",
+  "name": "Android",
+  "description": "Install and configure android for desktop-based development containers.",
+  "options": {
+    "username": {
+      "type": "string",
+      "default": "automatic",
+      "description": "Existing container user."
+    }
+  },
+  "installsAfter": [
+    "./features/java",
+    "./features/nodejs",
+    "./features/npm"
+  ]
+}
