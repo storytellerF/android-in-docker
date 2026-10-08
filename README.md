@@ -267,11 +267,11 @@ docker/fragments/
 │   └── configure.dockerfrag
 ├── vscode/<system>.dockerfrag
 ├── kvm/permissions.dockerfrag
-└── android-sdk/configure.dockerfrag
+└── android/configure.dockerfrag
 ```
 
 Java fragments install the selected JDK. Node.js fragments install Node.js and npm, using regional download settings when selected. The separate npm fragment configures registry mirrors for root and the container user after Node.js is installed.
 
 Each system-specific installer declares its own arguments, environment, and root user. Ubuntu reuses the Debian installers. The build script injects Java, Node.js, optional npm configuration, development tools, SSH installation and configuration, and VS Code where supported at `__INJECT_INSTALL_FRAGMENTS__`. SSH package installation is system-specific; service registration and authentication settings are shared. The image template then selects its runtime user and installs Appium.
 
-The Android SDK fragment copies upstream scripts, profiles, and the emulator startup wrapper, and configures SDK paths. The image template exposes the emulator ADB port and registers the combined Android/Appium Supervisor configuration. Runtime provisioning remains separate from image build-time package installation.
+The Android configuration fragment copies upstream scripts, profiles, and the emulator startup wrapper, configures SDK paths, and registers the combined Android/Appium Supervisor configuration. The image template exposes the emulator ADB port. Runtime provisioning remains separate from image build-time package installation.

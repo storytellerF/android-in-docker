@@ -716,7 +716,7 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
         INSTALL_FRAGMENTS+=("$(resolve_install_fragment vscode "$BASE_SYSTEM")")
     fi
 
-    INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/kvm/permissions.dockerfrag" "${FRAGMENT_DIR}/android-sdk/configure.dockerfrag")
+    INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/kvm/permissions.dockerfrag" "${FRAGMENT_DIR}/android/configure.dockerfrag")
 
     echo "Merging Android Dockerfile into $GENERATED_ANDROID_DOCKERFILE..."
     merge_android_dockerfile "$ANDROID_SOURCE_DOCKERFILE" "$GENERATED_ANDROID_DOCKERFILE" \

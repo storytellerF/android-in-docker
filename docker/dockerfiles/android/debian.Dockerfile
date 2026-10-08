@@ -27,9 +27,6 @@ RUN chmod +x ./bin/*.sh
 # Install Appium
 RUN ./bin/install-appium.sh
 
-# Copy supervisor configuration
-COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf
-
 # Expose Ports:
 # 5555: ADB port
 # 4723: Appium port

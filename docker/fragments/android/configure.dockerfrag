@@ -11,6 +11,8 @@ ENV PATH=${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools
 COPY --chown=${USER_UID}:${USER_GID} external/android-profile/scripts/ /home/${USERNAME}/bin/
 COPY --chown=${USER_UID}:${USER_GID} external/android-profile/profiles/ /home/${USERNAME}/android-profiles/
 
-# The image template registers android.supervisord.conf with Supervisor.
 COPY --chown=${USER_UID}:${USER_GID} base-scripts/start-android.sh /home/${USERNAME}/bin/start-android.sh
 RUN chmod +x /home/${USERNAME}/bin/*.sh
+
+# Register Android and Appium services with Supervisor.
+COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf

@@ -25,6 +25,4 @@ RUN chmod +x ./bin/*.sh
 
 RUN ./bin/install-appium.sh
 
-COPY --chown=${USER_UID}:${USER_GID} docker/config/supervisor/android.supervisord.conf /home/${USERNAME}/supervisor/conf.d/android.supervisord.conf
-
 EXPOSE 5555 4723

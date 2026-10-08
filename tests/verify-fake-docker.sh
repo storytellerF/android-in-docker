@@ -70,7 +70,7 @@ for system in debian ubuntu fedora alpine; do
             fi
             assert_contains "$generated" "install-appium.sh"
             assert_contains "$generated" "external/android-profile/scripts/"
-            assert_contains "$generated" "# Source: docker/fragments/android-sdk/configure.dockerfrag"
+            assert_contains "$generated" "# Source: docker/fragments/android/configure.dockerfrag"
             assert_contains "$generated" "ENV ANDROID_HOME="
             assert_contains "$generated" "# Source: docker/fragments/kvm/permissions.dockerfrag"
             assert_contains "$generated" "add_group_for_gid 992 hostkvm1"
