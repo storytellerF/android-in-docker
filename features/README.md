@@ -83,3 +83,11 @@ Set `TZ=Asia/Shanghai` for automatic China selection, `PYTHON_SOURCE=default` to
 Python uses PyPI (`https://pypi.org/simple`) or TUNA (`https://pypi.tuna.tsinghua.edu.cn/simple`). A non-empty `indexUrl` overrides the preset; build environment `PYTHON_INDEX_URL` or `PIP_INDEX_URL` can also specify an index. The selected HTTPS index is used during installation and persisted in `/etc/pip.conf` for users and virtual environments. TLS verification remains enabled.
 
 The existing build script passes its resolved source explicitly to each Feature, preserving `--cn-mirror` and `--no-cn-mirror` behavior.
+
+## Publish to GHCR
+
+The `Publish Dev Container Features` workflow runs when Feature sources or publishing configuration change on `main`, and can also be started manually from the Actions tab. It uses `GITHUB_TOKEN` with `packages: write`; no personal token secret is required.
+
+Packages are published under `ghcr.io/<repository-owner>/<repository-name>/<feature-id>`. The release staging script rewrites collection-local `installsAfter` references to the actual repository namespace, supporting both the upstream repository and forks without changing source metadata. Only directories in `features/` are published; Android profiles and emulator scripts remain in the submodule.
+
+Each Feature's `version` field determines its release version and major-version tag. Increment it when publishing changes to an existing release. For public reuse, set the packages to Public in GitHub Packages after initial publication, and ensure the repository's Actions token has write access to existing packages. This workflow publishes Feature packages, not Android images.
