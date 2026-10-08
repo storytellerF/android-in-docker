@@ -21,10 +21,6 @@
       "type": "string",
       "default": "21"
     },
-    "chinaMirror": {
-      "type": "boolean",
-      "default": false
-    },
     "source": {
       "type": "string",
       "enum": [

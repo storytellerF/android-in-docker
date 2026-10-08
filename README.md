@@ -238,7 +238,7 @@ These checks cover supported build combinations, image dependency order, publish
 | `base-scripts/` | Appium installation/startup and the SDK/AVD/emulator startup sequence |
 | `docker/dockerfiles/default/` | Unified image Dockerfile templates |
 | `features/` | Reusable Features for Java, Node.js, Python, npm, SSH, VS Code, and KVM |
-| `docker/features/android/` | Project-only SDK/AVD, emulator, Appium, and Supervisor provisioning |
+| `docker/features/appium/` | Project-only Appium installation after Node.js |
 | `docker/compose/` | Unified Compose configuration |
 | `docker/config/supervisor/` | Container service configuration |
 | `docker/config/appium/` | Example Appium capabilities |
@@ -270,7 +270,7 @@ devcontainer build --workspace-folder "$PWD/build" \
   --image-name android-in-docker:local --no-lockfile
 ```
 
-SDK/AVD provisioning, emulator startup, Appium, and Supervisor configuration belong to the project-only local Feature in `docker/features/android/`. Publishing `features/` excludes this internal Feature. The image template declares runtime SDK paths and ports. SDK/AVD provisioning, persisted data, KVM device mapping, and Compose startup retain their existing behavior.
+The image templates copy SDK/AVD scripts and profiles directly from the pinned `external/android-profile` submodule, together with project startup scripts and Supervisor configuration. Appium installation runs after Node.js through the project-only local Feature in `docker/features/appium/`. Publishing `features/` excludes this internal Feature. The image template declares runtime SDK paths and ports. SDK/AVD provisioning, persisted data, KVM device mapping, and Compose startup retain their existing behavior.
 
 Validation commands:
 

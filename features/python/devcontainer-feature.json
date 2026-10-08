@@ -9,11 +9,6 @@
       "default": "automatic",
       "description": "Existing container user."
     },
-    "chinaMirror": {
-      "type": "boolean",
-      "default": false,
-      "description": "Use the TUNA PyPI mirror for package installation."
-    },
     "source": {
       "type": "string",
       "enum": [

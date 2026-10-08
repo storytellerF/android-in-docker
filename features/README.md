@@ -12,9 +12,9 @@ Each directory contains a `devcontainer-feature.json` and executable `install.sh
 | `vscode` | — | Microsoft's desktop VS Code package |
 | `kvm` | — | Reuse/create GIDs 992 and 993 and add the selected user |
 
-All Features accept `username`, defaulting to the Dev Container remote user (or the existing UID 1000 user). They expect an existing user. SSH service integration targets the desktop-in-docker image, which supplies Supervisor and passwordless sudo for that user. KVM device mapping belongs in Compose, not in the installer. Select the Java and Node.js Features before Android; the generated configuration includes them and sets their installation order.
+All Features accept `username`, defaulting to the Dev Container remote user (or the existing UID 1000 user). They expect an existing user. SSH service integration targets the desktop-in-docker image, which supplies Supervisor and passwordless sudo for that user. KVM device mapping belongs in Compose, not in the installer. Select the Java and Node.js Features before project-local Appium; the generated configuration includes them and sets their installation order.
 
-The build script stages these Features in `build/.devcontainer/features/` and generates `devcontainer.json`. The project-only Android Feature resides in `docker/features/android/` and is staged alongside the reusable Features solely for image builds. It refreshes the Android profile payload from the pinned submodule, plus project startup and Supervisor files, before building. Feature installation runs during image build; SDK and AVD provisioning runs at container startup into persistent volumes.
+The build script stages these Features in `build/.devcontainer/features/` and generates `devcontainer.json`. The project-only Appium installer resides in `docker/features/appium/` and is staged alongside the reusable Features solely for image builds. The image Dockerfiles copy Android scripts/profiles directly from the pinned `android-profile` submodule; no simulator assets are packaged as a Feature. Feature installation runs during image build; SDK and AVD provisioning runs at container startup into persistent volumes.
 
 For another local Dev Container, copy the selected Feature directories under `.devcontainer/features/` and reference them in `devcontainer.json`:
 
@@ -59,10 +59,9 @@ Selection priority:
 
 1. An explicit `source` option.
 2. A per-tool build environment variable (`JAVA_SOURCE`, `NODEJS_SOURCE`, or `PYTHON_SOURCE`), then `FEATURE_SOURCE`.
-3. Legacy `chinaMirror: true`.
-4. The `timezone` option, `TZ`, `/etc/timezone`, or `/etc/localtime`.
+3. The `timezone` option, `TZ`, `/etc/timezone`, or `/etc/localtime`.
 
-Mainland China timezone identifiers select China mirrors; other timezones select the default source. `source: "default"` explicitly disables China mirrors. The legacy boolean is retained, but `chinaMirror: false` alone now permits automatic selection.
+Mainland China timezone identifiers select China mirrors; other timezones select the default source. `source: "default"` explicitly disables China mirrors.
 
 Feature installers run while building the image. Host variables and `containerEnv`/`remoteEnv` are not automatically available during that phase. Pass host selections through Feature options, for example:
 

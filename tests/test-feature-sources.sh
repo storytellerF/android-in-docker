@@ -6,7 +6,7 @@ for feature in java nodejs python; do
     check() {
         local expected=$1
         shift
-        env -u SOURCE -u FEATURE_SOURCE -u JAVA_SOURCE -u NODEJS_SOURCE -u PYTHON_SOURCE -u TIMEZONE -u TZ -u CHINAMIRROR "$@" bash -c '
+        env -u SOURCE -u FEATURE_SOURCE -u JAVA_SOURCE -u NODEJS_SOURCE -u PYTHON_SOURCE -u TIMEZONE -u TZ "$@" bash -c '
             . "$1"
             resolve_feature_source "$2"
             test "$FEATURE_SELECTED_SOURCE" = "$3"
@@ -14,14 +14,13 @@ for feature in java nodejs python; do
     }
     check china TZ=Asia/Shanghai
     check default TZ=Etc/UTC
-    check default SOURCE=default TZ=Asia/Shanghai CHINAMIRROR=true
+    check default SOURCE=default TZ=Asia/Shanghai
     check china FEATURE_SOURCE=china TZ=Etc/UTC
     check default FEATURE_SOURCE=china "${feature^^}_SOURCE=default" TZ=Asia/Shanghai
-    check china CHINAMIRROR=true TZ=Etc/UTC
     check china TIMEZONE=Asia/Shanghai TZ=Etc/UTC
     if check default SOURCE=invalid 2>/dev/null; then
         echo 'Invalid source unexpectedly accepted' >&2
         exit 1
     fi
 done
-echo 'Feature source options, environment priority, timezone detection, and legacy configuration passed.'
+echo 'Feature source options, environment priority, timezone detection passed.'

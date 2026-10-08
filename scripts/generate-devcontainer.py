@@ -21,19 +21,10 @@ staged = output / 'features'
 if staged.exists():
     shutil.rmtree(staged)
 shutil.copytree(root / 'features', staged)
-# Project-only provisioning is used locally but excluded from published Features.
-shutil.copytree(root / 'docker/features/android', staged / 'android')
-android = staged / 'android'
-for name in ['scripts', 'profiles']:
-    target = android / ('profile-scripts' if name == 'scripts' else name)
-    shutil.rmtree(target)
-    shutil.copytree(root / 'external/android-profile' / name, target)
-for source in (root / 'base-scripts').glob('*.sh'):
-    shutil.copy2(source, android / source.name)
+# Appium alone requires a local post-Node installer; emulator assets stay in the submodule.
+shutil.copytree(root / 'docker/features/appium', staged / 'appium')
 shutil.copy2(root / 'scripts/start-ssh.sh', staged / 'ssh/start-ssh.sh')
-for feature in ['android', 'ssh']:
-    shutil.copy2(root / f'docker/config/supervisor/{feature}.supervisord.conf',
-                 staged / feature / f'{feature}.supervisord.conf')
+shutil.copy2(root / 'docker/config/supervisor/ssh.supervisord.conf', staged / 'ssh/ssh.supervisord.conf')
 features = {}
 def add(name, **options):
     features[f'./features/{name}'] = {'username': args.username, **options}
@@ -45,7 +36,7 @@ add('python', source='china' if args.china == 'true' else 'default')
 add('ssh')
 if args.system in ['debian', 'ubuntu', 'fedora']:
     add('vscode')
-for name in ['kvm', 'android']:
+for name in ['kvm', 'appium']:
     add(name)
 system = 'debian' if args.system == 'ubuntu' else args.system
 config = {

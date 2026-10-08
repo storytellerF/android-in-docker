@@ -6,9 +6,6 @@ resolve_feature_source() {
     if [ "$requested" = auto ]; then
         requested="${!feature_env:-${FEATURE_SOURCE:-auto}}"
     fi
-    if [ "$requested" = auto ] && [ "${CHINAMIRROR:-false}" = true ]; then
-        requested=china
-    fi
     if [ "$requested" = auto ]; then
         local timezone="${TIMEZONE:-${TZ:-}}"
         if [ -z "$timezone" ] && [ -r /etc/timezone ]; then

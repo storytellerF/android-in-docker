@@ -28,12 +28,14 @@ assert ('./features/vscode' in f) == (system in ['debian','ubuntu','fedora'])
 assert f['./features/python']['source'] == ('china' if mirror == '--cn-mirror' else 'default')
 assert './features/development-tools' not in f
 assert './features/kvm' in f
-assert './features/android' in f
-assert not Path('features/android').exists()
-assert Path('docker/features/android/devcontainer-feature.json').is_file()
-assert 'docker/dockerfiles/default/' in c['build']['dockerfile']
-assert (p.parent / 'features/android/profile-scripts/install-sdk.sh').is_file()
-assert (p.parent / 'features/android/android.supervisord.conf').is_file()
+assert './features/android' not in f
+assert './features/appium' in f
+assert not Path('docker/features/android').exists()
+assert not (p.parent / 'features/appium/profile-scripts').exists()
+template = (p.parent / c['build']['dockerfile']).read_text()
+assert 'external/android-profile/scripts/' in template
+assert 'external/android-profile/profiles/' in template
+assert 'docker/config/supervisor/android.supervisord.conf' in template
 assert not list(Path('docker').rglob('*.dockerfrag'))
 PY
         done

@@ -16,24 +16,6 @@ case "$SYSTEM_ID" in
     alpine|arch|fedora) SYSTEM="$SYSTEM_ID" ;;
     *) echo "Unsupported distribution: $SYSTEM_ID" >&2; exit 1 ;;
 esac
-case "$SYSTEM" in
-    debian)
-        apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bash ca-certificates wget unzip sudo
-        rm -rf /var/lib/apt/lists/*
-        ;;
-    alpine) apk add --no-cache bash ca-certificates wget unzip sudo ;;
-    arch) pacman -Sy --noconfirm --needed bash ca-certificates wget unzip sudo && pacman -Scc --noconfirm ;;
-    fedora) dnf install -y bash ca-certificates wget unzip sudo && dnf clean all ;;
-esac
-install -d -o "$USER_UID" -g "$USER_GID" "$USER_HOME/bin" "$USER_HOME/android-profiles" "$USER_HOME/supervisor/conf.d"
-cp -R "$FEATURE_DIR/profile-scripts/." "$USER_HOME/bin/"
-cp -R "$FEATURE_DIR/profiles/." "$USER_HOME/android-profiles/"
-cp "$FEATURE_DIR/"*.sh "$USER_HOME/bin/"
-rm -f "$USER_HOME/bin/install.sh"
-install -m 644 "$FEATURE_DIR/android.supervisord.conf" "$USER_HOME/supervisor/conf.d/android.supervisord.conf"
-chmod +x "$USER_HOME/bin/"*.sh
-chown -R "$USER_UID:$USER_GID" "$USER_HOME/bin" "$USER_HOME/android-profiles" "$USER_HOME/supervisor/conf.d"
 # Keep Node available to sudo-launched npm and preserve the previous NVM path.
 node_binary=$(command -v node)
 [ "$node_binary" = /usr/local/bin/node ] || ln -sfn "$node_binary" /usr/local/bin/node

@@ -9,10 +9,6 @@
       "default": "automatic",
       "description": "Existing container user."
     },
-    "chinaMirror": {
-      "type": "boolean",
-      "default": false
-    },
     "source": {
       "type": "string",
       "enum": [
