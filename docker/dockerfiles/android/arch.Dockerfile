@@ -14,10 +14,6 @@ ARG USERNAME=arch
 
 USER root
 
-RUN pacman -Sy --noconfirm --needed \
-    android-tools \
-    && pacman -Scc --noconfirm
-
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 

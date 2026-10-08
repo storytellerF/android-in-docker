@@ -431,8 +431,8 @@ resolve_component_dockerfile() {
 resolve_install_fragment() {
     local component=$1
     local system=$2
-    local system_fragment="${FRAGMENT_DIR}/${component}/${system}.dockerfile.inc"
-    local debian_fragment="${FRAGMENT_DIR}/${component}/debian.dockerfile.inc"
+    local system_fragment="${FRAGMENT_DIR}/${component}/${system}.dockerfrag"
+    local debian_fragment="${FRAGMENT_DIR}/${component}/debian.dockerfrag"
 
     if [ -f "$system_fragment" ]; then
         echo "$system_fragment"
@@ -652,6 +652,7 @@ run_build() {
         --build-arg JDK_PROVIDER="$JDK_PROVIDER"
         --build-arg OPENJDK_VERSION="$OPENJDK_VERSION"
         --build-arg DESKTOP_TYPE="$DESKTOP_TYPE"
+        --build-arg KVM_GID="${KVM_GID:-109}"
     )
 
     while [ "$#" -gt 0 ]; do
@@ -704,19 +705,19 @@ if [ "$PUBLISH" = true ] || [ "$EXECUTE_BUILD" = true ]; then
 
     INSTALL_FRAGMENTS=("$JAVA_FRAGMENT" "$NODEJS_FRAGMENT")
     if [ "$USE_CN_ENV" = true ]; then
-        INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/npm/china.dockerfile.inc")
+        INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/npm/china.dockerfrag")
     fi
 
     INSTALL_FRAGMENTS+=(
         "$(resolve_install_fragment development-tools "$BASE_SYSTEM")"
         "$(resolve_install_fragment ssh "$BASE_SYSTEM")"
-        "${FRAGMENT_DIR}/ssh/configure.dockerfile.inc"
+        "${FRAGMENT_DIR}/ssh/configure.dockerfrag"
     )
     if [ "$BASE_SYSTEM" = debian ] || [ "$BASE_SYSTEM" = ubuntu ] || [ "$BASE_SYSTEM" = fedora ]; then
         INSTALL_FRAGMENTS+=("$(resolve_install_fragment vscode "$BASE_SYSTEM")")
     fi
 
-    INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/android-sdk/configure.dockerfile.inc" "${FRAGMENT_DIR}/android-emulator/startup.dockerfile.inc")
+    INSTALL_FRAGMENTS+=("${FRAGMENT_DIR}/kvm/permissions.dockerfrag" "${FRAGMENT_DIR}/android-sdk/configure.dockerfrag")
 
     echo "Merging Android Dockerfile into $GENERATED_ANDROID_DOCKERFILE..."
     merge_android_dockerfile "$ANDROID_SOURCE_DOCKERFILE" "$GENERATED_ANDROID_DOCKERFILE" \

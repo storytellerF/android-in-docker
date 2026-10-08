@@ -95,7 +95,23 @@ The `external/android-profile` submodule is pinned to commit `2d85cdc`. At conta
 
 The default profile is `/home/<user>/android-profiles/android.profile`. Set `ANDROID_PROFILE` to select another profile, and bind-mount that file into the container. It defines the system-image package prefix, device definition, display, and emulator arguments. The upstream scripts select the image ABI from the container architecture. Emulator output appears in `logs/android_stdout.log` and `logs/android_stderr.log`.
 
-Hardware acceleration requires a usable KVM device and matching access permissions; the supplied Compose configuration does not mount it or enable privileged mode. If running without KVM, configure software acceleration in your profile. Android's Linux emulator requires glibc, so Alpine is not a supported emulator runtime. Installing SDK tools does not establish that every architecture/profile can boot successfully.
+Hardware acceleration requires a usable KVM device and matching access permissions; the default Compose configuration does not mount it or enable privileged mode. If running without KVM, configure software acceleration in your profile. Android's Linux emulator requires glibc, so Alpine is not a supported emulator runtime. Installing SDK tools does not establish that every architecture/profile can boot successfully.
+
+### Optional KVM acceleration
+
+`docker/fragments/kvm/permissions.dockerfrag` prepares the container user's KVM group membership. `KVM_GID` defaults to `109` during image builds and can be set in `.env`; it is independent of SDK installation and emulator startup.
+
+At runtime, use the host device's actual group ID. The optional Compose override adds that numeric supplementary group even when the image was built with a different GID:
+
+```sh
+export KVM_GID="$(stat -c '%g' /dev/kvm)"
+# Retain the image tag, namespace, and home directory used for your build.
+docker compose --env-file .env \
+  -f docker/compose/docker-compose.yml \
+  -f docker/compose/docker-compose.kvm.yml up -d
+```
+
+Select your built `IMAGE_TAG` when it differs from the default snapshot tag. The override requires `/dev/kvm` and an explicit `KVM_GID`; it does not enable privileged mode. The regular `build-image.sh -S` command continues to use only the default Compose file. Emulator acceleration settings are controlled by the Android profile.
 
 ## Publishing
 
@@ -231,31 +247,31 @@ These checks cover supported build combinations, image dependency order, publish
 
 ## Dockerfile fragments
 
-Image templates live in `docker/dockerfiles/`; reusable installation fragments live in `docker/fragments/`. Files ending in `.dockerfile.inc` contain Dockerfile instructions and are included by the build script rather than built separately.
+Image templates live in `docker/dockerfiles/`; reusable installation fragments live in `docker/fragments/`. Files ending in `.dockerfrag` contain Dockerfile instructions and are included by the build script rather than built separately.
 
 ```text
 docker/fragments/
 ├── java/
-│   ├── openjdk/<system>.dockerfile.inc
+│   ├── openjdk/<system>.dockerfrag
 │   └── temurin/
-│       ├── <system>.dockerfile.inc
-│       └── china/<system>.dockerfile.inc
+│       ├── <system>.dockerfrag
+│       └── china/<system>.dockerfrag
 ├── nodejs/
-│   ├── default/<system>.dockerfile.inc
-│   └── china/<system>.dockerfile.inc
+│   ├── default/<system>.dockerfrag
+│   └── china/<system>.dockerfrag
 ├── npm/
-│   └── china.dockerfile.inc
-├── development-tools/<system>.dockerfile.inc
+│   └── china.dockerfrag
+├── development-tools/<system>.dockerfrag
 ├── ssh/
-│   ├── <system>.dockerfile.inc
-│   └── configure.dockerfile.inc
-├── vscode/<system>.dockerfile.inc
-├── android-sdk/configure.dockerfile.inc
-└── android-emulator/startup.dockerfile.inc
+│   ├── <system>.dockerfrag
+│   └── configure.dockerfrag
+├── vscode/<system>.dockerfrag
+├── kvm/permissions.dockerfrag
+└── android-sdk/configure.dockerfrag
 ```
 
 Java fragments install the selected JDK. Node.js fragments install Node.js and npm, using regional download settings when selected. The separate npm fragment configures registry mirrors for root and the container user after Node.js is installed.
 
 Each system-specific installer declares its own arguments, environment, and root user. Ubuntu reuses the Debian installers. The build script injects Java, Node.js, optional npm configuration, development tools, SSH installation and configuration, and VS Code where supported at `__INJECT_INSTALL_FRAGMENTS__`. SSH package installation is system-specific; service registration and authentication settings are shared. The image template then selects its runtime user and installs Appium.
 
-The Android SDK fragment copies upstream scripts and profiles and configures SDK paths. The separate emulator fragment registers the startup wrapper with Supervisor. Runtime provisioning remains separate from image build-time package installation.
+The Android SDK fragment copies upstream scripts, profiles, and the emulator startup wrapper, configures SDK paths, and exposes the emulator ADB port. The image template registers the combined Android/Appium Supervisor configuration. Runtime provisioning remains separate from image build-time package installation.

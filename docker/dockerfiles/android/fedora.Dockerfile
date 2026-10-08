@@ -14,10 +14,6 @@ ARG USERNAME=user
 
 USER root
 
-RUN dnf install -y \
-    android-tools \
-    && dnf clean all
-
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 

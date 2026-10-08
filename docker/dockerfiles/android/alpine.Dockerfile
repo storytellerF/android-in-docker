@@ -14,9 +14,6 @@ ARG USERNAME=alpine
 
 USER root
 
-RUN apk add --no-cache \
-    android-tools
-
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
