@@ -187,18 +187,7 @@ source scripts/completion.bash
 
 `docker/compose/docker-compose.yml` defines all services and ports, SSH authorized keys, logs, SDK/AVD storage, shell history, and development caches. All features are enabled by default. Image tags no longer carry a `-dev` suffix, and `-D` / `--dev` are no longer accepted.
 
-To generate a Dev Container configuration in another project, run this script from that project's root:
-
-```sh
-/path/to/android-in-docker/scripts/setup-devcontainer.sh
-```
-
-Adjust the generated `.devcontainer/dev.Dockerfile` image reference to match your namespace and published image tag. To add an SSH key:
-
-```sh
-cd .devcontainer
-/path/to/android-in-docker/scripts/add-ssh-key.sh
-```
+For another project, configure its Dev Container directly and select the reusable Features described in [the Features reference](features/README.md).
 
 ## Logs and diagnostics
 
@@ -232,7 +221,6 @@ These checks cover supported build combinations, image dependency order, publish
 | Path | Purpose |
 | --- | --- |
 | `scripts/build-image.sh` | Build, publish, start, and stop entry point |
-| `scripts/setup-devcontainer.sh` | Generate Dev Container files |
 | `scripts/add-ssh-key.sh` | Add a public key to Dev Container authorized keys |
 | `scripts/open-vnc.sh` | Detect the VNC port and launch a local client |
 | `base-scripts/` | Appium installation/startup and the SDK/AVD/emulator startup sequence |

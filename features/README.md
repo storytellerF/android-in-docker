@@ -12,7 +12,7 @@ Each directory contains a `devcontainer-feature.json` and executable `install.sh
 | `vscode` | — | Microsoft's desktop VS Code package |
 | `kvm` | — | Reuse/create GIDs 992 and 993 and add the selected user |
 
-All Features accept `username`, defaulting to the Dev Container remote user (or the existing UID 1000 user). They expect an existing user. SSH service integration targets the desktop-in-docker image, which supplies Supervisor and passwordless sudo for that user. KVM device mapping belongs in Compose, not in the installer. Select the Java and Node.js Features before project-local Appium; the generated configuration includes them and sets their installation order.
+Features use the Dev Container-provided `_REMOTE_USER` and `_REMOTE_USER_HOME`, derived from `remoteUser`, for user-specific configuration. There is no separate username option or UID-based user guessing. They expect an existing user. SSH service integration targets the desktop-in-docker image, which supplies Supervisor and passwordless sudo for that user. KVM device mapping belongs in Compose, not in the installer. Select the Java and Node.js Features before project-local Appium; the generated configuration includes them and sets their installation order.
 
 The build script stages these Features in `build/.devcontainer/features/` and generates `devcontainer.json`. The project-only Appium installer resides in `docker/features/appium/` and is staged alongside the reusable Features solely for image builds. The image Dockerfiles copy Android scripts/profiles directly from the pinned `android-profile` submodule; no simulator assets are packaged as a Feature. Feature installation runs during image build; SDK and AVD provisioning runs at container startup into persistent volumes.
 

@@ -27,7 +27,7 @@ shutil.copy2(root / 'scripts/start-ssh.sh', staged / 'ssh/start-ssh.sh')
 shutil.copy2(root / 'docker/config/supervisor/ssh.supervisord.conf', staged / 'ssh/ssh.supervisord.conf')
 features = {}
 def add(name, **options):
-    features[f'./features/{name}'] = {'username': args.username, **options}
+    features[f'./features/{name}'] = options
 add('java', provider=args.provider, version=args.version, source='china' if args.china == 'true' else 'default')
 add('nodejs', source='china' if args.china == 'true' else 'default')
 if args.china == 'true':

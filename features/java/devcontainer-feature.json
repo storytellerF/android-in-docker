@@ -4,11 +4,6 @@
   "name": "Java",
   "description": "Install and configure java for desktop-based development containers.",
   "options": {
-    "username": {
-      "type": "string",
-      "default": "automatic",
-      "description": "Existing container user."
-    },
     "provider": {
       "type": "string",
       "enum": [

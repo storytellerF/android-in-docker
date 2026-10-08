@@ -4,11 +4,6 @@
   "name": "Python",
   "description": "Install and configure python for desktop-based development containers.",
   "options": {
-    "username": {
-      "type": "string",
-      "default": "automatic",
-      "description": "Existing container user."
-    },
     "source": {
       "type": "string",
       "enum": [

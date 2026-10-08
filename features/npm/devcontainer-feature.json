@@ -4,11 +4,6 @@
   "name": "Npm",
   "description": "Install and configure npm for desktop-based development containers.",
   "options": {
-    "username": {
-      "type": "string",
-      "default": "automatic",
-      "description": "Existing container user."
-    },
     "registry": {
       "type": "string",
       "default": "https://mirrors.cloud.tencent.com/npm/"

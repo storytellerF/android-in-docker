@@ -23,7 +23,7 @@ EOF
 python3 - "$context" "${PYTHON_CHINA_MIRROR:-false}" <<'PY'
 import json, sys
 from pathlib import Path
-features = {'./features/' + name: {'username': 'debian'} for name in ['java','nodejs','python','kvm']}
+features = {'./features/' + name: {} for name in ['java','nodejs','python','kvm']}
 features['./features/python']['source'] = 'china' if sys.argv[2] == 'true' else 'default'
 config = {'build': {'dockerfile': 'Dockerfile'}, 'remoteUser': 'debian', 'features': features,
           'overrideFeatureInstallOrder': list(features)}

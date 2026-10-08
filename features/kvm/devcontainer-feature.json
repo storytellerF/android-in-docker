@@ -3,11 +3,5 @@
   "version": "1.0.0",
   "name": "Kvm",
   "description": "Install and configure kvm for desktop-based development containers.",
-  "options": {
-    "username": {
-      "type": "string",
-      "default": "automatic",
-      "description": "Existing container user."
-    }
-  }
+  "options": {}
 }

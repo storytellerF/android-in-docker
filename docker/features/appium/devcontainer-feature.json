@@ -3,13 +3,7 @@
   "version": "1.0.0",
   "name": "Appium",
   "description": "Install Appium for the project image after Node.js is available.",
-  "options": {
-    "username": {
-      "type": "string",
-      "default": "automatic",
-      "description": "Existing container user."
-    }
-  },
+  "options": {},
   "installsAfter": [
     "./features/java",
     "./features/nodejs",

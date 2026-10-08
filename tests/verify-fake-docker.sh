@@ -17,6 +17,8 @@ system, provider, mirror = sys.argv[1:]
 p = Path('build/.devcontainer/devcontainer.json')
 c = json.loads(p.read_text())
 f = c['features']
+assert c['remoteUser'] == c['build']['args']['USERNAME']
+assert all('username' not in options for options in f.values())
 assert f['./features/java']['provider'] == provider
 assert f['./features/java']['source'] == ('china' if mirror == '--cn-mirror' else 'default')
 assert './features/git' not in f
