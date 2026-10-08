@@ -8,6 +8,10 @@ ARG DESKTOP_IMAGE_LABEL=latest
 ARG DESKTOP_BASE_IMAGE=storytellerf/desktop-in-docker:${BASE_SYSTEM}-${BASE_VERSION}-${DESKTOP_TYPE}${DESKTOP_IMAGE_REGION_SUFFIX}-${DESKTOP_IMAGE_LABEL}
 FROM ${DESKTOP_BASE_IMAGE}
 
+USER root
+# Git belongs to the project image rather than a reusable Feature.
+RUN apk add --no-cache git
+
 ARG USERNAME
 ENV ANDROID_HOME=/home/${USERNAME}/Android/Sdk
 ENV ANDROID_PROFILE_DIR=/home/${USERNAME}/android-profiles

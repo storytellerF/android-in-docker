@@ -11,18 +11,19 @@ cleanup() {
 }
 trap cleanup EXIT
 mkdir -p "$context/.devcontainer/features"
-for feature in git java nodejs python kvm; do
+for feature in java nodejs python kvm; do
     cp -R "$ROOT_DIR/features/$feature" "$context/.devcontainer/features/$feature"
 done
 cat > "$context/.devcontainer/Dockerfile" <<'EOF'
 FROM debian:trixie
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 RUN groupadd -g 992 existingkvm && useradd -m -s /bin/bash -u 1000 debian
 USER debian
 EOF
 python3 - "$context" "${PYTHON_CHINA_MIRROR:-false}" <<'PY'
 import json, sys
 from pathlib import Path
-features = {'./features/' + name: {'username': 'debian'} for name in ['git','java','nodejs','python','kvm']}
+features = {'./features/' + name: {'username': 'debian'} for name in ['java','nodejs','python','kvm']}
 features['./features/python']['chinaMirror'] = sys.argv[2] == 'true'
 config = {'build': {'dockerfile': 'Dockerfile'}, 'remoteUser': 'debian', 'features': features,
           'overrideFeatureInstallOrder': list(features)}

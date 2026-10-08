@@ -19,7 +19,9 @@ c = json.loads(p.read_text())
 f = c['features']
 assert f['./features/java']['provider'] == provider
 assert f['./features/java']['source'] == ('china' if mirror == '--cn-mirror' else 'default')
-assert './features/git' in f
+assert './features/git' not in f
+assert not Path('features/git').exists()
+assert ' git' in (p.parent / c['build']['dockerfile']).read_text()
 assert f['./features/nodejs']['source'] == ('china' if mirror == '--cn-mirror' else 'default')
 assert ('./features/npm' in f) == (mirror == '--cn-mirror')
 assert ('./features/vscode' in f) == (system in ['debian','ubuntu','fedora'])
@@ -27,6 +29,8 @@ assert f['./features/python']['source'] == ('china' if mirror == '--cn-mirror' e
 assert './features/development-tools' not in f
 assert './features/kvm' in f
 assert './features/android' in f
+assert not Path('features/android').exists()
+assert Path('docker/features/android/devcontainer-feature.json').is_file()
 assert 'docker/dockerfiles/default/' in c['build']['dockerfile']
 assert (p.parent / 'features/android/profile-scripts/install-sdk.sh').is_file()
 assert (p.parent / 'features/android/android.supervisord.conf').is_file()

@@ -21,6 +21,8 @@ staged = output / 'features'
 if staged.exists():
     shutil.rmtree(staged)
 shutil.copytree(root / 'features', staged)
+# Project-only provisioning is used locally but excluded from published Features.
+shutil.copytree(root / 'docker/features/android', staged / 'android')
 android = staged / 'android'
 for name in ['scripts', 'profiles']:
     target = android / ('profile-scripts' if name == 'scripts' else name)
@@ -35,7 +37,6 @@ for feature in ['android', 'ssh']:
 features = {}
 def add(name, **options):
     features[f'./features/{name}'] = {'username': args.username, **options}
-add('git')
 add('java', provider=args.provider, version=args.version, source='china' if args.china == 'true' else 'default')
 add('nodejs', source='china' if args.china == 'true' else 'default')
 if args.china == 'true':
