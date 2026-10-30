@@ -94,3 +94,14 @@ ANDROID_TEST_RUNTIME_IMAGE=android-in-docker:<verified-debian-tag> python3 tests
 ```
 
 This check records an existing image alongside retired Fedora 44/OpenJDK 21 recipe metadata, then starts and stops it through the real Python entry point. It preserves the image's recorded user/home, checks the exact selected image and literal password, disables only Android startup in a test image, and cleans its isolated Compose project, temporary bind sources, and image tag. It refuses to replace existing log or key paths.
+
+## VNC client configuration regression
+
+`scripts/open-vnc.sh` calls `scripts/read-vnc-password.py`, which uses the shared `read_env` decoder. It preserves literal dollar signs, backslashes, and quotes, supports the legacy `VNC_PASSWORD` alias, and stops before launching a client when configuration parsing fails. Password input is passed to the encoder with `printf`.
+
+```sh
+python3 tests/test_vnc_config.py
+VNC_TEST_ENCODER_IMAGE=android-in-docker:<verified-debian-tag> python3 tests/test_vnc_config.py
+```
+
+The launcher test uses isolated command adapters, records the encoder's exact input, and checks the viewer arguments and password-file permissions without opening a GUI. With the image option, the real TigerVNC encoder runs in disposable offline containers and its output is compared with direct encoding of the original password. Bash and standard Unix tools are required.
