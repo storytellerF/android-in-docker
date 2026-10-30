@@ -1,6 +1,6 @@
 {
   "id": "nodejs",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "name": "Nodejs",
   "description": "Install Node.js and npm with automatic source selection and optional npm registry configuration.",
   "options": {
@@ -22,7 +22,7 @@
     "registry": {
       "type": "string",
       "default": "",
-      "description": "Override the npm registry. Empty uses Tencent for the China source and leaves the default source unchanged."
+      "description": "Override the npm registry for installation and root/user configuration without nrm. Empty uses Tencent and installs nrm for the China source, and leaves the default source unchanged."
     }
   },
   "containerEnv": {

@@ -28,7 +28,7 @@ jobs:
       - name: Install Dev Container CLI
         run: npm install -g @devcontainers/cli@0.87.0
       - name: Check source selection
-        run: bash tests/test-feature-sources.sh
+        run: python3 tests/test_feature_sources.py
       - name: Stage Features
         id: stage
         shell: bash

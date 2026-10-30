@@ -15,3 +15,5 @@ install -d -m 0755 /opt/temurin-download /opt/temurin-${OPENJDK_VERSION} \
     && wget -O /opt/temurin-download/jdk.tar.gz "https://api.adoptium.net/v3/binary/latest/${OPENJDK_VERSION}/ga/linux/${TEMURIN_ARCH}/jdk/hotspot/normal/eclipse?project=jdk" \
     && tar -xzf /opt/temurin-download/jdk.tar.gz -C /opt/temurin-${OPENJDK_VERSION} --strip-components=1 \
     && rm -rf /opt/temurin-download
+
+printf "%s/bin/javac\n" "/opt/temurin-${OPENJDK_VERSION}" | bash "$(dirname "$0")/record-home.sh"

@@ -24,3 +24,5 @@ set -eux; \
     apt-get install -y --no-install-recommends --no-install-suggests \
     temurin-${OPENJDK_VERSION}-jdk; \
     rm -rf /var/lib/apt/lists/*
+
+dpkg-query -L "temurin-${OPENJDK_VERSION}-jdk" | bash "$(dirname "$0")/record-home.sh"

@@ -9,3 +9,5 @@ rpm --import https://packages.adoptium.net/artifactory/api/gpg/key/public \
 
 dnf install -y temurin-${OPENJDK_VERSION}-jdk \
     && dnf clean all
+
+rpm -ql --noghost "temurin-${OPENJDK_VERSION}-jdk" | bash "$(dirname "$0")/record-home.sh"

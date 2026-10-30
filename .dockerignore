@@ -1,0 +1,9 @@
+.git
+**/.git
+.env
+.env.*
+**/__pycache__
+logs
+data
+.tmp
+validation-logs

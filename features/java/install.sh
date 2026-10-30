@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 FEATURE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "$FEATURE_DIR/source-selection.sh"
+SOURCE_HELPER="$FEATURE_DIR/../_common/source-selection.sh"
+[ -f "$SOURCE_HELPER" ] || SOURCE_HELPER="$FEATURE_DIR/source-selection.sh"
+. "$SOURCE_HELPER"
 resolve_feature_source JAVA_SOURCE
 SYSTEM_ID=$( . /etc/os-release; printf '%s' "$ID")
 case "$SYSTEM_ID" in
@@ -18,10 +20,15 @@ installer="${PROVIDER:-openjdk}-$SYSTEM.sh"
 if [ "${PROVIDER:-openjdk}" = temurin ] && [ "$FEATURE_SELECTED_SOURCE" = china ] && [ -f "$FEATURE_DIR/temurin-china-$SYSTEM.sh" ]; then
     installer="temurin-china-$SYSTEM.sh"
 fi
+# Each distribution adapter installs its package and records the canonical JDK home.
+JDK_HOME_FILE=$(mktemp)
+export JDK_HOME_FILE
+trap 'rm -f "$JDK_HOME_FILE"' EXIT
 bash "$FEATURE_DIR/$installer"
-if [ "$SYSTEM" = arch ] && [ "${PROVIDER:-openjdk}" = temurin ]; then
-    for binary in /opt/temurin-${OPENJDK_VERSION}/bin/*; do ln -sfn "$binary" "/usr/local/bin/$(basename "$binary")"; done
-fi
+java_home=$(cat "$JDK_HOME_FILE")
+[ -n "$java_home" ] && [ -x "$java_home/bin/java" ] && [ -x "$java_home/bin/javac" ] || {
+    echo "Installer did not return a usable JDK home: $installer" >&2
+    exit 1
+}
 mkdir -p /usr/local/java
-java_home=$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")
 ln -sfn "$java_home" /usr/local/java/current

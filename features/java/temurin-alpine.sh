@@ -9,3 +9,5 @@ wget -O /etc/apk/keys/adoptium.rsa.pub https://packages.adoptium.net/artifactory
     && apk update
 
 apk add --no-cache temurin-${OPENJDK_VERSION}-jdk
+
+apk info -L "temurin-${OPENJDK_VERSION}-jdk" | bash "$(dirname "$0")/record-home.sh"

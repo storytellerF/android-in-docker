@@ -1,6 +1,6 @@
 {
   "id": "python",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "name": "Python",
   "description": "Install and configure python for desktop-based development containers.",
   "options": {

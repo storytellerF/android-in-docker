@@ -5,17 +5,21 @@ Each directory contains a `devcontainer-feature.json` and executable `install.sh
 | Feature | Options | Behavior |
 | --- | --- | --- |
 | `java` | `provider`, `version`, `source`, `timezone` | OpenJDK or Temurin; defaults to OpenJDK 21 |
-| `nodejs` | `source`, `timezone`, `registry` | Node.js and npm through NVM; default Debian/Ubuntu/Fedora installs reuse the official installer, China builds preserve the Node mirror, Alpine uses distro packages |
-| `python` | `source`, `timezone`, `indexUrl` | Python 3, pip, and virtual environment support; official installer on Debian/Ubuntu/Fedora, distro packages on Alpine/Arch |
+| `nodejs` | `source`, `timezone`, `registry` | Node.js and npm through NVM; project-maintained NVM installation on Debian/Ubuntu/Fedora/Arch, China Node mirror support, distro packages on Alpine |
+| `python` | `source`, `timezone`, `indexUrl` | Python 3, pip, virtualenv, and pipx from distribution packages |
 | `ssh` | — | OpenSSH, key authentication, startup script, and Supervisor service |
 | `appium` | `version` | Appium server, UiAutomator2 driver, storage/inspector plugins |
 | `kvm` | — | Reuse/create GIDs 992 and 993 and add the selected user |
 
-Features use the Dev Container-provided `_REMOTE_USER` and `_REMOTE_USER_HOME`, derived from `remoteUser`, for user-specific configuration. There is no separate username option or UID-based user guessing. They expect an existing user. SSH service integration targets the desktop-in-docker image, which supplies Supervisor and passwordless sudo for that user. KVM device mapping belongs in Compose, not in the installer. Select the Java and Node.js Features before Appium; the generated configuration includes them and sets their installation order.
+Features use the Dev Container-provided `_REMOTE_USER` and `_REMOTE_USER_HOME`, derived from `remoteUser`, for user-specific configuration. They expect an existing user. SSH service integration targets the desktop-in-docker image, which supplies Supervisor and passwordless sudo for that user. KVM device mapping belongs in the consuming project's runtime configuration. Select the Java and Node.js Features before Appium and set `overrideFeatureInstallOrder` when using local Features.
 
-The build script stages these Features in `build/.devcontainer/features/` and generates `devcontainer.json`. The Appium Feature is self-contained and can be reused with a Node.js Feature; it installs the server as root and the driver/plugins for `_REMOTE_USER`. The image Dockerfiles copy Android scripts/profiles directly from the pinned `android-profile` submodule; no simulator assets are packaged as a Feature. Feature installation runs during image build; SDK and AVD provisioning runs at container startup into persistent volumes.
+This repository's Dockerfile calls the same `install.sh` scripts directly and supplies `_REMOTE_USER` from its `USERNAME` build argument. It declares runtime environment variables explicitly and does not resolve Feature metadata or registry references. The metadata remains available for other Dev Container projects. The Appium installer installs the server as root and the driver/plugins for the selected user. Android scripts/profiles come directly from the pinned `android-profile` submodule; SDK and AVD provisioning runs at container startup into persistent volumes.
 
-For another local Dev Container, copy the selected Feature directories under `.devcontainer/features/` and reference them in `devcontainer.json`:
+For another local Dev Container, stage standalone Features (including their shared helper) into a new directory, then reference the selected Features in `devcontainer.json`:
+
+```sh
+python3 scripts/prepare-feature-release.py --namespace example/android-in-docker --output .devcontainer/features
+```
 
 ```json
 {
@@ -34,22 +38,22 @@ For another local Dev Container, copy the selected Feature directories under `.d
 
 These are local Features, not published registry references. No Feature publishing occurs during image publication.
 
-## Reused upstream installers
+## Project-maintained installers
 
-Node 2.1.1 and Python 1.8.0 installers from [devcontainers/features](https://github.com/devcontainers/features) are bundled, unmodified, under the corresponding `upstream/` directories. Each copy includes its license, metadata, and source revision. The local Feature is the single public entry point and selects its installer internally. There is no generic development-tools Feature.
+The Node and Python installation scripts are maintained in this repository. Node downloads NVM and Node.js; Python uses distribution packages. The same scripts serve direct Docker builds and external Dev Container Features, without bundled copies of the official Dev Container installers.
 
 Compatibility decisions:
 
-- Java retains the existing OpenJDK/Temurin package installation, JDK version option, TUNA Temurin repositories, and Arch architecture selection.
-- Node retains NVM 0.40.3, the current Node release, China mirror selection, npm, shell initialization, and the existing NVM location. Official installers are used only on their supported distributions and for the default source.
-- Python retains pip and virtual environment support. Its source selection switches between PyPI and the TUNA PyPI mirror for installation and persists the selected index in global pip configuration. The official installer uses OS-provided Python and installs `virtualenv`; it also provides pipx.
+- Java retains the existing OpenJDK/Temurin package installation, JDK version option, TUNA Temurin repositories, and Arch architecture selection. The selected JDK home comes from the requested package, so existing JDKs on `PATH` do not override the requested provider/version.
+- Node retains NVM 0.40.3, the current Node release, China mirror selection, npm, shell initialization, and the existing NVM location. The NVM directory belongs to the selected user. If Corepack is already available, its shims are installed beside the NVM Node executable.
+- Python retains pip and virtual environment support. Its source selection switches between PyPI and the TUNA PyPI mirror for pip operations and persists the selected index in global pip configuration. All supported distributions install Python, pip, virtualenv, and pipx through their package manager; no packages are installed into the system Python with pip.
 - Git remains available in every project image through its Dockerfile; it is not a Feature.
-- Desktop VS Code is installed directly by the Debian/Ubuntu and Fedora image Dockerfiles; it is not published as a Feature.
-- Node.js includes npm configuration: China source selection installs `nrm` and configures the Tencent registry for root and the remote user. The `registry` option overrides that registry or enables registry configuration for the default source.
+- Desktop VS Code is installed by the project image prerequisite script on Debian/Ubuntu and Fedora; it is not published as a Feature.
+- Node.js includes npm configuration: the China preset installs `nrm` and configures the Tencent registry for root and the remote user. An explicit `registry` option takes precedence during npm package installation and configuration, skips `nrm`, and does not temporarily switch npm to other registries.
 - SSH retains key-only authentication and Supervisor service management, rather than introducing the official SSH Feature's separate entrypoint.
 - KVM retains GIDs 992/993. The project image retains pinned profile scripts, SDK/AVD paths, and Supervisor-managed emulator startup. The Appium Feature installs the server, driver, and plugins; Appium is started manually rather than by Supervisor.
 
-For an installer update, compare the upstream options and distribution support, preserve the source/license records, then run configuration tests and actual Feature build checks before accepting it.
+For an installer update, run configuration tests and actual installation checks for the affected distributions. See [development validation](../DEVELOPMENT.md#validation).
 
 ## Automatic source selection
 

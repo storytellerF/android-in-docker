@@ -23,6 +23,8 @@ output.mkdir(parents=True)
 for feature in features:
     target = output / feature.name
     shutil.copytree(feature, target)
+    if feature.name in ('java', 'nodejs', 'python'):
+        shutil.copy2(source / '_common/source-selection.sh', target / 'source-selection.sh')
     metadata_path = target / 'devcontainer-feature.json'
     metadata = json.loads(metadata_path.read_text())
     if metadata['id'] != feature.name or not (target / 'install.sh').is_file():

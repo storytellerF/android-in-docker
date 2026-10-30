@@ -7,8 +7,7 @@ Android SDK installation, AVD creation, and emulator startup are provided by the
 ## Requirements
 
 - Docker Engine and Docker Compose v2.
-- Git with submodule support, Bash, and Python 3 on the build host.
-- Node.js and the Dev Container CLI (`npm install -g @devcontainers/cli@0.87.0`).
+- Git with submodule support, Python 3.10+, and Bash on the build host.
 - Docker Buildx and registry access for multi-platform publishing.
 - Internet access for downloading build dependencies.
 
@@ -25,17 +24,17 @@ git submodule update --init --recursive
 Create or update `.env` interactively:
 
 ```sh
-./scripts/build-image.sh -c
+python3 scripts/build-image.py -c
 ```
 
-Set `DOCKER_USERNAME` to your image namespace in `.env`. The build script uses it for both image builds and Compose startup. The supplied Compose file defaults to `storytellerf` when no namespace is set.
+Set `DOCKER_USERNAME` to your image namespace in `.env`. The build script uses it for both image builds and Compose startup. An empty namespace builds and starts local images. Successful builds save the full `IMAGE_REF` in `.env`; Compose consumes that exact reference. Direct Compose use requires `IMAGE_REF` to be set.
 
 Build and start the environment:
 
 ```sh
 mkdir -p data
 touch data/authorized_keys
-./scripts/build-image.sh -b -S
+python3 scripts/build-image.py -b -S
 ```
 
 Add your SSH public key to `data/authorized_keys` before connecting to the environment. Password authentication is disabled.
@@ -62,8 +61,8 @@ The SSH username depends on the base system. Debian uses `debian`, Ubuntu uses `
 Start an existing image without building, or stop the environment:
 
 ```sh
-./scripts/build-image.sh -S
-./scripts/build-image.sh -T
+python3 scripts/build-image.py -S
+python3 scripts/build-image.py -T
 ```
 
 ## Building images
@@ -80,17 +79,19 @@ The Android image references the exact timestamped desktop tag produced earlier 
 
 ```sh
 # Build the image
-./scripts/build-image.sh -b
+python3 scripts/build-image.py -b
 
 # China mirror variant
-./scripts/build-image.sh -b --cn-mirror
+python3 scripts/build-image.py -b --cn-mirror
 
 # Eclipse Temurin instead of OpenJDK
-./scripts/build-image.sh -b --jdk-provider temurin
+python3 scripts/build-image.py -b --jdk-provider temurin
 
 # Select a base system and version
-./scripts/build-image.sh -b -s ubuntu -v noble
-./scripts/build-image.sh -b -s fedora -v 44
+python3 scripts/build-image.py -b -s ubuntu -v noble
+python3 scripts/build-image.py -b -s fedora -v 43
+# Fedora 44 requires Temurin for JDK 21, or a system OpenJDK 25 selection:
+python3 scripts/build-image.py -b -s fedora -v 44 --jdk-provider temurin
 ```
 
 Defaults are Debian `trixie`, Xfce, and OpenJDK 21. Debian, Ubuntu, Fedora, and Alpine builds are subject to the pinned desktop project's supported combinations. Its current X11 build rejects Arch and Ubuntu versions newer than 24.04, including `resolute`. Alpine uses musl; check compatibility before adding tools that require glibc.
@@ -99,7 +100,7 @@ Defaults are Debian `trixie`, Xfce, and OpenJDK 21. Debian, Ubuntu, Fedora, and 
 
 The `external/android-profile` submodule is pinned to commit `2d85cdc`. At container startup, Supervisor runs SDK installation, AVD creation, and emulator startup in that order. SDK setup installs command-line tools, platform-tools, and the emulator; AVD creation downloads the system image selected by the profile. These downloads occur at runtime, not during the Docker build.
 
-`sdk_data` persists `/home/<user>/Android/Sdk`, and `avd_data` persists `/home/<user>/.android/avd`. Both are Compose-managed named volumes. The generated Dev Container configuration includes the same volumes.
+`sdk_data` persists `/home/<user>/Android/Sdk`, and `avd_data` persists `/home/<user>/.android/avd`. Both are Compose-managed named volumes. Projects reusing the Features in a Dev Container configure their own persistence.
 
 The default profile is `/home/<user>/android-profiles/android.profile`. Set `ANDROID_PROFILE` to select another profile, and bind-mount that file into the container. It defines the system-image package prefix, device definition, display, and emulator arguments. The upstream scripts select the image ABI from the container architecture. Emulator output appears in `logs/android_stdout.log` and `logs/android_stderr.log`.
 
@@ -109,7 +110,7 @@ Hardware acceleration requires a usable KVM device and matching access permissio
 
 The `kvm` Feature restores the original user group setup: it reuses or creates groups with GIDs `992` and `993` (`hostkvm1` and `hostkvm2`) and adds the container user to them. Hosts using a different KVM group ID need matching container permissions.
 
-`build-image.sh -S` automatically loads `docker/compose/docker-compose.kvm.yml` to map `/dev/kvm`. The generated Dev Container configuration also maps this device. No `KVM_GID` setting or privileged mode is required. Emulator acceleration settings are controlled by the Android profile.
+`python3 scripts/build-image.py -S` automatically loads `docker/compose/docker-compose.kvm.yml` to map `/dev/kvm`. Projects reusing the Features in a Dev Container must configure their own device mapping. No `KVM_GID` setting or privileged mode is required. Emulator acceleration settings are controlled by the Android profile.
 
 For manual startup:
 
@@ -119,14 +120,14 @@ docker compose --env-file .env \
   -f docker/compose/docker-compose.kvm.yml up -d
 ```
 
-Select your built `IMAGE_TAG` when it differs from the default snapshot tag. For hosts without `/dev/kvm`, use only the base Compose file and configure software acceleration in your profile.
+Set `IMAGE_REF` to the complete built image reference (repository and tag), for example `android-in-docker:debian-trixie-xfce-openjdk21-snapshot`. For hosts without `/dev/kvm`, use only the base Compose file and configure software acceleration in your profile.
 
 ## Publishing
 
 Set `DOCKER_USERNAME` in `.env` to your registry namespace and authenticate with `docker login`, then run:
 
 ```sh
-./scripts/build-image.sh -P -m --latest
+python3 scripts/build-image.py -P -m --latest
 ```
 
 Publishing builds and pushes `linux/amd64` and `linux/arm64` images. Desktop dependencies are published before Android images, using the same namespace and timestamp. The `-m` flag does not make an ordinary `-b` build multi-platform.
@@ -188,6 +189,7 @@ Enable Bash completion:
 
 ```sh
 source scripts/completion.bash
+android-build --help
 ```
 
 ## Compose and development containers
@@ -207,7 +209,7 @@ docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-com
 docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-compose.kvm.yml exec android supervisorctl status
 ```
 
-When using non-default image tags, namespaces, or home directories, retain the `IMAGE_TAG`, `DOCKER_USERNAME`, and `CONTAINER_HOME` values selected by the build script.
+When using non-default image tags, namespaces, or home directories, retain the `IMAGE_REF` and `CONTAINER_HOME` values saved by the build script. `IMAGE_TAG` is no longer used by Compose.
 
 Open a local VNC client with automatic port detection:
 
@@ -215,67 +217,33 @@ Open a local VNC client with automatic port detection:
 ./scripts/open-vnc.sh
 ```
 
-Validate the build orchestration using a fake Docker executable, without building images or starting containers:
-
-```sh
-./tests/verify-fake-docker.sh
-```
-
-These checks cover supported build combinations, image dependency order, publishing, and Compose commands. They do not verify that a real image builds or runs successfully.
-
 ## Repository layout
 
 | Path | Purpose |
 | --- | --- |
-| `scripts/build-image.sh` | Build, publish, start, and stop entry point |
+| `scripts/build-image.py` | Build, publish, start, and stop entry point |
 | `scripts/add-ssh-key.sh` | Add a public key to Dev Container authorized keys |
 | `scripts/open-vnc.sh` | Detect the VNC port and launch a local client |
-| `base-scripts/` | Appium installation/startup and the SDK/AVD/emulator startup sequence |
-| `docker/dockerfiles/default/` | Unified image Dockerfile templates |
+| `base-scripts/` | Appium startup and the SDK/AVD/emulator startup sequence |
+| `docker/Dockerfile` | Image build with direct tool installer calls |
 | `features/` | Reusable Features for Java, Node.js, Python, SSH, KVM, and Appium |
 | `docker/compose/` | Unified Compose configuration |
 | `docker/config/supervisor/` | Container service configuration |
 | `docker/config/appium/` | Example Appium capabilities |
 | `external/desktop-in-docker/` | Pinned upstream desktop source submodule |
 | `external/android-profile/` | Pinned SDK installation, AVD creation, startup scripts, and profiles |
-| `tests/verify-fake-docker.sh` | Build orchestration smoke tests |
-| `tests/smoke-features.sh` | Real tool/virtual environment/KVM Feature build test |
-| `tests/test-android-startup.sh` | SDK/AVD/emulator startup order and failure handling |
+| `tests/test_build_orchestration.py` | Build orchestration tests with fake Docker |
+| `tests/smoke_features.py` | Real tool/virtual environment/KVM installer tests |
+| `tests/test_android_startup.py` | SDK/AVD/emulator startup order and failure handling |
 
 ## Dev Container Features
 
-Reusable tool installation is implemented as local Dev Container Features in `features/`, each with `devcontainer-feature.json` and `install.sh`. There is no Dockerfile fragment injection. Every Feature installs the packages it requires. Source selection happens inside the Feature: Java, Node.js, and Python default to automatic source selection from build environment variables and timezone, with explicit `source` overrides. Python switches pip between PyPI and the TUNA mirror. Existing official Node.js and Python installers are reused where compatible, with their version and source revision recorded under each Feature’s `upstream/` directory.
+Tool installers live in `features/`, alongside `devcontainer-feature.json` metadata for reuse in other Dev Containers. This repository calls the installation scripts directly during Docker builds. Source selection happens inside each installer: Java, Node.js, and Python support automatic source selection from environment variables and timezone, with explicit source overrides. Python switches pip between PyPI and the TUNA mirror. Node.js uses project-maintained scripts to install NVM and Node; Python, pip, virtualenv, and pipx come from distribution packages. No bundled Dev Container installer is required.
 
-Java, Node.js (including npm registry configuration), Python, SSH, KVM permissions, and Appium are installed in the generated configuration's explicit order. VS Code is installed directly by the Debian/Ubuntu and Fedora image Dockerfiles; Android provisioning uses the pinned submodule. Ubuntu shares Debian installers. See [the Features reference](features/README.md) for options and reuse instructions.
+Java, Node.js (including npm registry configuration), Python, SSH, KVM permissions, and Appium are installed in that order by `docker/Dockerfile`. Debian/Ubuntu and Fedora images also install VS Code. Android provisioning uses the pinned submodule. See [the Features reference](features/README.md) for options and reuse instructions.
 
-The build script first builds the pinned desktop source. It then stages Features and generates `build/.devcontainer/devcontainer.json`, based on the minimal templates in `docker/dockerfiles/default/`. The Dev Container CLI builds the final image with the existing timestamp, snapshot, latest, and short tags. Publishing uses `--platform linux/amd64,linux/arm64 --push`.
+The build script first builds the pinned desktop source, then runs `docker build` for the final image with the timestamp, snapshot, latest, and short tags. Image publishing uses `docker buildx build --platform linux/amd64,linux/arm64 --push`. Building this repository requires Python 3.10+ and Bash on the host; Node.js and the Dev Container CLI are not required.
 
-Install the CLI on the build host:
+The Dockerfile copies SDK/AVD scripts and profiles directly from the pinned `external/android-profile` submodule, together with project startup scripts and Supervisor configuration. Appium includes UiAutomator2 and the storage/inspector plugins. SDK/AVD provisioning, persisted data, KVM device mapping, and Compose startup retain their existing behavior.
 
-```sh
-npm install -g @devcontainers/cli@0.87.0
-```
-
-The host also needs Python 3, Docker, and Buildx for multi-platform publication. Set `DEVCONTAINER_CLI` to use an alternate CLI executable. The generated configuration can be built directly after the desktop dependency exists:
-
-```sh
-devcontainer build --workspace-folder "$PWD/build" \
-  --config "$PWD/build/.devcontainer/devcontainer.json" \
-  --image-name android-in-docker:local --no-lockfile
-```
-
-The image templates copy SDK/AVD scripts and profiles directly from the pinned `external/android-profile` submodule, together with project startup scripts and Supervisor configuration. Appium installation runs after Node.js through the reusable `features/appium/` Feature, including UiAutomator2 and the storage/inspector plugins. The image template declares runtime SDK paths and ports. SDK/AVD provisioning, persisted data, KVM device mapping, and Compose startup retain their existing behavior.
-
-Validation commands:
-
-```sh
-bash tests/verify-fake-docker.sh
-bash tests/test-android-startup.sh
-bash tests/test-feature-sources.sh
-# Requires Docker and the Dev Container CLI; downloads tool packages.
-bash tests/smoke-features.sh
-# Exercise Python package installation using TUNA.
-PYTHON_CHINA_MIRROR=true bash tests/smoke-features.sh
-```
-
-The smoke build checks Git, JDK 21, Node/npm/NVM, Python/pip/virtualenv, and KVM group reuse as the non-root user. It does not boot an Android emulator or validate the full desktop image.
+Contributor validation instructions are in [DEVELOPMENT.md](DEVELOPMENT.md).

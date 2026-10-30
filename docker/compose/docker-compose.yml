@@ -1,6 +1,6 @@
 services:
   android:
-    image: ${DOCKER_USERNAME:-storytellerf}/android-in-docker:${IMAGE_TAG:-debian-trixie-xfce-openjdk21-snapshot}
+    image: ${IMAGE_REF:?Set IMAGE_REF or use python3 scripts/build-image.py}
     ports:
     - '6080'
     - '5901'
@@ -8,10 +8,13 @@ services:
     - '22'
     - '5555'
     environment:
-    - VNC_GEOMETRY=1920x1080
-    - VNC_DEPTH=24
+      VNC_GEOMETRY: 1920x1080
+      VNC_DEPTH: "24"
+      VNC_PASSWD: ${VNC_PASSWD:-password}
+      TZ: ${TZ:-UTC}
     env_file:
-    - ../../.env
+    - path: ${ANDROID_ENV_FILE:-../../.env}
+      required: false
     volumes:
     - ../../logs:${CONTAINER_HOME:-/home/debian}/log/supervisor
     - ../../data/authorized_keys:${CONTAINER_HOME:-/home/debian}/.ssh/authorized_keys

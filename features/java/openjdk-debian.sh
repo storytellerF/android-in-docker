@@ -7,3 +7,5 @@ apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
     openjdk-${OPENJDK_VERSION}-jdk \
     && rm -rf /var/lib/apt/lists/*
+
+dpkg-query -L "openjdk-${OPENJDK_VERSION}-jdk-headless" | bash "$(dirname "$0")/record-home.sh"
