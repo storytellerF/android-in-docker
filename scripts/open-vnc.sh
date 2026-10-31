@@ -1,4 +1,5 @@
 #!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 launch_quietly() {
     if command -v setsid &> /dev/null; then
@@ -60,10 +61,8 @@ fi
 
 VNC_PASSWD="password"
 if [ -n "$ENV_FILE" ]; then
-    # Extracts VNC_PASSWD or VNC_PASSWORD from env file
-    VNC_PASSWD_FROM_ENV=$(grep -E "^VNC_PASS(WD|WORD)=" "$ENV_FILE" | cut -d= -f2- | tr -d '"' | tr -d "'")
-    if [ -n "$VNC_PASSWD_FROM_ENV" ]; then
-        VNC_PASSWD="$VNC_PASSWD_FROM_ENV"
+    if ! VNC_PASSWD=$(python3 "$SCRIPT_DIR/read-vnc-password.py" "$ENV_FILE"); then
+        exit 1
     fi
 fi
 
@@ -81,10 +80,10 @@ mkdir -p "$(dirname "$PASSWD_FILE")"
 echo "Creating password file at $PASSWD_FILE..."
 # vncpasswd -f generates the obfuscated password file.
 if command -v vncpasswd &> /dev/null; then
-    echo "$VNC_PASSWD" | vncpasswd -f > "$PASSWD_FILE"
+    printf '%s\n' "$VNC_PASSWD" | vncpasswd -f > "$PASSWD_FILE"
     chmod 600 "$PASSWD_FILE"
 else
-    echo "$VNC_PASSWD" > "$PASSWD_FILE"
+    printf '%s\n' "$VNC_PASSWD" > "$PASSWD_FILE"
     chmod 600 "$PASSWD_FILE"
     echo "Warning: vncpasswd not found. Saving as plain text password file."
 fi

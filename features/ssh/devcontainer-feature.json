@@ -1,0 +1,7 @@
+{
+  "id": "ssh",
+  "version": "1.0.0",
+  "name": "Ssh",
+  "description": "Install and configure ssh for desktop-based development containers.",
+  "options": {}
+}

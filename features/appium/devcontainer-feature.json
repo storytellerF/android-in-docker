@@ -1,0 +1,18 @@
+{
+  "id": "appium",
+  "version": "1.0.0",
+  "name": "Appium",
+  "description": "Install Appium with the UiAutomator2 driver and storage/inspector plugins for the Dev Container remote user.",
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "3.3.0",
+      "description": "Appium npm package version."
+    }
+  },
+  "installsAfter": [
+    "ghcr.io/storytellerf/android-in-docker/java",
+    "ghcr.io/storytellerf/android-in-docker/nodejs",
+    "ghcr.io/devcontainers/features/node"
+  ]
+}

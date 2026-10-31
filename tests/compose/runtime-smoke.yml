@@ -1,0 +1,6 @@
+services:
+  android:
+    volumes:
+      - ${TEST_RUNTIME_DIR}/logs:${CONTAINER_HOME}/log/supervisor
+      - ${TEST_RUNTIME_DIR}/authorized_keys:${CONTAINER_HOME}/.ssh/authorized_keys:ro
+      - ../../tests/fixtures/android-disabled.supervisord.conf:${CONTAINER_HOME}/supervisor/conf.d/android.supervisord.conf:ro

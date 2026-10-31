@@ -4,3 +4,4 @@ avd
 data
 download
 build
+__pycache__/
