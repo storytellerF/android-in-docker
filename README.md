@@ -4,8 +4,6 @@
 
 Android SDK 安装、AVD 创建和模拟器启动由固定版本的 `android-profile` 子模块提供。不包含 Android Studio 安装和 Docker-in-Docker。
 
-<a id="requirements"></a>
-
 ## 环境要求
 
 - Docker Engine 和 Docker Compose v2。
@@ -14,8 +12,6 @@ Android SDK 安装、AVD 创建和模拟器启动由固定版本的 `android-pro
 - 能访问互联网以下载构建依赖。
 
 构建脚本启动容器时映射 `/dev/kvm`，不需要特权模式。
-
-<a id="quick-start"></a>
 
 ## 快速开始
 
@@ -69,8 +65,6 @@ python3 scripts/build-image.py -S
 python3 scripts/build-image.py -T
 ```
 
-<a id="building-images"></a>
-
 ## 构建镜像
 
 构建顺序为：
@@ -102,8 +96,6 @@ python3 scripts/build-image.py -b -s fedora -v 44 --jdk-provider temurin
 
 默认使用 Debian `trixie`、Xfce 和 OpenJDK 21。Debian、Ubuntu、Fedora 和 Alpine 构建受固定版本桌面项目支持组合的约束。其当前 X11 构建拒绝 Arch 和高于 24.04 的 Ubuntu 版本，包括 `resolute`。Alpine 使用 musl，添加要求 glibc 的工具前先检查兼容性。
 
-<a id="android-sdk-and-emulator"></a>
-
 ## Android SDK 与模拟器
 
 `external/android-profile` 子模块固定到提交 `2d85cdc`。容器启动时，Supervisor 依次安装 SDK、创建 AVD 并启动模拟器。SDK 配置安装命令行工具、platform-tools 和 emulator；AVD 创建下载 profile 选定的系统镜像。这些下载在运行时进行，而非 Docker 构建期间。
@@ -113,8 +105,6 @@ python3 scripts/build-image.py -b -s fedora -v 44 --jdk-provider temurin
 默认 profile 为 `/home/<user>/android-profiles/android.profile`。可设置 `ANDROID_PROFILE` 选择其他 profile，并将文件绑定挂载到容器。它定义系统镜像包前缀、设备定义、显示和模拟器参数。上游脚本按容器架构选择镜像 ABI。模拟器输出位于 `logs/android_stdout.log` 和 `logs/android_stderr.log`。
 
 硬件加速需要可用的 KVM 设备和相应访问权限。Android Linux 模拟器要求 glibc，因此 Alpine 不受支持。安装 SDK 工具不等于已经验证每种架构和 profile 都能成功启动。
-
-<a id="kvm-acceleration"></a>
 
 ### KVM 加速
 
@@ -132,8 +122,6 @@ docker compose --env-file .env \
 
 将 `IMAGE_REF` 设置为完整构建镜像引用（仓库及标签），例如 `android-in-docker:debian-trixie-xfce-openjdk21-snapshot`。宿主没有 `/dev/kvm` 时，只使用基础 Compose 文件，并在 profile 中配置软件加速。
 
-<a id="publishing"></a>
-
 ## 发布
 
 在 `.env` 中将 `DOCKER_USERNAME` 设置为镜像仓库命名空间，使用 `docker login` 认证，然后运行：
@@ -143,8 +131,6 @@ python3 scripts/build-image.py -P -m --latest
 ```
 
 发布会构建并推送 `linux/amd64` 和 `linux/arm64` 镜像。桌面依赖先于 Android 镜像发布，使用相同命名空间和时间戳。`-m` 不会让普通 `-b` 构建变成多平台构建。
-
-<a id="configuration-and-tags"></a>
 
 ## 配置与标签
 
@@ -173,8 +159,6 @@ Android 镜像标签格式：
 - `debian-trixie-xfce-temurin21-snapshot`
 
 每次构建都生成时间戳标签。默认启用 `snapshot` 别名；`--latest` 添加 `latest` 别名，`--no-snapshot` 禁用 snapshot 别名。短别名还可省略默认字段，例如 `snapshot`、`cn-snapshot` 和 `temurin21-snapshot`。
-
-<a id="command-line-options"></a>
 
 ## 命令行选项
 
@@ -208,15 +192,11 @@ source scripts/completion.bash
 android-build --help
 ```
 
-<a id="compose-and-development-containers"></a>
-
 ## Compose 与开发容器
 
 `docker/compose/docker-compose.yml` 定义所有服务和端口、SSH 授权密钥、日志、SDK/AVD 存储、shell 历史和开发缓存。默认启用全部功能。镜像标签不再包含 `-dev` 后缀，也不再接受 `-D` / `--dev`。
 
 用于其他项目时，直接配置其 Dev Container，并选择 [Features 参考](features/README.md) 中介绍的可复用 Features。
-
-<a id="logs-and-diagnostics"></a>
 
 ## 日志与诊断
 
@@ -236,8 +216,6 @@ docker compose -f docker/compose/docker-compose.yml -f docker/compose/docker-com
 ```sh
 ./scripts/open-vnc.sh
 ```
-
-<a id="repository-layout"></a>
 
 ## 仓库布局
 

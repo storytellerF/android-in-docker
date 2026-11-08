@@ -1,5 +1,3 @@
-<a id="local-dev-container-features"></a>
-
 # 本地 Dev Container Features
 
 每个目录包含 `devcontainer-feature.json` 和可执行的 `install.sh`。安装器检测 Debian/Ubuntu、Fedora、Arch 或 Alpine，并安装各自前提依赖。Android 模拟器执行要求 glibc；Alpine 能安装工具，但不能运行 Linux 模拟器。
@@ -40,8 +38,6 @@ python3 scripts/prepare-feature-release.py --namespace example/android-in-docker
 
 这些是本地 Features，不是已发布的 registry 引用。镜像发布不会同时发布 Feature。
 
-<a id="project-maintained-installers"></a>
-
 ## 项目维护的安装器
 
 Node 和 Python 安装脚本在本仓库维护。Node 下载 NVM 和 Node.js，Python 使用发行版包。同一套脚本服务于直接 Docker 构建和外部 Dev Container Features，没有内置官方 Dev Container 安装器副本。
@@ -57,9 +53,7 @@ Node 和 Python 安装脚本在本仓库维护。Node 下载 NVM 和 Node.js，P
 - SSH 保留仅密钥认证和 Supervisor 服务管理，不引入官方 SSH Feature 的独立入口。
 - KVM 保留 GID 992/993。项目镜像保留固定版本 profile 脚本、SDK/AVD 路径和 Supervisor 管理的模拟器启动。Appium Feature 安装服务器、驱动和插件；Appium 手动启动，不由 Supervisor 启动。
 
-更新安装器后，运行受影响发行版的配置测试和真实安装检查，见[开发验证](../DEVELOPMENT.md#validation)。
-
-<a id="automatic-source-selection"></a>
+更新安装器后，运行受影响发行版的配置测试和真实安装检查，见[开发验证](../DEVELOPMENT.md#验证)。
 
 ## 自动来源选择
 
@@ -92,8 +86,6 @@ Feature 安装器在镜像构建时运行，宿主变量及 `containerEnv`/`remo
 Python 使用 PyPI（`https://pypi.org/simple`）或 TUNA（`https://pypi.tuna.tsinghua.edu.cn/simple`）。非空 `indexUrl` 覆盖预设；构建环境 `PYTHON_INDEX_URL` 或 `PIP_INDEX_URL` 也可指定 index。选定 HTTPS index 在安装期间使用，并保存到 `/etc/pip.conf` 供用户和虚拟环境使用。TLS 验证保持启用。
 
 现有构建脚本将解析后的来源显式传给各 Feature，保留 `--cn-mirror` 和 `--no-cn-mirror` 行为。
-
-<a id="publish-to-ghcr"></a>
 
 ## 发布到 GHCR
 

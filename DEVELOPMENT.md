@@ -1,8 +1,4 @@
-<a id="development"></a>
-
 # 开发
-
-<a id="build-architecture"></a>
 
 ## 构建架构
 
@@ -19,8 +15,6 @@ Python 入口将 CLI、环境和字面量 `.env` 值解析为不可变 `BuildCon
 各发行版 Java 适配器管理包名、包查询和选定 JDK 路径。通过 `JDK_HOME_FILE` 记录权威 home，共享入口只验证并启用。RPM 适配器使用 `--noghost` 查询，`record-home.sh` 排除全局 alternatives 链接。
 
 `features/_common/source-selection.sh` 是唯一维护的来源选择实现。仓库构建直接读取它；Feature 发布暂存时复制到每个可独立安装的 Feature 中。SSH 启动和 Supervisor 配置只位于 `features/ssh/`。
-
-<a id="validation"></a>
 
 ## 验证
 
@@ -47,8 +41,6 @@ NODEJS_CHINA_MIRROR=true PYTHON_CHINA_MIRROR=true python3 tests/smoke_features.p
 
 冒烟测试以非 root 用户检查 Git、JDK 21、Node/npm/NVM、Python/pip/virtualenv、离线 pipx 应用安装、虚拟环境创建和 KVM 组复用，不启动 Android 模拟器，也不验证完整桌面镜像。
 
-<a id="nodejs-corepack-regression-test"></a>
-
 ## Node.js Corepack 回归测试
 
 安装 Docker 和 Python 3 后运行：
@@ -60,8 +52,6 @@ python3 tests/test_nodejs_system_corepack.py
 测试先在 Debian 安装发行版提供的 Corepack，再为非 root 用户调用 Node.js 安装器。它验证安装器提供 Node 所需运行库，且系统 Corepack 无需 `/usr/bin` 写权限，就能在 NVM Node 可执行文件旁创建可执行 Yarn 和 pnpm shim。测试下载 Node.js，结束后删除临时镜像。
 
 Node 安装实现在 `features/nodejs/install-nvm.sh`。它以选定用户安装 NVM 和 Node，包含平台运行库，并在选定 Node 可执行文件旁启用已有 Corepack。修改后运行此回归测试和 `python3 tests/smoke_features.py`。
-
-<a id="installer-selection-regression-tests"></a>
 
 ## 安装器选择回归测试
 
@@ -79,13 +69,9 @@ npm 测试构建含 npm 和 sudo 的镜像，再禁用容器网络，分别为 r
 
 每项回归独立报告，即使失败也清理 Docker 镜像和容器。`tests/fake-bin/docker` 是 Python 命令记录器，其 JSON-lines 日志保留参数边界，包括带空格的路径。`tests/fixtures/android_step.py` 模拟 SDK/AVD 命令，不启动设备。
 
-<a id="feature-publication"></a>
-
 ## Feature 发布
 
 Feature 打包和 GHCR 发布与镜像构建相互独立。发布 workflow 安装 Dev Container CLI 0.87.0，并通过 `scripts/prepare-feature-release.py` 为目标命名空间暂存元数据。该发布 workflow 额外需要 Node.js。普通镜像构建和安装测试只使用 Python 3 和 Docker，不需要 Dev Container CLI。
-
-<a id="production-image-and-compose-integration"></a>
 
 ## 正式镜像与 Compose 集成
 
@@ -108,8 +94,6 @@ ANDROID_TEST_RUNTIME_IMAGE=android-in-docker:<verified-debian-tag> python3 tests
 ```
 
 此检查将已有镜像与已停用的 Fedora 44/OpenJDK 21 配方元数据一起记录，再通过真实 Python 入口启动和停止。它保留镜像记录的用户和 home，检查精确选定镜像及字面量密码，只在测试镜像中禁用 Android 启动，并清理隔离的 Compose 项目、临时绑定源和镜像标签。已有日志或密钥路径时会拒绝替换。
-
-<a id="vnc-client-configuration-regression"></a>
 
 ## VNC 客户端配置回归
 
